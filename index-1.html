@@ -1,0 +1,571 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#1E2433">
+<title>משמרות</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700&family=Secular+One&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#1E2433; --paper:#F5F6F8; --card:#fff; --line:#DCE0E8; --muted:#5F6878;
+  --morning:#E9A23B; --evening:#D6577A; --night:#34478F;
+  --warn:#B4400E; --ok:#17855B;
+  font-family:'Rubik',system-ui,sans-serif; color:var(--ink); background:var(--paper);
+}
+*{box-sizing:border-box}
+body{margin:0;line-height:1.5}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+.wrap{max-width:760px;margin:0 auto;padding:12px 16px 110px}
+
+/* header */
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 0 14px}
+.brand{display:flex;align-items:center;gap:10px;margin:0;font-family:'Secular One',sans-serif;font-weight:400;font-size:1.7rem}
+.bars{display:flex;gap:3px;align-items:flex-end;height:22px}
+.bars i{display:block;width:6px;border-radius:2px}
+.bars i:nth-child(1){height:12px;background:var(--morning)}
+.bars i:nth-child(2){height:17px;background:var(--evening)}
+.bars i:nth-child(3){height:22px;background:var(--night)}
+.who{display:flex;align-items:center;gap:8px;font-size:.9rem;color:var(--muted)}
+.link{border:0;background:none;text-decoration:underline;padding:4px;color:var(--ink)}
+
+.demo{background:#FFF7E6;border:1px solid #F3D9A4;border-radius:10px;padding:8px 12px;font-size:.88rem;margin-bottom:12px}
+
+/* tabs + week */
+.tabs{display:flex;gap:4px;background:#E6E9EF;border-radius:10px;padding:4px}
+.tabs button{flex:1;border:0;background:transparent;padding:9px 6px;border-radius:7px;font-weight:500}
+.tabs button[aria-current="page"]{background:#fff;box-shadow:0 1px 2px rgba(30,36,51,.14)}
+.weeknav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:18px 0 6px}
+.weeknav h2{font-family:'Secular One',sans-serif;font-weight:400;font-size:1.3rem;margin:0;text-align:center}
+.weeknav small{display:block;font-family:'Rubik';font-size:.8rem;color:var(--muted)}
+.iconbtn{border:1px solid var(--line);background:#fff;border-radius:8px;width:42px;height:42px;font-size:1.25rem;line-height:1}
+
+.hint{color:var(--muted);margin:4px 0 10px;font-size:.92rem}
+.notice{background:#EEF1F6;border-radius:10px;padding:10px 12px;margin:8px 0}
+.notice.warn{background:#FDEDE4;color:var(--warn)}
+.empty{text-align:center;color:var(--muted);padding:40px 12px}
+.loading{text-align:center;color:var(--muted);padding:60px 0}
+
+/* legend */
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:.82rem;color:var(--muted);margin:0 0 6px}
+.legend span{display:flex;align-items:center;gap:6px}
+.sw{width:16px;height:16px;border-radius:4px;display:inline-block;--c:var(--ink)}
+
+/* day grid */
+.day{display:grid;grid-template-columns:62px repeat(3,1fr);gap:6px;padding:7px 0;border-bottom:1px solid var(--line)}
+.day:last-child{border-bottom:0}
+.dlabel{display:flex;flex-direction:column;justify-content:center}
+.dlabel b{font-weight:700}
+.dlabel span{color:var(--muted);font-size:.82rem}
+
+.chip{border-radius:10px;border:1.5px dashed #C5CBD6;background:#fff;padding:7px 4px;min-height:58px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
+  transition:transform .08s ease}
+.chip:active:not(:disabled){transform:scale(.96)}
+.chip .sn{font-weight:700;font-size:.9rem}
+.chip .st{font-size:.76rem}
+.chip.unset .st{color:var(--muted)}
+.chip.yes{background:var(--c);border:1.5px solid var(--c);color:var(--on)}
+.chip.maybe{border:2px solid var(--c);
+  background:repeating-linear-gradient(-45deg,color-mix(in srgb,var(--c) 22%,#fff) 0 6px,#fff 6px 12px)}
+.chip.no{background:#E9ECF1;border:1.5px solid #E9ECF1;color:var(--muted)}
+.chip.no .sn{text-decoration:line-through}
+.chip:disabled{cursor:default}
+
+/* manager slots */
+.slot{border-radius:10px;border:1.5px solid var(--line);border-top:5px solid var(--c);background:#fff;
+  padding:6px;min-height:72px;text-align:right;display:flex;flex-direction:column;gap:2px}
+.slot .sn{display:flex;justify-content:space-between;font-weight:700;font-size:.85rem}
+.slot em{font-style:normal;font-weight:500}
+.slot.short em{color:var(--warn)}
+.slot.short{background:#FFF8F4}
+.slot .names{font-size:.8rem;line-height:1.35;color:var(--ink)}
+.slot .names.none{color:var(--muted)}
+
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 10px}
+.btn{border:1.5px solid var(--ink);background:#fff;border-radius:9px;padding:9px 14px;font-weight:500}
+.btn.primary{background:var(--ink);color:#fff}
+.btn:disabled{opacity:.5;cursor:default}
+.status{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:.88rem;margin:4px 0 8px}
+.pill{border-radius:99px;padding:2px 10px;background:#E6E9EF}
+.pill.ok{background:#DDF3E8;color:var(--ok)}
+.pill.warn{background:#FDEDE4;color:var(--warn)}
+
+/* note + save bar */
+label.field{display:block;margin-top:14px;font-weight:500}
+textarea,input[type=email],input[type=password],input[type=text]{
+  width:100%;margin-top:6px;border:1.5px solid var(--line);border-radius:9px;padding:10px;background:#fff}
+textarea{min-height:70px;resize:vertical}
+.savebar{position:fixed;inset-inline:0;bottom:0;background:rgba(245,246,248,.94);backdrop-filter:blur(6px);
+  border-top:1px solid var(--line);padding:10px 16px calc(10px + env(safe-area-inset-bottom))}
+.savebar .in{max-width:760px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.savebar span{font-size:.88rem;color:var(--muted)}
+.savebar span.dirty{color:var(--warn)}
+
+/* lists */
+.list{list-style:none;margin:0;padding:0}
+.list li{display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
+.list li:last-child{border-bottom:0}
+.list .sub{color:var(--muted);font-size:.85rem}
+.myshift{display:flex;align-items:center;gap:10px}
+.dot{width:12px;height:12px;border-radius:50%;background:var(--c);flex:none}
+h3{font-family:'Secular One',sans-serif;font-weight:400;font-size:1.1rem;margin:22px 0 6px}
+
+/* login */
+.login{max-width:380px;margin:8vh auto 0}
+.login h1{font-family:'Secular One',sans-serif;font-weight:400;font-size:2.4rem;margin:0 0 4px;display:flex;align-items:center;gap:12px}
+.login .bars{height:30px}
+.login .bars i{width:8px}
+.login .bars i:nth-child(1){height:16px}.login .bars i:nth-child(2){height:23px}.login .bars i:nth-child(3){height:30px}
+.login p{color:var(--muted);margin-top:0}
+.userpick{display:grid;gap:8px;margin-top:16px}
+.userpick button{text-align:right;border:1.5px solid var(--line);background:#fff;border-radius:10px;padding:12px;display:flex;justify-content:space-between}
+.userpick button span{color:var(--muted);font-size:.85rem}
+
+/* sheet */
+dialog{border:0;border-radius:14px;padding:0;width:min(480px,calc(100% - 20px));max-height:85vh}
+dialog::backdrop{background:rgba(30,36,51,.45)}
+.sheet{padding:16px 18px 18px}
+.sheet header{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;border-top:6px solid var(--c);margin:-16px -18px 10px;padding:14px 18px 0}
+.sheet h2{font-family:'Secular One',sans-serif;font-weight:400;font-size:1.25rem;margin:0}
+.sheet h4{margin:14px 0 4px;font-size:.85rem;color:var(--muted);font-weight:500}
+.opt{display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid #EEF0F3}
+.opt input{width:20px;height:20px;accent-color:var(--ink)}
+.opt .sub{color:var(--muted);font-size:.8rem;margin-inline-start:auto}
+
+#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--ink);color:#fff;
+  padding:10px 16px;border-radius:10px;font-size:.92rem;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90vw;z-index:10}
+#toast.show{opacity:1}
+
+@media (max-width:380px){ .day{grid-template-columns:50px repeat(3,1fr)} .chip .st{font-size:.7rem} }
+@media (prefers-reduced-motion:reduce){ *{transition:none!important} }
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<dialog id="sheet"></dialog>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script type="module">
+/* =========================================================
+   הגדרות: מדביקים כאן את פרטי הפרויקט מ-Firebase Console
+   (Project settings > Your apps > Web app > Config).
+   כל עוד apiKey ריק האפליקציה רצה במצב הדגמה.
+   ========================================================= */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCoNfZ33l3LxFApgRq0sTQt3gU-YDMlYRM",
+  authDomain: "mishmarot-83976.firebaseapp.com",
+  projectId: "mishmarot-83976",
+  storageBucket: "mishmarot-83976.firebasestorage.app",
+  messagingSenderId: "802595753105",
+  appId: "1:802595753105:web:87a979f151f647cb6f0330"
+};
+
+const SHIFTS = [
+  { id:'morning', name:'בוקר', hours:'07:00–15:00', need:2, color:'var(--morning)', on:'#1E2433' },
+  { id:'evening', name:'ערב',  hours:'15:00–23:00', need:2, color:'var(--evening)', on:'#fff' },
+  { id:'night',   name:'לילה', hours:'23:00–07:00', need:1, color:'var(--night)',   on:'#fff' },
+];
+const DAYS = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+const LABEL = { yes:'יכול', maybe:'מעדיף שלא', no:'לא יכול', unset:'לא סומן' };
+const CYCLE = { unset:'yes', yes:'maybe', maybe:'no', no:'unset' };
+
+/* ---------- utils ---------- */
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const addDays = (d,n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
+const sundayOf = d => { const x = new Date(d); x.setHours(0,0,0,0); x.setDate(x.getDate()-x.getDay()); return x; };
+const weekId = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const fmt = d => `${d.getDate()}.${d.getMonth()+1}`;
+const K = (d,sid) => `${d}_${sid}`;
+const ALL_KEYS = DAYS.flatMap((_,d) => SHIFTS.map(s => K(d,s.id)));
+
+let toastT;
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2600); }
+function errMsg(e){
+  const c = e?.code || '';
+  if (c.includes('invalid-credential') || c.includes('wrong-password') || c.includes('user-not-found')) return 'האימייל או הסיסמה שגויים';
+  if (c.includes('email-already-in-use')) return 'כבר קיים משתמש עם האימייל הזה';
+  if (c.includes('weak-password')) return 'הסיסמה צריכה לכלול לפחות 6 תווים';
+  if (c.includes('invalid-email')) return 'כתובת האימייל לא תקינה';
+  if (c.includes('permission-denied')) return 'אין הרשאה לפעולה הזו';
+  return e?.message || 'משהו השתבש, נסה שוב';
+}
+
+/* ---------- backend: demo (בזיכרון בלבד) ---------- */
+function demoBackend(){
+  const users = {
+    m1:{ name:'דנה', role:'manager' },
+    e1:{ name:'יוסי', role:'employee' }, e2:{ name:'מיכל', role:'employee' },
+    e3:{ name:'אבי', role:'employee' },  e4:{ name:'נועה', role:'employee' },
+    e5:{ name:'רון', role:'employee' },  e6:{ name:'שירה', role:'employee' },
+  };
+  const weeks = {}, subs = {};
+  let seed = 7; const rnd = () => (seed = (seed*16807) % 2147483647) / 2147483647;
+  const next = weekId(addDays(sundayOf(new Date()),7));
+  subs[next] = {};
+  ['e2','e3','e4','e5'].forEach(uid => {
+    const avail = {};
+    ALL_KEYS.forEach(k => { const r=rnd(); if (r<.55) avail[k]='yes'; else if (r<.68) avail[k]='maybe'; else if (r<.9) avail[k]='no'; });
+    subs[next][uid] = { avail, note: uid==='e3' ? 'בחמישי יש לי מבחן' : '', updatedAt: Date.now() };
+  });
+  let current = null; const ls = [];
+  const emit = () => ls.forEach(f => f(current));
+  return {
+    demo:true, users,
+    onAuth(cb){ ls.push(cb); cb(current); },
+    async signIn(uid){ current = { uid }; emit(); },
+    async signOut(){ current = null; emit(); },
+    async getProfile(uid){ return users[uid] || null; },
+    async listUsers(){ return Object.entries(users).map(([uid,u]) => ({ uid, ...u })); },
+    async getWeek(id){ return structuredClone(weeks[id] || {}); },
+    async updateWeek(id,data){ weeks[id] = { ...(weeks[id]||{}), ...structuredClone(data) }; },
+    async getSubmission(w,uid){ return structuredClone(subs[w]?.[uid] || null); },
+    async saveSubmission(w,uid,data){
+      if (weeks[w]?.locked) throw { code:'permission-denied' };
+      (subs[w] ??= {})[uid] = { ...structuredClone(data), updatedAt: Date.now() };
+    },
+    async listSubmissions(w){ return structuredClone(subs[w] || {}); },
+  };
+}
+
+/* ---------- backend: Firebase ---------- */
+async function firebaseBackend(cfg){
+  const base = 'https://www.gstatic.com/firebasejs/10.12.2/';
+  const { initializeApp } = await import(base+'firebase-app.js');
+  const A = await import(base+'firebase-auth.js');
+  const F = await import(base+'firebase-firestore.js');
+  const app = initializeApp(cfg), auth = A.getAuth(app), db = F.getFirestore(app);
+  const snap = s => s.exists() ? s.data() : null;
+  return {
+    demo:false,
+    onAuth(cb){ A.onAuthStateChanged(auth, u => cb(u ? { uid:u.uid, email:u.email } : null)); },
+    async signIn(email,pw){ await A.signInWithEmailAndPassword(auth,email,pw); },
+    async signUp(name,email,pw){
+      const c = await A.createUserWithEmailAndPassword(auth,email,pw);
+      await F.setDoc(F.doc(db,'users',c.user.uid), { name, role:'employee' });
+    },
+    async signOut(){ await A.signOut(auth); },
+    async getProfile(uid){ return snap(await F.getDoc(F.doc(db,'users',uid))); },
+    async listUsers(){ const q = await F.getDocs(F.collection(db,'users')); return q.docs.map(d => ({ uid:d.id, ...d.data() })); },
+    async getWeek(id){ return snap(await F.getDoc(F.doc(db,'weeks',id))) || {}; },
+    async updateWeek(id,data){ await F.setDoc(F.doc(db,'weeks',id), data, { merge:true }); },
+    async getSubmission(w,uid){ return snap(await F.getDoc(F.doc(db,'weeks',w,'submissions',uid))); },
+    async saveSubmission(w,uid,data){ await F.setDoc(F.doc(db,'weeks',w,'submissions',uid), { ...data, updatedAt:F.serverTimestamp() }); },
+    async listSubmissions(w){
+      const q = await F.getDocs(F.collection(db,'weeks',w,'submissions'));
+      const o = {}; q.docs.forEach(d => o[d.id] = d.data()); return o;
+    },
+  };
+}
+
+/* ---------- state ---------- */
+const S = {
+  ready:false, user:null, profile:null, users:[], view:null,
+  weekStart: addDays(sundayOf(new Date()),7),
+  week:{}, mySub:null, draft:{}, note:'', dirty:false, subs:{},
+  loading:false, authMode:'login', openKey:null,
+};
+const isMgr = () => S.profile?.role === 'manager';
+const emps = () => S.users.filter(u => u.role !== 'manager').sort((a,b) => a.name.localeCompare(b.name,'he'));
+const nameOf = uid => S.users.find(u => u.uid===uid)?.name || 'לא ידוע';
+const asg = () => { const a = { ...(S.week.assignments||{}) }; ALL_KEYS.forEach(k => a[k] ??= []); return a; };
+const wid = () => weekId(S.weekStart);
+
+let B;
+const $app = document.getElementById('app');
+const $sheet = document.getElementById('sheet');
+
+/* ---------- data loading ---------- */
+async function loadWeek(){
+  S.loading = true; render();
+  try{
+    S.week = await B.getWeek(wid());
+    if (isMgr()) S.subs = await B.listSubmissions(wid());
+    else {
+      S.mySub = await B.getSubmission(wid(), S.user.uid);
+      S.draft = { ...(S.mySub?.avail || {}) }; S.note = S.mySub?.note || ''; S.dirty = false;
+    }
+  }catch(e){ toast(errMsg(e)); }
+  S.loading = false; render();
+}
+async function afterLogin(){
+  S.profile = await B.getProfile(S.user.uid) || { name: S.user.email || '', role:'employee' };
+  S.users = await B.listUsers();
+  S.view = isMgr() ? 'manage' : 'submit';
+  await loadWeek();
+}
+
+/* ---------- views ---------- */
+function render(){
+  if (!S.ready) { $app.innerHTML = `<p class="loading">טוען…</p>`; return; }
+  if (!S.user) { $app.innerHTML = viewLogin(); return; }
+  const tabs = isMgr()
+    ? [['manage','שיבוץ'],['team','מי הגיש']]
+    : [['submit','הגשת זמינות'],['mine','הסידור שלי']];
+  const end = addDays(S.weekStart,6);
+  const body = S.loading ? `<p class="loading">טוען…</p>`
+    : ({ submit:viewSubmit, mine:viewMine, manage:viewManage, team:viewTeam })[S.view]();
+  $app.innerHTML = `
+    ${B.demo ? `<div class="demo">מצב הדגמה: הנתונים נשמרים רק עד רענון הדף. כדי לעבוד באמת, ממלאים את FIREBASE_CONFIG בקוד.</div>` : ''}
+    <header class="top">
+      <h1 class="brand"><span class="bars" aria-hidden="true"><i></i><i></i><i></i></span>משמרות</h1>
+      <div class="who">${esc(S.profile?.name)}${isMgr() ? ' (מנהל)' : ''}<button class="link" data-action="logout">יציאה</button></div>
+    </header>
+    <nav class="tabs">${tabs.map(([v,l]) => `<button data-action="tab" data-v="${v}" ${S.view===v?'aria-current="page"':''}>${l}</button>`).join('')}</nav>
+    <div class="weeknav">
+      <button class="iconbtn" data-action="week" data-d="-7" aria-label="השבוע הקודם">›</button>
+      <h2>${fmt(S.weekStart)}–${fmt(end)}<small>${weekLabel()}</small></h2>
+      <button class="iconbtn" data-action="week" data-d="7" aria-label="השבוע הבא">‹</button>
+    </div>
+    ${body}`;
+}
+function weekLabel(){
+  const diff = Math.round((S.weekStart - sundayOf(new Date())) / 864e5 / 7);
+  return diff===0 ? 'השבוע' : diff===1 ? 'שבוע הבא' : diff===-1 ? 'שבוע שעבר' : diff>0 ? `בעוד ${diff} שבועות` : `לפני ${-diff} שבועות`;
+}
+
+function viewLogin(){
+  const head = `<h1><span class="bars" aria-hidden="true"><i></i><i></i><i></i></span>משמרות</h1>`;
+  if (B.demo) {
+    return `<div class="login">${head}<p>מצב הדגמה. בוחרים משתמש כדי לראות את המערכת מהצד שלו.</p>
+      <div class="userpick">${Object.entries(B.users).map(([uid,u]) =>
+        `<button data-action="demoLogin" data-uid="${uid}"><b>${esc(u.name)}</b><span>${u.role==='manager'?'מנהלת':'עובד/ת'}</span></button>`).join('')}</div></div>`;
+  }
+  const signup = S.authMode === 'signup';
+  return `<div class="login">${head}<p>${signup ? 'יצירת חשבון עובד חדש' : 'כניסה עם האימייל של העבודה'}</p>
+    ${signup ? `<label class="field">שם מלא<input type="text" id="f-name" autocomplete="name"></label>` : ''}
+    <label class="field">אימייל<input type="email" id="f-email" autocomplete="email" dir="ltr"></label>
+    <label class="field">סיסמה<input type="password" id="f-pw" autocomplete="${signup?'new-password':'current-password'}" dir="ltr"></label>
+    <div class="toolbar" style="margin-top:16px">
+      <button class="btn primary" data-action="${signup?'signup':'login'}">${signup?'יצירת חשבון':'כניסה'}</button>
+      <button class="link" data-action="authMode">${signup?'כבר יש לי חשבון':'אין לי חשבון עדיין'}</button>
+    </div></div>`;
+}
+
+function legend(){
+  return `<div class="legend">
+    <span><i class="sw" style="background:var(--ink)"></i>יכול</span>
+    <span><i class="sw" style="border:2px solid var(--ink);background:repeating-linear-gradient(-45deg,#d5d8de 0 3px,#fff 3px 6px)"></i>מעדיף שלא</span>
+    <span><i class="sw" style="background:#E9ECF1"></i>לא יכול</span></div>`;
+}
+
+function viewSubmit(){
+  const locked = !!S.week.locked;
+  const rows = DAYS.map((dn,d) => `<div class="day">
+    <div class="dlabel"><b>${dn}</b><span>${fmt(addDays(S.weekStart,d))}</span></div>
+    ${SHIFTS.map(s => { const k=K(d,s.id), v=S.draft[k]||'unset';
+      return `<button class="chip ${v}" style="--c:${s.color};--on:${s.on}" data-action="cycle" data-k="${k}" ${locked?'disabled':''}
+        aria-label="משמרת ${s.name} ביום ${dn}: ${LABEL[v]}" title="${s.hours}">
+        <span class="sn">${s.name}</span><span class="st">${LABEL[v]}</span></button>`; }).join('')}
+  </div>`).join('');
+  let state = '';
+  if (S.dirty) state = `<span class="dirty">יש שינויים שלא נשמרו</span>`;
+  else if (S.mySub) state = `<span>הזמינות שלך לשבוע הזה שמורה</span>`;
+  else state = `<span>עוד לא הגשת לשבוע הזה</span>`;
+  return `
+    ${locked ? `<p class="notice">ההגשה לשבוע הזה נסגרה. לשינויים פונים למנהל.</p>`
+             : `<p class="hint">לוחצים על משמרת כדי להחליף מצב: יכול, מעדיף שלא, לא יכול.</p>`}
+    ${legend()}
+    ${!locked ? `<div class="toolbar"><button class="btn" data-action="allYes">סימון הכל כ"יכול"</button></div>` : ''}
+    <div>${rows}</div>
+    <label class="field">הערה למנהל
+      <textarea id="note" ${locked?'disabled':''} placeholder="למשל: ביום שלישי יכול רק עד 20:00">${esc(S.note)}</textarea></label>
+    ${!locked ? `<div class="savebar"><div class="in">${state}<button class="btn primary" data-action="save">שמירת זמינות</button></div></div>` : ''}`;
+}
+
+function viewMine(){
+  if (!S.week.published) return `<p class="empty">הסידור לשבוע הזה עוד לא פורסם.<br>אפשר בינתיים להגיש זמינות בלשונית "הגשת זמינות".</p>`;
+  const a = asg(), uid = S.user.uid;
+  const mine = ALL_KEYS.filter(k => a[k].includes(uid));
+  const shiftOf = k => SHIFTS.find(s => s.id === k.split('_')[1]);
+  const dayOf = k => +k.split('_')[0];
+  return `
+    <h3>המשמרות שלך</h3>
+    ${mine.length ? `<ul class="list">${mine.map(k => { const s=shiftOf(k), d=dayOf(k);
+      return `<li><span class="myshift"><i class="dot" style="--c:${s.color}"></i><b>יום ${DAYS[d]} ${fmt(addDays(S.weekStart,d))}</b></span><span>${s.name}, ${s.hours}</span></li>`; }).join('')}</ul>`
+      : `<p class="hint">לא שובצת למשמרות השבוע.</p>`}
+    <h3>הסידור המלא</h3>
+    ${DAYS.map((dn,d) => `<div class="day"><div class="dlabel"><b>${dn}</b><span>${fmt(addDays(S.weekStart,d))}</span></div>
+      ${SHIFTS.map(s => { const n=a[K(d,s.id)];
+        return `<div class="slot" style="--c:${s.color}"><span class="sn">${s.name}</span>
+          <span class="names ${n.length?'':'none'}">${n.length ? n.map(u => u===uid ? `<b>${esc(nameOf(u))}</b>` : esc(nameOf(u))).join('<br>') : 'אין שיבוץ'}</span></div>`; }).join('')}
+    </div>`).join('')}`;
+}
+
+function viewManage(){
+  const a = asg(), E = emps();
+  const submitted = E.filter(u => S.subs[u.uid]).length;
+  const short = ALL_KEYS.filter(k => a[k].length < SHIFTS.find(s => s.id===k.split('_')[1]).need).length;
+  return `
+    <div class="status">
+      <span class="pill ${submitted===E.length?'ok':''}">${submitted} מתוך ${E.length} הגישו</span>
+      <span class="pill ${S.week.locked?'warn':''}">${S.week.locked ? 'ההגשה סגורה' : 'ההגשה פתוחה'}</span>
+      <span class="pill ${S.week.published?'ok':''}">${S.week.published ? 'הסידור פורסם' : 'טיוטה'}</span>
+      ${short ? `<span class="pill warn">${short} משמרות חסרות</span>` : ''}
+    </div>
+    <div class="toolbar">
+      <button class="btn" data-action="lock">${S.week.locked ? 'פתיחת ההגשה' : 'סגירת ההגשה'}</button>
+      <button class="btn" data-action="auto">שיבוץ אוטומטי</button>
+      <button class="btn primary" data-action="publish">${S.week.published ? 'ביטול פרסום' : 'פרסום הסידור'}</button>
+    </div>
+    <p class="hint">לוחצים על משמרת כדי לראות מי זמין ולשבץ.</p>
+    ${DAYS.map((dn,d) => `<div class="day"><div class="dlabel"><b>${dn}</b><span>${fmt(addDays(S.weekStart,d))}</span></div>
+      ${SHIFTS.map(s => { const k=K(d,s.id), n=a[k];
+        return `<button class="slot ${n.length<s.need?'short':''}" style="--c:${s.color}" data-action="openSlot" data-k="${k}"
+          aria-label="משמרת ${s.name} ביום ${dn}, ${n.length} מתוך ${s.need} משובצים">
+          <span class="sn">${s.name}<em>${n.length}/${s.need}</em></span>
+          <span class="names ${n.length?'':'none'}">${n.length ? n.map(u => esc(nameOf(u))).join('<br>') : 'אין שיבוץ'}</span></button>`; }).join('')}
+    </div>`).join('')}`;
+}
+
+function viewTeam(){
+  const E = emps(), a = asg();
+  if (!E.length) return `<p class="empty">עוד אין עובדים במערכת. עובדים נרשמים בעצמם במסך הכניסה.</p>`;
+  const sorted = [...E].sort((x,y) => (!!S.subs[x.uid]) - (!!S.subs[y.uid]));
+  return `<ul class="list">${sorted.map(u => {
+    const s = S.subs[u.uid];
+    const yes = s ? Object.values(s.avail||{}).filter(v => v==='yes').length : 0;
+    const shifts = ALL_KEYS.filter(k => a[k].includes(u.uid)).length;
+    return `<li><div><b>${esc(u.name)}</b>
+        <div class="sub">${s ? `זמין ל-${yes} משמרות, משובץ ל-${shifts}` : 'עוד לא הגיש'}</div>
+        ${s?.note ? `<div class="sub">"${esc(s.note)}"</div>` : ''}</div>
+      <span class="pill ${s?'ok':'warn'}" style="align-self:center">${s?'הגיש':'חסר'}</span></li>`; }).join('')}</ul>`;
+}
+
+/* ---------- manager: slot sheet ---------- */
+function renderSheet(){
+  const k = S.openKey; if (!k) return;
+  const [d, sid] = k.split('_'); const s = SHIFTS.find(x => x.id===sid);
+  const a = asg(), on = new Set(a[k]);
+  const sameDay = uid => SHIFTS.some(o => o.id!==sid && a[K(d,o.id)].includes(uid));
+  const groups = [['yes','יכולים'],['maybe','מעדיפים שלא'],['unset','לא סימנו'],['no','לא יכולים']];
+  const rows = emps().map(u => ({ u, v: S.subs[u.uid]?.avail?.[k] || 'unset' }));
+  $sheet.innerHTML = `<div class="sheet" style="--c:${s.color}">
+    <header><div><h2>משמרת ${s.name}, יום ${DAYS[d]} ${fmt(addDays(S.weekStart,+d))}</h2>
+      <div class="hint" style="margin:0">${s.hours}. משובצים ${on.size} מתוך ${s.need}</div></div>
+      <button class="iconbtn" data-action="closeSheet" aria-label="סגירה">✕</button></header>
+    ${groups.map(([g,title]) => { const list = rows.filter(r => r.v===g); if (!list.length) return '';
+      return `<h4>${title}</h4>${list.map(({u}) => `<label class="opt">
+        <input type="checkbox" data-assign="${u.uid}" ${on.has(u.uid)?'checked':''}>
+        <span>${esc(u.name)}</span>${sameDay(u.uid) ? `<span class="sub">כבר משובץ ביום הזה</span>` : ''}</label>`).join('')}`; }).join('')}
+  </div>`;
+}
+
+/* ---------- auto assign ---------- */
+function autoAssign(){
+  const a = {}; ALL_KEYS.forEach(k => a[k] = []);
+  const E = emps(), load = Object.fromEntries(E.map(u => [u.uid,0]));
+  const rank = v => v==='yes' ? 0 : 1;
+  DAYS.forEach((_,d) => SHIFTS.forEach((s,si) => {
+    const k = K(d,s.id);
+    const cand = E.map(u => ({ uid:u.uid, v:S.subs[u.uid]?.avail?.[k] }))
+      .filter(c => c.v==='yes' || c.v==='maybe')
+      .filter(c => !SHIFTS.some(o => a[K(d,o.id)].includes(c.uid)))                 // משמרת אחת ביום
+      .filter(c => !(si===0 && d>0 && a[K(d-1,'night')]?.includes(c.uid)))          // לא בוקר אחרי לילה
+      .sort((x,y) => rank(x.v)-rank(y.v) || load[x.uid]-load[y.uid]);
+    cand.slice(0, s.need).forEach(c => { a[k].push(c.uid); load[c.uid]++; });
+  }));
+  return a;
+}
+
+/* ---------- actions ---------- */
+const actions = {
+  async demoLogin(el){ await B.signIn(el.dataset.uid); },
+  async login(){
+    try{ await B.signIn(val('f-email'), val('f-pw')); }catch(e){ toast(errMsg(e)); }
+  },
+  async signup(){
+    const name = val('f-name');
+    if (!name) return toast('צריך למלא שם');
+    try{ await B.signUp(name, val('f-email'), val('f-pw')); await afterLogin(); }catch(e){ toast(errMsg(e)); }
+  },
+  authMode(){ S.authMode = S.authMode==='login' ? 'signup' : 'login'; render(); },
+  async logout(){
+    if (S.dirty && !confirm('יש שינויים שלא נשמרו. לצאת בכל זאת?')) return;
+    await B.signOut();
+  },
+  tab(el){ S.view = el.dataset.v; render(); },
+  async week(el){
+    if (S.dirty && !confirm('יש שינויים שלא נשמרו. לעבור שבוע בלי לשמור?')) return;
+    S.weekStart = addDays(S.weekStart, +el.dataset.d); await loadWeek();
+  },
+  cycle(el){
+    const k = el.dataset.k, v = CYCLE[S.draft[k] || 'unset'];
+    if (v==='unset') delete S.draft[k]; else S.draft[k] = v;
+    S.dirty = true; render();
+  },
+  allYes(){ ALL_KEYS.forEach(k => S.draft[k] = 'yes'); S.dirty = true; render(); },
+  async save(el){
+    el.disabled = true;
+    try{
+      const data = { avail:S.draft, note:S.note.trim() };
+      await B.saveSubmission(wid(), S.user.uid, data);
+      S.mySub = data; S.dirty = false; toast('הזמינות נשמרה');
+    }catch(e){ toast(errMsg(e)); }
+    render();
+  },
+  async lock(){ await saveWeek({ locked: !S.week.locked }, S.week.locked ? 'ההגשה נפתחה' : 'ההגשה נסגרה'); },
+  async publish(){
+    if (!S.week.published && !confirm('לפרסם את הסידור? העובדים יראו אותו מיד.')) return;
+    await saveWeek({ published: !S.week.published }, S.week.published ? 'הפרסום בוטל' : 'הסידור פורסם');
+  },
+  async auto(){
+    const has = ALL_KEYS.some(k => (S.week.assignments?.[k]||[]).length);
+    if (has && !confirm('השיבוץ האוטומטי יחליף את השיבוץ הנוכחי. להמשיך?')) return;
+    await saveWeek({ assignments: autoAssign() }, 'השיבוץ האוטומטי הושלם');
+  },
+  openSlot(el){ S.openKey = el.dataset.k; renderSheet(); $sheet.showModal(); },
+  closeSheet(){ $sheet.close(); },
+};
+const val = id => document.getElementById(id)?.value.trim() || '';
+
+async function saveWeek(patch, msg){
+  try{
+    await B.updateWeek(wid(), patch);
+    S.week = { ...S.week, ...patch };
+    if (msg) toast(msg);
+  }catch(e){ toast(errMsg(e)); }
+  render();
+}
+
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-action]');
+  if (el && actions[el.dataset.action]) actions[el.dataset.action](el);
+});
+document.addEventListener('input', e => {
+  if (e.target.id === 'note') { S.note = e.target.value; if (!S.dirty) { S.dirty = true; const sp=document.querySelector('.savebar span'); if (sp){ sp.className='dirty'; sp.textContent='יש שינויים שלא נשמרו'; } } }
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.matches('.login input')) actions[S.authMode==='signup'?'signup':'login']();
+});
+$sheet.addEventListener('change', async e => {
+  const uid = e.target.dataset.assign; if (!uid) return;
+  const a = asg(), k = S.openKey;
+  a[k] = e.target.checked ? [...a[k], uid] : a[k].filter(x => x !== uid);
+  await saveWeek({ assignments: a });
+  renderSheet();
+});
+$sheet.addEventListener('close', () => { S.openKey = null; });
+$sheet.addEventListener('click', e => { if (e.target === $sheet) $sheet.close(); });
+
+/* ---------- boot ---------- */
+(async () => {
+  render();
+  try{
+    B = FIREBASE_CONFIG.apiKey ? await firebaseBackend(FIREBASE_CONFIG) : demoBackend();
+  }catch(e){
+    console.error(e); B = demoBackend(); toast('החיבור ל-Firebase נכשל, עובר למצב הדגמה');
+  }
+  B.onAuth(async u => {
+    S.user = u; S.ready = true;
+    if (u) { try{ await afterLogin(); }catch(e){ toast(errMsg(e)); render(); } }
+    else { S.profile = null; S.dirty = false; render(); }
+  });
+})();
+</script>
+</body>
+</html>
