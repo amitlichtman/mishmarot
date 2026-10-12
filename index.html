@@ -177,6 +177,10 @@ dialog::backdrop{background:rgba(30,36,51,.45)}
 .codebox{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;margin:10px 0}
 .codebox b{font-family:'Secular One',sans-serif;font-weight:400;font-size:1.35rem;letter-spacing:.12em}
 .codebox span{flex:1;min-width:160px;color:var(--muted);font-size:.88rem}
+.posgrid{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;font-weight:400}
+.poschip{display:flex;align-items:center;gap:7px;border:1.5px solid var(--line);background:#fff;border-radius:99px;padding:6px 12px 6px 14px;cursor:pointer}
+.poschip:has(input:checked){border-color:var(--ink);background:#EEF1F6}
+.poschip input{width:18px;height:18px;accent-color:var(--ink);margin:0}
 #toast{position:fixed;left:50%;bottom:92px;transform:translateX(-50%);background:var(--ink);color:#fff;
   padding:10px 16px;border-radius:10px;font-size:.92rem;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90vw;z-index:20}
 #toast.show{opacity:1}
@@ -209,6 +213,7 @@ const FIREBASE_CONFIG = {
 const PALETTE = ['#E9A23B','#D6577A','#34478F','#2E8B7A','#7A5AC8','#C2662D','#4A90C2','#8A94A6'];
 const DEFAULT_SETTINGS = {
   business: 'משמרות',
+  positions: [ { id:'waiter', name:'מלצר' }, { id:'cook', name:'טבח' } ],
   shifts: [
     { id:'morning', name:'בוקר', start:'07:00', end:'15:00', color:'#E9A23B', need:[2,2,2,2,2,2,2] },
     { id:'evening', name:'ערב',  start:'15:00', end:'23:00', color:'#D6577A', need:[2,2,2,2,2,2,2] },
@@ -267,16 +272,19 @@ async function copyText(t){
 function demoBackend(){
   const DEMO = '123456';
   const users = {
-    m1:{ name:'דנה', email:'dana@demo', role:'manager', active:true },
-    e1:{ name:'יוסי', email:'yossi@demo', role:'employee', active:true, phone:'0501234567' },
-    e2:{ name:'מיכל', email:'michal@demo', role:'employee', active:true },
-    e3:{ name:'אבי', email:'avi@demo', role:'employee', active:true, maxShifts:3 },
-    e4:{ name:'נועה', email:'noa@demo', role:'employee', active:true },
-    e5:{ name:'רון', email:'ron@demo', role:'employee', active:true },
-    e6:{ name:'שירה', email:'shira@demo', role:'employee', active:true },
+    m1:{ name:'דנה', email:'dana@demo', role:'owner', active:true, positions:[] },
+    m2:{ name:'אורי', email:'ori@demo', role:'manager', active:true, positions:['cook'] },
+    e1:{ name:'יוסי', email:'yossi@demo', role:'employee', active:true, phone:'0501234567', positions:['waiter'] },
+    e2:{ name:'מיכל', email:'michal@demo', role:'employee', active:true, positions:['waiter','cook'] },
+    e3:{ name:'אבי', email:'avi@demo', role:'employee', active:true, maxShifts:3, positions:['cook'] },
+    e4:{ name:'נועה', email:'noa@demo', role:'employee', active:true, positions:['waiter'] },
+    e5:{ name:'רון', email:'ron@demo', role:'employee', active:true, positions:['cook'] },
+    e6:{ name:'שירה', email:'shira@demo', role:'employee', active:true, positions:['waiter'] },
   };
   Object.values(users).forEach(u => u.companyId = DEMO);
-  const companies = { [DEMO]: { name:'מסעדת הדגמה', settings:{ ...clone(DEFAULT_SETTINGS), business:'מסעדת הדגמה' }, weeks:{}, subs:{} } };
+  const demoSettings = { ...clone(DEFAULT_SETTINGS), business:'מסעדת הדגמה' };
+  demoSettings.shifts.push({ id:'prep', name:'הכנות', start:'10:00', end:'16:00', color:'#2E8B7A', need:[1,1,1,1,1,0,0], positions:['cook'] });
+  const companies = { [DEMO]: { name:'מסעדת הדגמה', ownerUid:'m1', settings:demoSettings, weeks:{}, subs:{} } };
   let seed = 7; const rnd = () => (seed = (seed*16807) % 2147483647) / 2147483647;
   const D = companies[DEMO], next = weekId(addDays(sundayOf(new Date()),7));
   D.subs[next] = {};
@@ -307,11 +315,12 @@ function demoBackend(){
       if (Object.values(users).some(u => u.email === email)) throw { code:'email-already-in-use' };
       let code; do { code = genCode(); } while (companies[code]);
       const uid = 'u'+Math.random().toString(36).slice(2,8);
-      companies[code] = { name:restaurant, settings:clone(settings), weeks:{}, subs:{} };
-      users[uid] = { name, email, role:'manager', active:true, works:false, companyId:code };
+      companies[code] = { name:restaurant, ownerUid:uid, settings:clone(settings), weeks:{}, subs:{} };
+      users[uid] = { name, email, role:'owner', active:true, positions:[], companyId:code };
       return { uid, code };
     },
     async getProfile(uid){ return users[uid] ? clone(users[uid]) : null; },
+    async getCompany(){ return { name:C().name, ownerUid:C().ownerUid }; },
     async listUsers(){ return Object.entries(users).filter(([,u]) => u.companyId === cid).map(([uid,u]) => ({ uid, ...clone(u) })); },
     async createUser(data){
       if (Object.values(users).some(u => u.email === data.email)) throw { code:'email-already-in-use' };
@@ -319,6 +328,7 @@ function demoBackend(){
       const { password, ...doc } = data; users[uid] = { ...doc, companyId:cid, active:true }; return uid;
     },
     async updateUser(uid,data){ users[uid] = { ...users[uid], ...clone(data) }; },
+    async transferOwnership(newUid){ const me = current.uid; C().ownerUid = newUid; users[newUid].role = 'owner'; users[me].role = 'manager'; },
     async getSettings(){ return C().settings ? clone(C().settings) : null; },
     async saveSettings(s){ C().settings = clone(s); },
     async getWeek(id){ return clone(C().weeks[id] || {}); },
@@ -379,7 +389,7 @@ async function firebaseBackend(cfg){
           catch(e){ if (!String(e?.code).includes('permission-denied')) throw e; }  // המספר תפוס, מגרילים שוב
         }
         if (!code) throw new Error('לא הצלחנו ליצור מזהה חברה, נסה שוב');
-        await F.setDoc(F.doc(db,'users',uid), { companyId:code, name, email, role:'manager', active:true, works:false });
+        await F.setDoc(F.doc(db,'users',uid), { companyId:code, name, email, role:'owner', active:true, positions:[] });
         await F.setDoc(F.doc(db,'companies',code,'settings','main'), settings);
         return { uid, code };
       }catch(e){
@@ -389,6 +399,7 @@ async function firebaseBackend(cfg){
       }
     },
     async getProfile(uid){ return snap(await F.getDoc(F.doc(db,'users',uid))); },
+    async getCompany(){ return snap(await F.getDoc(F.doc(db,'companies',cid))); },
     async listUsers(){
       const q = await F.getDocs(F.query(F.collection(db,'users'), F.where('companyId','==',cid)));
       return q.docs.map(d => ({ uid:d.id, ...d.data() }));
@@ -402,6 +413,14 @@ async function firebaseBackend(cfg){
       return cred.user.uid;
     },
     async updateUser(uid,data){ await F.setDoc(F.doc(db,'users',uid), data, { merge:true }); },
+    // שלושת השינויים נשמרים יחד או לא נשמרים בכלל, כך שתמיד יש בעלים אחד
+    async transferOwnership(newUid){
+      const b = F.writeBatch(db);
+      b.update(F.doc(db,'companies',cid), { ownerUid:newUid });
+      b.update(F.doc(db,'users',newUid), { role:'owner' });
+      b.update(F.doc(db,'users',auth.currentUser.uid), { role:'manager' });
+      await b.commit();
+    },
     async getSettings(){ return snap(await F.getDoc(cdoc('settings','main'))); },
     async saveSettings(s){ await F.setDoc(cdoc('settings','main'), s); },
     async getWeek(id){ return snap(await F.getDoc(cdoc('weeks',id))) || {}; },
@@ -426,9 +445,19 @@ const S = {
   rep:'month', repUid:null, allWeeks:null,
 };
 const ST = () => S.settings;
-const isMgr = () => S.profile?.role === 'manager';
+const MGR_ROLES = ['manager','owner'];
+const ROLE_LABEL = { owner:'בעלים', manager:'מנהל', employee:'עובד' };
+const isMgrRole = r => MGR_ROLES.includes(r);
+const isMgr = () => isMgrRole(S.profile?.role);
+const positions = () => ST().positions || [];
+const posName = id => positions().find(p => p.id === id)?.name;
+const userPos = u => (u?.positions || []).filter(posName);
+/* מי משתבץ: עובד רגיל תמיד, מנהל או בעלים רק אם יש לו תפקיד */
+const isWorker = u => !!u && u.active !== false && (u.role === 'employee' || userPos(u).length > 0 || !!u.works);
+/* האם המשמרת מתאימה לעובד: משמרת בלי תפקידים מתאימה לכולם */
+const canWork = (u, s) => { const need = (s?.positions || []).filter(posName); return !need.length || userPos(u).some(p => need.includes(p)); };
 const members = () => S.users.filter(u => u.active !== false);
-const workers = () => members().filter(u => u.role !== 'manager' || u.works).sort(byName);
+const workers = () => members().filter(isWorker).sort(byName);
 const nameOf = uid => S.users.find(u => u.uid===uid)?.name || 'לא ידוע';
 const shiftById = id => ST().shifts.find(s => s.id === id);
 const needAt = (s,d) => Math.max(0, parseInt(s?.need?.[d]) || 0);
@@ -446,7 +475,8 @@ const asg = () => {
 const emptyAsg = () => Object.fromEntries(keys().map(k => [k, []]));
 function normSettings(x){
   const s = { ...clone(DEFAULT_SETTINGS), ...(x || {}) };
-  s.shifts = (s.shifts || []).map(sh => ({ ...sh, need: Array.from({length:7}, (_,d) => needAt(sh,d)) }));
+  s.positions = (s.positions || []).filter(p => p && p.id);
+  s.shifts = (s.shifts || []).map(sh => ({ ...sh, positions:(sh.positions || []).filter(id => s.positions.some(p => p.id === id)), need: Array.from({length:7}, (_,d) => needAt(sh,d)) }));
   return s;
 }
 function deadline(){
@@ -479,10 +509,10 @@ function autoAssign(){
   const E = workers(), ks = keys(), a = Object.fromEntries(ks.map(k => [k, []]));
   const av = (uid,k) => S.subs[uid]?.avail?.[k];
   const ok = v => v === 'yes' || v === 'maybe';
-  const supply = k => E.filter(u => ok(av(u.uid,k))).length / needOf(k);
+  const supply = k => E.filter(u => canWork(u, shiftById(k.split('_')[1])) && ok(av(u.uid,k))).length / needOf(k);
   const load = u => ks.filter(k => a[k].includes(u.uid)).length;
   for (const k of [...ks].sort((x,y) => supply(x) - supply(y))) {          // קודם המשמרות שהכי קשה לאייש
-    E.filter(u => ok(av(u.uid,k)) && !conflicts(u,k,a).length)
+    E.filter(u => canWork(u, shiftById(k.split('_')[1])) && ok(av(u.uid,k)) && !conflicts(u,k,a).length)
      .sort((x,y) => (av(x.uid,k)==='yes'?0:1) - (av(y.uid,k)==='yes'?0:1) || load(x) - load(y))
      .slice(0, needOf(k)).forEach(u => a[k].push(u.uid));
   }
@@ -528,6 +558,9 @@ async function afterLogin(){
   if (!p || p.active === false) { toast('החשבון הזה לא פעיל. פנה למנהל.'); await B.signOut(); return; }
   S.profile = p; S.cid = p.companyId; B.setCompany(p.companyId);
   if (code) store.set('companyCode', code);
+  if (p.role !== 'owner') {
+    try{ const c = await B.getCompany(); if (c?.ownerUid === S.user.uid) { await B.updateUser(S.user.uid, { role:'owner' }); p.role = 'owner'; } }catch{}
+  }
   S.settings = normSettings(await B.getSettings());
   S.users = await B.listUsers();
   S.view = isMgr() ? 'manage' : 'submit';
@@ -580,7 +613,7 @@ function viewLogin(){
   if (B.demo) {
     return `<div class="login">${BRAND}<p>מצב הדגמה. בוחרים משתמש כדי לראות את המערכת מהצד שלו. מזהה החברה של מסעדת ההדגמה הוא ${B.DEMO}.</p>
       <div class="userpick">${Object.entries(B.users).filter(([,u]) => u.active!==false).map(([uid,u]) =>
-        `<button data-action="demoLogin" data-uid="${uid}"><b>${esc(u.name)}</b><span>${u.role==='manager'?'מנהל/ת':'עובד/ת'}, ${esc(B.companies[u.companyId]?.name)}</span></button>`).join('')}</div>
+        `<button data-action="demoLogin" data-uid="${uid}"><b>${esc(u.name)}</b><span>${ROLE_LABEL[u.role] || 'עובד'}, ${esc(B.companies[u.companyId]?.name)}</span></button>`).join('')}</div>
       ${toSignup}</div>`;
   }
   return `<div class="login">${BRAND}<p>כניסה עם הפרטים שקיבלת מהמנהל</p>
@@ -620,14 +653,18 @@ const legend = () => `<div class="legend">
   <span><i class="sw" style="border:2px solid var(--ink);background:repeating-linear-gradient(-45deg,#d5d8de 0 3px,#fff 3px 6px)"></i>מעדיף שלא</span>
   <span><i class="sw" style="background:#E9ECF1"></i>לא יכול</span></div>`;
 
+const availSubject = () => S.view === 'user' ? S.users.find(u => u.uid === S.editUid) : S.profile;
+const availKeys = () => { const u = availSubject(); return keys().filter(k => canWork(u, shiftById(k.split('_')[1]))); };
 function availEditor(asManager){
-  const dl = deadline(), editable = asManager || submissionOpen();
+  const dl = deadline(), editable = asManager || submissionOpen(), who = availSubject();
+  if (!availKeys().length) return `<p class="empty">${asManager ? 'אין לעובד הזה משמרות שמתאימות לתפקידים שלו.' : 'אין לך משמרות שמתאימות לתפקיד שלך. פנה למנהל.'}</p>`;
   let msg;
   if (asManager) msg = `<p class="hint">עריכה בשם העובד. אפשר לערוך גם אחרי שההגשה נסגרה.</p>`;
   else if (S.week.locked) msg = `<p class="notice">ההגשה לשבוע הזה נסגרה. לשינויים פונים למנהל.</p>`;
   else if (dl && Date.now() >= dl) msg = `<p class="notice">מועד ההגשה לשבוע הזה עבר. לשינויים פונים למנהל.</p>`;
   else msg = `<p class="hint">לוחצים על משמרת כדי להחליף מצב: יכול, מעדיף שלא, לא יכול.${dl ? `<br><b>אפשר להגיש עד ${fmtDl(dl)}.</b>` : ''}</p>`;
   const cell = (d,s,k) => { const v = S.draft[k] || 'unset';
+    if (!canWork(who, s)) return `<div class="off" aria-hidden="true"></div>`;
     return `<button class="chip ${v}" style="--c:${s.color};--on:${onColor(s.color)}" data-action="cycle" data-k="${k}" ${editable?'':'disabled'}
       aria-label="משמרת ${esc(s.name)} ביום ${DAYS[d]}: ${LABEL[v]}" title="${hrs(s)}">
       <span class="sn">${esc(s.name)}</span><span class="hr">${hrs(s)}</span><span class="st">${LABEL[v]}</span></button>`; };
@@ -704,8 +741,10 @@ function viewTeam(){
   const W = workers(), submitted = W.filter(u => S.subs[u.uid]).length;
   const row = u => {
     const sub = S.subs[u.uid], n = keys().filter(k => a[k].includes(u.uid)).length;
-    const isW = u.active !== false && (u.role !== 'manager' || u.works);
-    const info = [u.role==='manager' ? 'מנהל' : null, isW ? (sub ? `הגיש, משובץ ל-${n}` : 'עוד לא הגיש') : null].filter(Boolean).join(', ');
+    const isW = isWorker(u);
+    const pos = userPos(u).map(posName);
+    const info = [u.role !== 'employee' ? ROLE_LABEL[u.role] : null, pos.length ? pos.join(' ו') : null,
+      isW ? (sub ? `הגיש, משובץ ל-${n}` : 'עוד לא הגיש') : null].filter(Boolean).join(', ');
     return `<li class="btnrow"><button class="userbtn" data-action="openUser" data-uid="${u.uid}">
       <span><b>${esc(u.name)}</b><span class="sub" style="display:block">${info || 'לא משתבץ'}</span>${sub?.note ? `<span class="sub" style="display:block">"${esc(sub.note)}"</span>` : ''}</span>
       ${isW ? `<span class="pill ${sub?'ok':'warn'}">${sub?'הגיש':'חסר'}</span>` : ''}</button></li>`;
@@ -728,20 +767,31 @@ function userFields(isNew){
       <button class="btn sm" data-action="genPw" style="margin-bottom:2px">סיסמה חדשה</button></div>` : ''}
     <label class="field">טלפון<small>לשליחת פרטים בוואטסאפ</small><input type="tel" dir="ltr" data-u="phone" value="${esc(u.phone)}"></label>
     <div class="row">
-      <label class="field">תפקיד<select data-u="role">
-        <option value="employee" ${u.role!=='manager'?'selected':''}>עובד</option>
-        <option value="manager" ${u.role==='manager'?'selected':''}>מנהל</option></select></label>
+      ${accessField(u, isNew)}
       <label class="field">מקסימום משמרות בשבוע<small>ריק = לפי ההגדרות (${ST().maxPerWeek || 'ללא'})</small>
         <input type="number" min="0" inputmode="numeric" data-u="maxShifts" value="${esc(u.maxShifts ?? '')}"></label>
     </div>
-    <label class="check"><input type="checkbox" data-u="works" ${u.works?'checked':''}>מנהל שגם עובד במשמרות</label>
-    ${isNew ? '' : `<label class="check"><input type="checkbox" data-u="active" ${u.active!==false?'checked':''}>פעיל (משתמש לא פעיל לא יכול להיכנס)</label>`}`;
+    <div class="field">תפקידים במסעדה<small>${isMgrRole(u.role) ? 'מנהל עם תפקיד משתבץ למשמרות. בלי תפקיד הוא רק מנהל.' : 'משמרות שמוגדרות לתפקיד מסוים יופיעו רק למי שיש לו אותו.'}</small>
+      <div class="posgrid">${positions().map(p => `<label class="poschip"><input type="checkbox" data-action="userPos" data-id="${p.id}" ${(u.positions||[]).includes(p.id)?'checked':''}>${esc(p.name)}</label>`).join('')
+        || '<span class="sub">עוד אין תפקידים. מוסיפים אותם בהגדרות.</span>'}</div></div>
+    ${isNew ? '' : lockedSelf(u) ? '' : `<label class="check"><input type="checkbox" data-u="active" ${u.active!==false?'checked':''}>פעיל (משתמש לא פעיל לא יכול להיכנס)</label>`}`;
+}
+/* בעלים ואתה עצמך: אי אפשר לשנות הרשאה או להשבית */
+const lockedSelf = u => u.role === 'owner' || u.uid === S.user?.uid;
+function accessField(u, isNew){
+  if (!isNew && lockedSelf(u)) {
+    const why = u.role === 'owner' ? (u.uid === S.user?.uid ? 'אתה הבעלים. אפשר להעביר את הבעלות מהכרטיס של משתמש אחר' : 'אי אפשר לשנות את ההרשאה של הבעלים') : 'אי אפשר לשנות את ההרשאה של עצמך';
+    return `<div class="field">הרשאה<small>${why}</small><input type="text" value="${ROLE_LABEL[u.role]}" disabled></div>`;
+  }
+  return `<label class="field">הרשאה<select data-u="role">
+        <option value="employee" ${u.role!=='manager'?'selected':''}>עובד</option>
+        <option value="manager" ${u.role==='manager'?'selected':''}>מנהל</option></select></label>`;
 }
 
 function viewUser(){
   const u = S.users.find(x => x.uid === S.editUid); if (!u) return `<p class="empty">העובד לא נמצא.</p>`;
   const a = asg(), mine = keys().filter(k => a[k].includes(u.uid));
-  const isW = u.role !== 'manager' || u.works;
+  const isW = isWorker(u);
   return `
     <div class="toolbar"><button class="btn sm" data-action="tab" data-v="team">חזרה לעובדים</button></div>
     <div class="card"><h3>${esc(u.name)}</h3>
@@ -751,6 +801,10 @@ function viewUser(){
         <button class="btn" data-action="resetPw">שליחת מייל לאיפוס סיסמה</button>
         ${u.phone ? `<button class="btn" data-action="waUser">וואטסאפ</button>` : ''}
       </div></div>
+    ${S.profile.role === 'owner' && u.uid !== S.user.uid && u.active !== false ? `<div class="card">
+      <h3>העברת הבעלות</h3>
+      <p class="hint">${esc(u.name)} יהפוך לבעלים של המסעדה, ואתה תרד לדרגת מנהל. למסעדה תמיד יש בעלים אחד, ורק הבעלים יכול להעביר את הבעלות.</p>
+      <button class="btn danger" data-action="transferOwner">העברת הבעלות ל${esc(u.name)}</button></div>` : ''}
     ${isW ? `<h3>משובץ השבוע</h3>
       ${mine.length ? `<ul class="list">${mine.map(k => { const [d,id] = k.split('_'), s = shiftById(id);
         return `<li><span class="myshift"><i class="dot" style="--c:${s.color}"></i>יום ${DAYS[d]} ${fmt(addDays(S.weekStart,+d))}</span><span>${esc(s.name)}</span></li>`; }).join('')}</ul>`
@@ -787,6 +841,13 @@ function viewSettings(){
     <div class="codebox"><span>מזהה החברה</span><b dir="ltr">${esc(S.cid)}</b><button class="btn sm" data-action="copyCode">העתקה</button></div>
     <label class="field">שם העסק<input type="text" data-s="business" value="${esc(st.business)}"></label>
 
+    <h3>תפקידים</h3>
+    <p class="hint">למשל מלצר, טבח, ברמן. לכל עובד אפשר לתת כמה תפקידים, ולכל משמרת לקבוע לאילו תפקידים היא מתאימה.</p>
+    ${(st.positions || []).map((p,i) => `<div class="row">
+      <label class="field grow">שם התפקיד<input type="text" data-s="positions.${i}.name" value="${esc(p.name)}"></label>
+      <button class="btn sm danger" data-action="delPos" data-i="${i}" style="margin-bottom:2px">מחיקה</button></div>`).join('')}
+    <div class="toolbar"><button class="btn" data-action="addPos">הוספת תפקיד</button></div>
+
     <h3>משמרות</h3>
     <p class="hint">המספרים הם כמה עובדים צריך בכל יום. 0 אומר שהמשמרת לא קיימת באותו יום.</p>
     ${st.shifts.map((s,i) => `<div class="shiftcard" style="--c:${s.color}">
@@ -797,6 +858,8 @@ function viewSettings(){
       </div>
       <div class="swatches">${PALETTE.map(c => `<button class="swatch" style="background:${c}" data-action="color" data-i="${i}" data-c="${c}" aria-label="בחירת צבע" aria-pressed="${c===s.color}"></button>`).join('')}</div>
       <div class="needs">${DAYS_SHORT.map((dn,d) => `<label>${dn}<input type="number" min="0" max="50" inputmode="numeric" data-s="shifts.${i}.need.${d}" value="${needAt(s,d)}"></label>`).join('')}</div>
+      ${(st.positions || []).length ? `<div class="field">מתאימה לתפקידים<small>${(s.positions||[]).length ? 'רק עובדים עם התפקידים המסומנים יראו את המשמרת' : 'לא סומן תפקיד: המשמרת מתאימה לכולם'}</small>
+        <div class="posgrid">${st.positions.map(p => `<label class="poschip"><input type="checkbox" data-action="shiftPos" data-i="${i}" data-id="${p.id}" ${(s.positions||[]).includes(p.id)?'checked':''}>${esc(p.name || 'ללא שם')}</label>`).join('')}</div></div>` : ''}
       <div class="toolbar">
         <button class="btn sm" data-action="moveShift" data-i="${i}" data-d="-1" ${i===0?'disabled':''}>הזזה ימינה</button>
         <button class="btn sm" data-action="moveShift" data-i="${i}" data-d="1" ${i===st.shifts.length-1?'disabled':''}>הזזה שמאלה</button>
@@ -940,17 +1003,18 @@ function renderSheet(){
   const [d,id] = k.split('_'), s = shiftById(id), a = asg(), on = new Set(a[k]);
   const count = uid => keys().filter(x => a[x].includes(uid)).length;
   const groups = [['yes','יכולים'],['maybe','מעדיפים שלא'],['unset','לא סימנו'],['no','לא יכולים']];
-  const rows = workers().map(u => ({ u, v: S.subs[u.uid]?.avail?.[k] || 'unset', w: on.has(u.uid) ? [] : conflicts(u,k,a) }));
+  const rows = workers().filter(u => on.has(u.uid) || canWork(u,s)).map(u => ({ u, v: S.subs[u.uid]?.avail?.[k] || 'unset', w: on.has(u.uid) ? [] : conflicts(u,k,a) }));
+  const sp = (s.positions || []).map(posName).filter(Boolean);
   $sheet.innerHTML = `<div class="sheet" style="--c:${s.color}">
     <header><div><h2>${esc(s.name)}, יום ${DAYS[d]} ${fmt(addDays(S.weekStart,+d))}</h2>
-      <div class="hint" style="margin:0">${ltr(hrs(s))}. משובצים ${on.size} מתוך ${needOf(k)}</div></div>
+      <div class="hint" style="margin:0">${ltr(hrs(s))}. משובצים ${on.size} מתוך ${needOf(k)}${sp.length ? `. מתאימה ל${sp.join(' ול')}` : ''}</div></div>
       <button class="iconbtn" data-action="closeSheet" aria-label="סגירה">✕</button></header>
     ${groups.map(([g,title]) => { const list = rows.filter(r => r.v === g); if (!list.length) return '';
       return `<h4>${title}</h4>${list.map(({u,w}) => `<label class="opt">
         <input type="checkbox" data-assign="${u.uid}" ${on.has(u.uid)?'checked':''}>
-        <span>${esc(u.name)}</span>
+        <span>${esc(u.name)}<span class="sub" style="display:block">${userPos(u).map(posName).join(', ')}</span></span>
         <span class="meta">${count(u.uid)} משמרות${w.map(x => `<span class="w">${WARN[x]}</span>`).join('')}</span></label>`).join('')}`; }).join('')}
-    ${!rows.length ? '<p class="hint">אין עובדים פעילים. מוסיפים עובדים בלשונית "עובדים".</p>' : ''}
+    ${!rows.length ? `<p class="hint">${sp.length ? 'אין עובדים עם התפקיד שמתאים למשמרת הזו.' : 'אין עובדים פעילים. מוסיפים עובדים בלשונית "עובדים".'}</p>` : ''}
   </div>`;
 }
 
@@ -1019,7 +1083,7 @@ const actions = {
 
   /* זמינות */
   cycle(el){ const k = el.dataset.k, v = CYCLE[S.draft[k] || 'unset']; if (v==='unset') delete S.draft[k]; else S.draft[k] = v; S.dirty = true; render(); },
-  allYes(){ keys().forEach(k => S.draft[k] = 'yes'); S.dirty = true; render(); },
+  allYes(){ availKeys().forEach(k => S.draft[k] = 'yes'); S.dirty = true; render(); },
   allClear(){ S.draft = {}; S.dirty = true; render(); },
   async save(el){
     el.disabled = true;
@@ -1064,7 +1128,7 @@ const actions = {
   async clearAsg(){ if (!confirm('למחוק את כל השיבוץ של השבוע הזה?')) return; await saveWeek({ assignments:emptyAsg() }, 'השיבוץ נוקה'); },
 
   /* עובדים */
-  newUser(){ S.uDraft = { name:'', email:'', phone:'', password:genPw(), role:'employee', works:false, maxShifts:'' }; S.created = null; S.view = 'newUser'; render(); },
+  newUser(){ S.uDraft = { name:'', email:'', phone:'', password:genPw(), role:'employee', positions:[], maxShifts:'' }; S.created = null; S.view = 'newUser'; render(); },
   genPw(){ S.uDraft.password = genPw(); render(); },
   async createUser(el){
     const u = S.uDraft, email = (u.email||'').trim().toLowerCase();
@@ -1072,7 +1136,7 @@ const actions = {
     if (!email) return toast('צריך למלא אימייל');
     if ((u.password||'').length < 6) return toast('הסיסמה צריכה לכלול לפחות 6 תווים');
     el.disabled = true;
-    const doc = { name:u.name.trim(), email, phone:(u.phone||'').trim(), role:u.role, works:!!u.works,
+    const doc = { name:u.name.trim(), email, phone:(u.phone||'').trim(), role:u.role === 'manager' ? 'manager' : 'employee', positions:userPos(u),
       maxShifts: u.maxShifts === '' || u.maxShifts == null ? null : Math.max(0, parseInt(u.maxShifts) || 0) };
     try{
       const uid = await B.createUser({ ...doc, password:u.password });
@@ -1082,6 +1146,24 @@ const actions = {
     render();
   },
   copyCreated(){ copyText(loginText(S.created)); },
+  userPos(el){
+    const set = new Set(S.uDraft.positions || []);
+    el.checked ? set.add(el.dataset.id) : set.delete(el.dataset.id);
+    S.uDraft.positions = [...set];
+  },
+  shiftPos(el){
+    const sh = S.sDraft.shifts[+el.dataset.i], set = new Set(sh.positions || []);
+    el.checked ? set.add(el.dataset.id) : set.delete(el.dataset.id);
+    sh.positions = [...set]; S.sDirty = true; render();
+  },
+  addPos(){ (S.sDraft.positions ??= []).push({ id:'p'+Math.random().toString(36).slice(2,8), name:'' }); S.sDirty = true; render(); },
+  delPos(el){
+    const p = S.sDraft.positions[+el.dataset.i];
+    if (!confirm(`למחוק את התפקיד "${p.name || 'ללא שם'}"? הוא יוסר מכל העובדים ומכל המשמרות.`)) return;
+    S.sDraft.positions.splice(+el.dataset.i, 1);
+    S.sDraft.shifts.forEach(sh => sh.positions = (sh.positions || []).filter(id => id !== p.id));
+    S.sDirty = true; render();
+  },
   waCreated(){ const c = S.created; window.open(`https://wa.me/${waPhone(c.phone)}?text=` + encodeURIComponent(loginText(c)), '_blank'); },
   openUser(el){
     S.editUid = el.dataset.uid;
@@ -1091,8 +1173,11 @@ const actions = {
   async saveUser(){
     const u = S.uDraft;
     if (!u.name?.trim()) return toast('צריך למלא שם');
-    if (u.uid === S.user.uid && (u.role !== 'manager' || u.active === false)) return toast('אי אפשר להסיר מעצמך הרשאות מנהל');
-    const data = { name:u.name.trim(), phone:(u.phone||'').trim(), role:u.role, works:!!u.works, active:u.active !== false,
+    const orig = S.users.find(x => x.uid === u.uid);
+    const locked = lockedSelf(orig);
+    const data = { name:u.name.trim(), phone:(u.phone||'').trim(), positions:userPos(u),
+      role: locked ? orig.role : (u.role === 'manager' ? 'manager' : 'employee'),
+      active: locked ? orig.active !== false : u.active !== false,
       maxShifts: u.maxShifts === '' || u.maxShifts == null ? null : Math.max(0, parseInt(u.maxShifts) || 0) };
     try{
       await B.updateUser(u.uid, data);
@@ -1109,6 +1194,21 @@ const actions = {
     try{ await B.sendReset(u.email); toast(`נשלח מייל לאיפוס סיסמה ל-${u.email}`); }catch(e){ toast(errMsg(e)); }
   },
   waUser(){ const u = S.users.find(x => x.uid === S.editUid); window.open(`https://wa.me/${waPhone(u.phone)}`, '_blank'); },
+  async transferOwner(el){
+    const u = S.users.find(x => x.uid === S.editUid);
+    if (!u || S.profile.role !== 'owner' || u.uid === S.user.uid || u.active === false) return;
+    if (!confirm(`להעביר את הבעלות על ${ST().business} ל${u.name}?\n\n${u.name} יהיה הבעלים, ואתה תהיה מנהל. אי אפשר לבטל את זה בעצמך: רק ${u.name} יוכל להחזיר לך את הבעלות.`)) return;
+    el.disabled = true;
+    try{
+      await B.transferOwnership(u.uid);
+      u.role = 'owner';
+      S.profile.role = 'manager';
+      const me = S.users.find(x => x.uid === S.user.uid); if (me) me.role = 'manager';
+      S.uDraft = clone(u);
+      toast(`${u.name} הוא עכשיו הבעלים`);
+    }catch(e){ toast(errMsg(e)); el.disabled = false; }
+    render();
+  },
 
   /* הגדרות */
   color(el){ S.sDraft.shifts[+el.dataset.i].color = el.dataset.c; S.sDirty = true; render(); },
@@ -1129,7 +1229,11 @@ const actions = {
   async saveSettings(el){
     const st = clone(S.sDraft);
     if (!st.shifts.length) return toast('צריך לפחות משמרת אחת');
+    st.positions = (st.positions || []).map(p => ({ id:p.id, name:(p.name||'').trim() }));
+    if (st.positions.some(p => !p.name)) return toast('לכל תפקיד צריך שם');
+    if (new Set(st.positions.map(p => p.name)).size !== st.positions.length) return toast('יש שני תפקידים עם אותו שם');
     for (const s of st.shifts) {
+      s.positions = (s.positions || []).filter(id => st.positions.some(p => p.id === id));
       s.name = (s.name||'').trim();
       if (!s.name) return toast('לכל משמרת צריך שם');
       if (!s.start || !s.end) return toast(`צריך שעת התחלה וסיום למשמרת "${s.name}"`);
@@ -1171,6 +1275,7 @@ document.addEventListener('input', e => {
   }
 });
 document.addEventListener('change', e => {
+  if (e.target.dataset.s?.startsWith('positions.')) { render(); return; }  // שם תפקיד חדש מופיע מיד גם במשמרות
   if (!e.target.dataset.dl) return;
   const day = +document.querySelector('[data-dl="day"]').value, hour = +document.querySelector('[data-dl="hour"]').value;
   S.sDraft.deadlineHours = day < 0 ? 0 : 168 - (day*24 + hour);
