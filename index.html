@@ -181,6 +181,8 @@ dialog::backdrop{background:rgba(30,36,51,.45)}
 .poschip{display:flex;align-items:center;gap:7px;border:1.5px solid var(--line);background:#fff;border-radius:99px;padding:6px 12px 6px 14px;cursor:pointer}
 .poschip:has(input:checked){border-color:var(--ink);background:#EEF1F6}
 .poschip input{width:18px;height:18px;accent-color:var(--ink);margin:0}
+.brandbtn{display:flex;align-items:center;gap:10px;border:0;background:none;padding:2px 0;font:inherit;color:inherit;text-align:right}
+.brandbtn .caret{font-family:'Rubik';font-size:.9rem;color:var(--muted)}
 #toast{position:fixed;left:50%;bottom:92px;transform:translateX(-50%);background:var(--ink);color:#fff;
   padding:10px 16px;border-radius:10px;font-size:.92rem;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90vw;z-index:20}
 #toast.show{opacity:1}
@@ -258,8 +260,12 @@ function errMsg(e){
   if (c.includes('invalid-email')) return 'כתובת האימייל לא תקינה';
   if (c.includes('too-many-requests')) return 'יותר מדי ניסיונות. נסה שוב בעוד כמה דקות';
   if (c === 'bad-company') return 'מזהה החברה, האימייל או הסיסמה שגויים';
-  if (c === 'has-company') return 'האימייל הזה כבר משויך למסעדה. נכנסים עם מזהה החברה שלה';
-  if (c === 'no-company') return 'החשבון הזה לא משויך למסעדה. אפשר לפתוח חשבון מסעדה עם אותו אימייל וסיסמה';
+  if (c === 'no-company') return 'החשבון הזה לא משויך לאף מסעדה. אפשר לפתוח חשבון מסעדה, או לבקש ממנהל להוסיף אותך';
+  if (c === 'inactive') return 'החשבון שלך לא פעיל במסעדה הזו. פנה למנהל';
+  if (c === 'legacy-wait') return 'המערכת עודכנה. בקש מבעל המסעדה להיכנס פעם אחת, ואז נסה שוב';
+  if (c === 'exists-wrong-pw') return 'האימייל הזה כבר רשום. כדי לפתוח איתו מסעדה, הקלד את הסיסמה שלו';
+  if (c === 'already-member') return 'העובד הזה כבר נמצא ברשימת העובדים של המסעדה';
+  if (c === 'needs-login') return 'האימייל הזה רשום, אבל העובד צריך להיכנס למערכת פעם אחת לפני שאפשר לצרף אותו';
   if (c.includes('permission-denied')) return 'אין הרשאה לפעולה הזו';
   return e?.message || 'משהו השתבש, נסה שוב';
 }
@@ -270,27 +276,37 @@ async function copyText(t){
 
 /* ---------- backend: demo ---------- */
 function demoBackend(){
-  const DEMO = '123456';
-  const users = {
-    m1:{ name:'דנה', email:'dana@demo', role:'owner', active:true, positions:[] },
-    m2:{ name:'אורי', email:'ori@demo', role:'manager', active:true, positions:['cook'] },
-    e1:{ name:'יוסי', email:'yossi@demo', role:'employee', active:true, phone:'0501234567', positions:['waiter'] },
-    e2:{ name:'מיכל', email:'michal@demo', role:'employee', active:true, positions:['waiter','cook'] },
-    e3:{ name:'אבי', email:'avi@demo', role:'employee', active:true, maxShifts:3, positions:['cook'] },
-    e4:{ name:'נועה', email:'noa@demo', role:'employee', active:true, positions:['waiter'] },
-    e5:{ name:'רון', email:'ron@demo', role:'employee', active:true, positions:['cook'] },
-    e6:{ name:'שירה', email:'shira@demo', role:'employee', active:true, positions:['waiter'] },
+  const accounts = {
+    m1:{ name:'דנה', email:'dana@demo' }, m2:{ name:'אורי', email:'ori@demo' },
+    e1:{ name:'יוסי', email:'yossi@demo' }, e2:{ name:'מיכל', email:'michal@demo' },
+    e3:{ name:'אבי', email:'avi@demo' }, e4:{ name:'נועה', email:'noa@demo' },
+    e5:{ name:'רון', email:'ron@demo' }, e6:{ name:'שירה', email:'shira@demo' },
+    g1:{ name:'גלעד', email:'gilad@demo' },
   };
-  Object.values(users).forEach(u => u.companyId = DEMO);
-  const demoSettings = { ...clone(DEFAULT_SETTINGS), business:'מסעדת הדגמה' };
-  demoSettings.shifts.push({ id:'prep', name:'הכנות', start:'10:00', end:'16:00', color:'#2E8B7A', need:[1,1,1,1,1,0,0], positions:['cook'] });
-  const companies = { [DEMO]: { name:'מסעדת הדגמה', ownerUid:'m1', settings:demoSettings, weeks:{}, subs:{} } };
+  const mem = (uid, role, positions, extra = {}) => ({ name:accounts[uid].name, email:accounts[uid].email, role, positions, active:true, ...extra });
+  const A_ = '123456', B_ = '654321';
+  const s1 = { ...clone(DEFAULT_SETTINGS), business:'מסעדת הדגמה' };
+  s1.shifts.push({ id:'prep', name:'הכנות', start:'10:00', end:'16:00', color:'#2E8B7A', need:[1,1,1,1,1,0,0], positions:['cook'] });
+  const s2 = { ...clone(DEFAULT_SETTINGS), business:'בית קפה הנמל' };
+  s2.shifts = [
+    { id:'open', name:'פתיחה', start:'06:30', end:'14:00', color:'#C2662D', need:[1,1,1,1,1,2,2], positions:[] },
+    { id:'close', name:'סגירה', start:'14:00', end:'21:00', color:'#7A5AC8', need:[1,1,1,1,1,2,0], positions:[] },
+  ];
+  const companies = {
+    [A_]: { ownerUid:'m1', settings:s1, weeks:{}, subs:{}, members:{
+      m1:mem('m1','owner',[]), m2:mem('m2','manager',['cook']),
+      e1:mem('e1','employee',['waiter'],{ phone:'0501234567' }), e2:mem('e2','employee',['waiter','cook']),
+      e3:mem('e3','employee',['cook'],{ maxShifts:3 }), e4:mem('e4','employee',['waiter']),
+      e5:mem('e5','employee',['cook']), e6:mem('e6','employee',['waiter']) } },
+    [B_]: { ownerUid:'g1', settings:s2, weeks:{}, subs:{}, members:{
+      g1:mem('g1','owner',[]), e1:mem('e1','employee',['waiter']), e4:mem('e4','manager',['waiter']) } },
+  };
   let seed = 7; const rnd = () => (seed = (seed*16807) % 2147483647) / 2147483647;
-  const D = companies[DEMO], next = weekId(addDays(sundayOf(new Date()),7));
+  const D = companies[A_], next = weekId(addDays(sundayOf(new Date()),7));
   D.subs[next] = {};
   ['e2','e3','e4','e5','e6'].forEach(uid => {
     const avail = {};
-    DAYS.forEach((_,d) => DEFAULT_SETTINGS.shifts.forEach(s => {
+    DAYS.forEach((_,d) => s1.shifts.forEach(s => {
       const r = rnd(), k = K(d,s.id);
       if (r<.55) avail[k]='yes'; else if (r<.68) avail[k]='maybe'; else if (r<.9) avail[k]='no';
     }));
@@ -304,31 +320,46 @@ function demoBackend(){
   }
   let current = null, cid = null; const ls = []; const emit = () => ls.forEach(f => f(current));
   const C = () => companies[cid];
+  const newUid = () => 'u'+Math.random().toString(36).slice(2,8);
+  function createCompany({ restaurant, name, settings }){
+    let code; do { code = genCode(); } while (companies[code]);
+    const acc = accounts[current.uid];
+    companies[code] = { ownerUid:current.uid, settings:clone(settings), weeks:{}, subs:{},
+      members:{ [current.uid]:{ name, email:acc.email, role:'owner', positions:[], active:true } } };
+    return code;
+  }
   return {
-    demo:true, users, companies, DEMO,
+    demo:true, accounts, companies,
+    companiesOf(uid){ return Object.entries(companies).filter(([,c]) => c.members[uid]).map(([c,x]) => x.settings.business); },
     onAuth(cb){ ls.push(cb); cb(current); },
     setCompany(c){ cid = c; },
-    async signIn(uid){ current = { uid }; emit(); },
+    async signIn(uid){ current = { uid, email:accounts[uid].email }; emit(); },
     async signOut(){ current = null; cid = null; emit(); },
     async sendReset(){ },
+    async ensureEmailIndex(){ },
+    async migrateLegacy(){ return { list:[] }; },
     async signUp({ restaurant, name, email, settings }){
-      if (Object.values(users).some(u => u.email === email)) throw { code:'email-already-in-use' };
-      let code; do { code = genCode(); } while (companies[code]);
-      const uid = 'u'+Math.random().toString(36).slice(2,8);
-      companies[code] = { name:restaurant, ownerUid:uid, settings:clone(settings), weeks:{}, subs:{} };
-      users[uid] = { name, email, role:'owner', active:true, positions:[], companyId:code };
-      return { uid, code };
+      let uid = Object.keys(accounts).find(u => accounts[u].email === email);
+      if (!uid) { uid = newUid(); accounts[uid] = { name, email }; }
+      current = { uid, email };
+      return { uid, code:createCompany({ restaurant, name, settings }) };
     },
-    async getProfile(uid){ return users[uid] ? clone(users[uid]) : null; },
-    async getCompany(){ return { name:C().name, ownerUid:C().ownerUid }; },
-    async listUsers(){ return Object.entries(users).filter(([,u]) => u.companyId === cid).map(([uid,u]) => ({ uid, ...clone(u) })); },
-    async createUser(data){
-      if (Object.values(users).some(u => u.email === data.email)) throw { code:'email-already-in-use' };
-      const uid = 'u'+Math.random().toString(36).slice(2,8);
-      const { password, ...doc } = data; users[uid] = { ...doc, companyId:cid, active:true }; return uid;
+    async createCompany(args){ return createCompany(args); },
+    async myCompanies(){ return Object.entries(companies).filter(([,c]) => c.members[current.uid]).map(([c,x]) => ({ cid:c, name:x.settings.business })); },
+    async companyName(c){ return companies[c]?.settings.business || null; },
+    async getMember(uid){ return C().members[uid] ? clone(C().members[uid]) : null; },
+    async getCompany(){ return { ownerUid:C().ownerUid }; },
+    async listUsers(){ return Object.entries(C().members).map(([uid,u]) => ({ uid, ...clone(u) })); },
+    async addUser(data){
+      const { password, ...doc } = data;
+      let uid = Object.keys(accounts).find(u => accounts[u].email === doc.email), existing = !!uid;
+      if (uid && C().members[uid]) throw { code:'already-member' };
+      if (!uid) { uid = newUid(); accounts[uid] = { name:doc.name, email:doc.email }; }
+      C().members[uid] = { ...clone(doc), active:true };
+      return { uid, existing };
     },
-    async updateUser(uid,data){ users[uid] = { ...users[uid], ...clone(data) }; },
-    async transferOwnership(newUid){ const me = current.uid; C().ownerUid = newUid; users[newUid].role = 'owner'; users[me].role = 'manager'; },
+    async updateUser(uid,data){ C().members[uid] = { ...C().members[uid], ...clone(data) }; },
+    async transferOwnership(nu){ const me = current.uid; C().ownerUid = nu; C().members[nu].role = 'owner'; C().members[me].role = 'manager'; },
     async getSettings(){ return C().settings ? clone(C().settings) : null; },
     async saveSettings(s){ C().settings = clone(s); },
     async getWeek(id){ return clone(C().weeks[id] || {}); },
@@ -341,6 +372,12 @@ function demoBackend(){
 }
 
 /* ---------- backend: Firebase ---------- */
+/* מבנה הנתונים:
+   companies/{מזהה}                  המסעדה (ownerUid = הבעלים)
+   companies/{מזהה}/members/{uid}    העובד במסעדה הזו: שם, הרשאה, תפקידים, פעיל
+   companies/{מזהה}/settings, weeks  ההגדרות והסידורים של המסעדה
+   users/{uid}/companies/{מזהה}      רשימת המסעדות של כל חשבון
+   emails/{אימייל}                   מאיזה אימייל לאיזה חשבון, כדי לצרף עובד קיים */
 async function firebaseBackend(cfg){
   const base = 'https://www.gstatic.com/firebasejs/10.12.2/';
   const AppM = await import(base+'firebase-app.js');
@@ -349,18 +386,40 @@ async function firebaseBackend(cfg){
   const app = AppM.initializeApp(cfg), auth = A.getAuth(app), db = F.getFirestore(app);
   auth.languageCode = 'he';
   const snap = s => s.exists() ? s.data() : null;
+  const now = () => F.serverTimestamp();
   let cid = null;
-  // כל הנתונים של מסעדה יושבים תחת companies/{מזהה החברה}
   const cdoc = (...p) => F.doc(db, 'companies', cid, ...p);
   const ccol = (...p) => F.collection(db, 'companies', cid, ...p);
-  // אפליקציה משנית ליצירת משתמשים, כדי שהמנהל לא יתנתק
-  let creatorAuth = null;
+  const memberRef = (c, u) => F.doc(db, 'companies', c, 'members', u);
+  const indexRef = (u, c) => F.doc(db, 'users', u, 'companies', c);
+  // אפליקציה משנית ליצירת חשבונות, כדי שהמנהל לא יתנתק. היא מחוברת לרגע כעובד החדש
+  let creator = null;
   async function getCreator(){
-    if (creatorAuth) return creatorAuth;
+    if (creator) return creator;
     const sec = AppM.initializeApp(cfg, 'creator');
-    creatorAuth = A.getAuth(sec);
-    await A.setPersistence(creatorAuth, A.inMemoryPersistence);
-    return creatorAuth;
+    const ca = A.getAuth(sec);
+    await A.setPersistence(ca, A.inMemoryPersistence);
+    return creator = { auth:ca, db:F.getFirestore(sec) };
+  }
+  async function ensureEmailIndex(){
+    const u = auth.currentUser; if (!u?.email) return;
+    const e = u.email.toLowerCase(), r = F.doc(db, 'emails', e);
+    const s = snap(await F.getDoc(r));
+    if (s?.uid !== u.uid) await F.setDoc(r, { uid:u.uid });
+  }
+  async function createCompany({ restaurant, name, settings }){
+    const u = auth.currentUser;
+    let code = null;
+    for (let i = 0; i < 10 && !code; i++) {
+      const c = genCode();
+      try { await F.setDoc(F.doc(db,'companies',c), { name:restaurant, ownerUid:u.uid, createdAt:now() }); code = c; }
+      catch(e){ if (!String(e?.code).includes('permission-denied')) throw e; }  // המספר תפוס, מגרילים שוב
+    }
+    if (!code) throw new Error('לא הצלחנו ליצור מזהה חברה, נסה שוב');
+    await F.setDoc(memberRef(code, u.uid), { name, email:(u.email||'').toLowerCase(), role:'owner', positions:[], active:true, joinedAt:now() });
+    await F.setDoc(indexRef(u.uid, code), { name:restaurant, joinedAt:now() });
+    await F.setDoc(F.doc(db,'companies',code,'settings','main'), settings);
+    return code;
   }
   return {
     demo:false,
@@ -369,64 +428,97 @@ async function firebaseBackend(cfg){
     async signIn(email,pw){ await A.signInWithEmailAndPassword(auth,email,pw); },
     async signOut(){ cid = null; await A.signOut(auth); },
     async sendReset(email){ await A.sendPasswordResetEmail(auth,email); },
+    ensureEmailIndex,
     async signUp({ restaurant, name, email, password, settings }){
       let cred, isNew = true;
       try { cred = await A.createUserWithEmailAndPassword(auth, email, password); }
       catch(e){
         if (!String(e?.code).includes('email-already-in-use')) throw e;
-        // חשבון קיים בלי מסעדה (למשל מגרסה קודמת): מחברים אותו למסעדה החדשה
-        try { cred = await A.signInWithEmailAndPassword(auth, email, password); } catch { throw e; }
+        // כבר יש חשבון (למשל עובד במסעדה אחרת): פותחים לו מסעדה נוספת
+        try { cred = await A.signInWithEmailAndPassword(auth, email, password); } catch { throw { code:'exists-wrong-pw' }; }
         isNew = false;
-        const p = snap(await F.getDoc(F.doc(db,'users',cred.user.uid)));
-        if (p?.companyId) { await A.signOut(auth); throw { code:'has-company' }; }
       }
-      const uid = cred.user.uid;
       try{
-        let code = null;
-        for (let i = 0; i < 10 && !code; i++) {
-          const c = genCode();
-          try { await F.setDoc(F.doc(db,'companies',c), { name:restaurant, ownerUid:uid, createdAt:F.serverTimestamp() }); code = c; }
-          catch(e){ if (!String(e?.code).includes('permission-denied')) throw e; }  // המספר תפוס, מגרילים שוב
-        }
-        if (!code) throw new Error('לא הצלחנו ליצור מזהה חברה, נסה שוב');
-        await F.setDoc(F.doc(db,'users',uid), { companyId:code, name, email, role:'owner', active:true, positions:[] });
-        await F.setDoc(F.doc(db,'companies',code,'settings','main'), settings);
-        return { uid, code };
+        await ensureEmailIndex().catch(() => {});
+        return { uid:cred.user.uid, code:await createCompany({ restaurant, name, settings }) };
       }catch(e){
-        if (isNew) await A.deleteUser(cred.user).catch(() => {});
-        else await A.signOut(auth);
+        if (isNew) await A.deleteUser(cred.user).catch(() => {}); else await A.signOut(auth);
         throw e;
       }
     },
-    async getProfile(uid){ return snap(await F.getDoc(F.doc(db,'users',uid))); },
+    createCompany,
+    async myCompanies(){
+      const q = await F.getDocs(F.collection(db, 'users', auth.currentUser.uid, 'companies'));
+      return q.docs.map(d => ({ cid:d.id, name:d.data().name || '' }));
+    },
+    async companyName(c){ try { return snap(await F.getDoc(F.doc(db,'companies',c,'settings','main')))?.business || null; } catch { return null; } },
+    async getMember(uid){ return snap(await F.getDoc(memberRef(cid, uid))); },
     async getCompany(){ return snap(await F.getDoc(F.doc(db,'companies',cid))); },
-    async listUsers(){
-      const q = await F.getDocs(F.query(F.collection(db,'users'), F.where('companyId','==',cid)));
-      return q.docs.map(d => ({ uid:d.id, ...d.data() }));
-    },
-    async createUser(data){
-      const ca = await getCreator();
-      const cred = await A.createUserWithEmailAndPassword(ca, data.email, data.password);
-      await A.signOut(ca);
+    async listUsers(){ const q = await F.getDocs(ccol('members')); return q.docs.map(d => ({ uid:d.id, ...d.data() })); },
+    async addUser(data, companyName){
       const { password, ...doc } = data;
-      await F.setDoc(F.doc(db,'users',cred.user.uid), { ...doc, companyId:cid, active:true });
-      return cred.user.uid;
+      let uid, existing = false;
+      const cr = await getCreator();
+      try {
+        const cred = await A.createUserWithEmailAndPassword(cr.auth, doc.email, password);
+        uid = cred.user.uid;
+        await F.setDoc(F.doc(cr.db, 'emails', doc.email), { uid }).catch(e => console.warn(e));
+        await A.signOut(cr.auth);
+      } catch(e){
+        if (!String(e?.code).includes('email-already-in-use')) throw e;
+        // החשבון כבר קיים: מצרפים אותו למסעדה, והסיסמה שלו לא משתנה
+        const m = snap(await F.getDoc(F.doc(db, 'emails', doc.email)));
+        if (!m?.uid) throw { code:'needs-login' };
+        uid = m.uid; existing = true;
+      }
+      if (snap(await F.getDoc(memberRef(cid, uid)))) throw { code:'already-member' };
+      const b = F.writeBatch(db);
+      b.set(memberRef(cid, uid), { ...doc, active:true, joinedAt:now() });
+      b.set(indexRef(uid, cid), { name:companyName || '', joinedAt:now() });
+      await b.commit();
+      return { uid, existing };
     },
-    async updateUser(uid,data){ await F.setDoc(F.doc(db,'users',uid), data, { merge:true }); },
+    async updateUser(uid,data){ await F.setDoc(memberRef(cid, uid), data, { merge:true }); },
     // שלושת השינויים נשמרים יחד או לא נשמרים בכלל, כך שתמיד יש בעלים אחד
     async transferOwnership(newUid){
       const b = F.writeBatch(db);
       b.update(F.doc(db,'companies',cid), { ownerUid:newUid });
-      b.update(F.doc(db,'users',newUid), { role:'owner' });
-      b.update(F.doc(db,'users',auth.currentUser.uid), { role:'manager' });
+      b.update(memberRef(cid, newUid), { role:'owner' });
+      b.update(memberRef(cid, auth.currentUser.uid), { role:'manager' });
       await b.commit();
+    },
+    // העברה חד-פעמית מהגרסה הקודמת, שבה כל משתמש היה שייך למסעדה אחת (users/{uid}.companyId)
+    async migrateLegacy(){
+      const me = auth.currentUser;
+      let p = null; try { p = snap(await F.getDoc(F.doc(db,'users',me.uid))); } catch {}
+      if (!p?.companyId) return { list:[] };
+      const c = p.companyId;
+      try {
+        await F.setDoc(memberRef(c, me.uid), { name:p.name || '', email:(p.email || me.email || '').toLowerCase(), phone:p.phone || '',
+          role:'owner', positions:p.positions || [], maxShifts:p.maxShifts ?? null, active:true, joinedAt:now() });
+      } catch { return { list:[], legacy:true }; }   // רק הבעלים מעביר את המסעדה
+      const name = snap(await F.getDoc(F.doc(db,'companies',c,'settings','main')))?.business || '';
+      await F.setDoc(indexRef(me.uid, c), { name, joinedAt:now() });
+      const q = await F.getDocs(F.query(F.collection(db,'users'), F.where('companyId','==',c)));
+      const b = F.writeBatch(db); let n = 0;
+      q.docs.forEach(d => {
+        if (d.id === me.uid) return;
+        const u = d.data();
+        b.set(memberRef(c, d.id), { name:u.name || '', email:(u.email || '').toLowerCase(), phone:u.phone || '',
+          role:u.role === 'manager' ? 'manager' : 'employee', positions:u.positions || [], maxShifts:u.maxShifts ?? null,
+          active:u.active !== false, joinedAt:now() });
+        b.set(indexRef(d.id, c), { name, joinedAt:now() });
+        n++;
+      });
+      if (n) await b.commit();
+      return { list:[{ cid:c, name }] };
     },
     async getSettings(){ return snap(await F.getDoc(cdoc('settings','main'))); },
     async saveSettings(s){ await F.setDoc(cdoc('settings','main'), s); },
     async getWeek(id){ return snap(await F.getDoc(cdoc('weeks',id))) || {}; },
     async updateWeek(id,data){ await F.setDoc(cdoc('weeks',id), data, { mergeFields:Object.keys(data) }); },
     async getSubmission(w,uid){ return snap(await F.getDoc(cdoc('weeks',w,'submissions',uid))); },
-    async saveSubmission(w,uid,data){ await F.setDoc(cdoc('weeks',w,'submissions',uid), { ...data, updatedAt:F.serverTimestamp() }); },
+    async saveSubmission(w,uid,data){ await F.setDoc(cdoc('weeks',w,'submissions',uid), { ...data, updatedAt:now() }); },
     async listSubmissions(w){
       const q = await F.getDocs(ccol('weeks',w,'submissions'));
       const o = {}; q.docs.forEach(d => o[d.id] = d.data()); return o;
@@ -437,7 +529,7 @@ async function firebaseBackend(cfg){
 
 /* ---------- state ---------- */
 const S = {
-  ready:false, user:null, profile:null, cid:null, authMode:'login', pendingCode:null, signingUp:false, newCompany:null, users:[], settings:clone(DEFAULT_SETTINGS), view:null,
+  ready:false, user:null, profile:null, cid:null, companies:[], sheetMode:null, authMode:'login', pendingCode:null, signingUp:false, newCompany:null, users:[], settings:clone(DEFAULT_SETTINGS), view:null,
   weekStart: addDays(sundayOf(new Date()),7),
   week:{}, mySub:null, draft:{}, note:'', dirty:false, subs:{}, msgDraft:'',
   sDraft:null, sDirty:false, uDraft:null, editUid:null, created:null,
@@ -550,21 +642,41 @@ async function loadWeek(){
 }
 function loadDraftFor(uid){ const s = S.subs[uid]; S.draft = { ...(s?.avail || {}) }; S.note = s?.note || ''; S.dirty = false; }
 async function afterLogin(){
-  let p = null;
-  try { p = await B.getProfile(S.user.uid); } catch {}
   const code = S.pendingCode; S.pendingCode = null;
-  if (p && !p.companyId) { toast(errMsg({ code:'no-company' })); await B.signOut(); return; }
-  if (code && p && p.companyId !== code) { toast(errMsg({ code:'bad-company' })); await B.signOut(); return; }
-  if (!p || p.active === false) { toast('החשבון הזה לא פעיל. פנה למנהל.'); await B.signOut(); return; }
-  S.profile = p; S.cid = p.companyId; B.setCompany(p.companyId);
-  if (code) store.set('companyCode', code);
-  if (p.role !== 'owner') {
-    try{ const c = await B.getCompany(); if (c?.ownerUid === S.user.uid) { await B.updateUser(S.user.uid, { role:'owner' }); p.role = 'owner'; } }catch{}
+  B.ensureEmailIndex().catch(() => {});
+  let list = await B.myCompanies();
+  if (!list.length) {
+    const m = await B.migrateLegacy().catch(() => ({ list:[] }));
+    list = m.list;
+    if (!list.length) { toast(errMsg({ code: m.legacy ? 'legacy-wait' : 'no-company' })); await B.signOut(); return; }
   }
+  S.companies = list;
+  // כניסה עם מזהה חברה: נכנסים בדיוק למסעדה הזו
+  if (code) {
+    if (!list.some(c => c.cid === code)) { toast(errMsg({ code:'bad-company' })); await B.signOut(); return; }
+    if (!await enterCompany(code)) { toast(errMsg({ code:'inactive' })); await B.signOut(); return; }
+    store.set('companyCode', code);
+    return;
+  }
+  // פתיחה רגילה: המסעדה האחרונה במכשיר הזה, ואם היא לא זמינה, הבאה בתור
+  const last = store.get('lastCompany:' + S.user.uid);
+  const order = [...list].sort((a,b) => (b.cid === last) - (a.cid === last));
+  for (const c of order) if (await enterCompany(c.cid)) return;
+  toast(errMsg({ code:'inactive' })); await B.signOut();
+}
+async function enterCompany(cid){
+  B.setCompany(cid);
+  let p = null; try { p = await B.getMember(S.user.uid); } catch {}
+  if (!p || p.active === false) { if (S.cid) B.setCompany(S.cid); return false; }
+  S.cid = cid; S.profile = { ...p, uid:S.user.uid };
+  store.set('lastCompany:' + S.user.uid, cid);
   S.settings = normSettings(await B.getSettings());
   S.users = await B.listUsers();
+  Object.assign(S, { subs:{}, week:{}, allWeeks:null, repUid:null, editUid:null, draft:{}, note:'', dirty:false, sDirty:false, mySub:null });
+  const c = S.companies.find(x => x.cid === cid); if (c) c.name = ST().business;
   S.view = isMgr() ? 'manage' : 'submit';
   await loadWeek();
+  return true;
 }
 
 /* ---------- render ---------- */
@@ -575,14 +687,15 @@ function render(){
   const tabs = isMgr()
     ? [['manage','שיבוץ'],['team','עובדים'],['reports','דוחות'],['settings','הגדרות']]
     : [['submit','זמינות'],['mine','הסידור שלי'],['hours','שעות']];
-  const tabOf = { user:'team', newUser:'team' }[S.view] || S.view;
-  const showWeek = !['settings','newUser','reports','hours'].includes(S.view);
-  const views = { submit:viewSubmit, mine:viewMine, manage:viewManage, team:viewTeam, user:viewUser, newUser:viewNewUser, settings:viewSettings, hours:viewHours, reports:viewReports };
+  const tabOf = { user:'team', newUser:'team' }[S.view] || S.view;  // newCompany: אף לשונית
+  const showWeek = !['settings','newUser','reports','hours','newCompany'].includes(S.view);
+  const views = { submit:viewSubmit, mine:viewMine, manage:viewManage, team:viewTeam, user:viewUser, newUser:viewNewUser, settings:viewSettings, hours:viewHours, reports:viewReports, newCompany:viewNewCompany };
   const end = addDays(S.weekStart,6);
   $app.innerHTML = `
     ${B.demo ? `<div class="demo">מצב הדגמה: הנתונים נשמרים רק עד רענון הדף.</div>` : ''}
     <header class="top">
-      <h1 class="brand"><span class="bars" aria-hidden="true"><i></i><i></i><i></i></span>${esc(ST().business)}</h1>
+      <h1 class="brand"><button class="brandbtn" data-action="openSwitch" aria-label="${esc(ST().business)}: החלפת מסעדה">
+        <span class="bars" aria-hidden="true"><i></i><i></i><i></i></span>${esc(ST().business)}<span class="caret" aria-hidden="true">▾</span></button></h1>
       <div class="who">${esc(S.profile.name)}<button class="link" data-action="logout">יציאה</button></div>
     </header>
     <nav class="tabs">${tabs.map(([v,l]) => `<button data-action="tab" data-v="${v}" ${tabOf===v?'aria-current="page"':''}>${l}</button>`).join('')}</nav>
@@ -611,9 +724,9 @@ function viewLogin(){
   const toSignup = `<p class="divider">מנהלים מסעדה ועוד אין לכם חשבון?</p>
     <button class="btn" data-action="authMode" data-m="signup">פתיחת חשבון מסעדה</button>`;
   if (B.demo) {
-    return `<div class="login">${BRAND}<p>מצב הדגמה. בוחרים משתמש כדי לראות את המערכת מהצד שלו. מזהה החברה של מסעדת ההדגמה הוא ${B.DEMO}.</p>
-      <div class="userpick">${Object.entries(B.users).filter(([,u]) => u.active!==false).map(([uid,u]) =>
-        `<button data-action="demoLogin" data-uid="${uid}"><b>${esc(u.name)}</b><span>${ROLE_LABEL[u.role] || 'עובד'}, ${esc(B.companies[u.companyId]?.name)}</span></button>`).join('')}</div>
+    return `<div class="login">${BRAND}<p>מצב הדגמה. בוחרים משתמש כדי לראות את המערכת מהצד שלו. יוסי ונועה עובדים בשתי מסעדות.</p>
+      <div class="userpick">${Object.entries(B.accounts).map(([uid,u]) =>
+        `<button data-action="demoLogin" data-uid="${uid}"><b>${esc(u.name)}</b><span>${esc(B.companiesOf(uid).join(', ') || 'בלי מסעדה')}</span></button>`).join('')}</div>
       ${toSignup}</div>`;
   }
   return `<div class="login">${BRAND}<p>כניסה עם הפרטים שקיבלת מהמנהל</p>
@@ -628,7 +741,7 @@ function viewLogin(){
     ${toSignup}</div>`;
 }
 function viewSignup(){
-  return `<div class="login">${BRAND}<p>פתיחת חשבון מסעדה. אחרי הפתיחה תקבל מזהה חברה בן 6 ספרות, שאיתו אתה והעובדים נכנסים למערכת.</p>
+  return `<div class="login">${BRAND}<p>פתיחת חשבון מסעדה. אחרי הפתיחה תקבל מזהה חברה בן 6 ספרות, שאיתו אתה והעובדים נכנסים למערכת. כבר יש לך חשבון במסעדה אחרת? ממלאים את אותו אימייל וסיסמה.</p>
     <label class="field">שם המסעדה<input type="text" id="f-rest" autocomplete="organization"></label>
     <label class="field">השם שלך<input type="text" id="f-name" autocomplete="name"></label>
     <label class="field">אימייל<input type="email" id="f-email" autocomplete="email" dir="ltr"></label>
@@ -646,6 +759,22 @@ function viewWelcome(){
     <p>שומרים אותו. אתה והעובדים צריכים אותו בכל כניסה, והוא תמיד מופיע אצלך בלשונית "עובדים".</p>
     <div class="toolbar"><button class="btn" data-action="copyCode">העתקת המזהה</button>
       <button class="btn primary" data-action="welcomeDone">כניסה למערכת</button></div></div>`;
+}
+
+function viewNewCompany(){
+  return `<div class="toolbar"><button class="btn sm" data-action="tab" data-v="${isMgr() ? 'manage' : 'submit'}">ביטול</button></div>
+    <div class="card"><h3>פתיחת מסעדה חדשה</h3>
+      <p class="hint">המסעדה החדשה נפתחת בחשבון שלך, ואתה הבעלים שלה. המסעדות האחרות שלך לא משתנות, ועוברים ביניהן בלחיצה על שם המסעדה למעלה.</p>
+      <label class="field">שם המסעדה<input type="text" id="f-rest" autocomplete="organization"></label>
+      <div class="toolbar" style="margin-top:16px"><button class="btn primary" data-action="createCompany">פתיחת המסעדה</button></div></div>`;
+}
+function renderSwitch(){
+  $sheet.innerHTML = `<div class="sheet" style="--c:var(--ink)">
+    <header><div><h2>המסעדות שלך</h2></div><button class="iconbtn" data-action="closeSheet" aria-label="סגירה">✕</button></header>
+    <ul class="list">${S.companies.map(c => `<li class="btnrow"><button class="userbtn" data-action="switchTo" data-cid="${c.cid}">
+      <span><b>${esc(c.name || 'מסעדה')}</b><span class="sub" style="display:block">מזהה ${ltr(c.cid)}</span></span>
+      ${c.cid === S.cid ? '<span class="pill ok">כאן עכשיו</span>' : ''}</button></li>`).join('')}</ul>
+    <div class="toolbar" style="margin-top:12px"><button class="btn" data-action="newCompany">פתיחת מסעדה חדשה</button></div></div>`;
 }
 
 const legend = () => `<div class="legend">
@@ -763,7 +892,7 @@ function userFields(isNew){
     <label class="field">שם<input type="text" data-u="name" value="${esc(u.name)}"></label>
     <label class="field">אימייל${isNew ? '' : '<small>אי אפשר לשנות אימייל של משתמש קיים</small>'}
       <input type="email" dir="ltr" data-u="email" value="${esc(u.email)}" ${isNew?'':'disabled'}></label>
-    ${isNew ? `<div class="row"><label class="field grow">סיסמה ראשונית<input type="text" dir="ltr" data-u="password" value="${esc(u.password)}"></label>
+    ${isNew ? `<div class="row"><label class="field grow">סיסמה ראשונית<small>אם העובד כבר רשום במערכת, הוא ממשיך עם הסיסמה שלו</small><input type="text" dir="ltr" data-u="password" value="${esc(u.password)}"></label>
       <button class="btn sm" data-action="genPw" style="margin-bottom:2px">סיסמה חדשה</button></div>` : ''}
     <label class="field">טלפון<small>לשליחת פרטים בוואטסאפ</small><input type="tel" dir="ltr" data-u="phone" value="${esc(u.phone)}"></label>
     <div class="row">
@@ -815,8 +944,9 @@ function viewUser(){
 function viewNewUser(){
   if (S.created) {
     const c = S.created;
-    return `<div class="card"><h3>${esc(c.name)} נוסף למערכת</h3>
-      <p class="hint">שלח לעובד את פרטי הכניסה. הסיסמה לא תוצג שוב.</p>
+    return `<div class="card"><h3>${esc(c.name)} ${c.existing ? 'צורף למסעדה' : 'נוסף למערכת'}</h3>
+      <p class="hint">${c.existing ? `${esc(c.name)} כבר רשום במערכת ולכן צורף למסעדה. הוא נכנס עם הסיסמה שכבר יש לו, והסיסמה שהקלדת לא נשמרה.`
+        : 'שלח לעובד את פרטי הכניסה. הסיסמה לא תוצג שוב.'}</p>
       <pre>${esc(loginText(c))}</pre>
       <div class="toolbar">
         <button class="btn primary" data-action="copyCreated">העתקת פרטי הכניסה</button>
@@ -830,7 +960,9 @@ function viewNewUser(){
     <div class="card"><h3>עובד חדש</h3>${userFields(true)}
       <div class="toolbar" style="margin-top:16px"><button class="btn primary" data-action="createUser">הוספת העובד</button></div></div>`;
 }
-const loginText = c => `שלום ${c.name}, נפתח לך חשבון במערכת המשמרות של ${ST().business}.\nכניסה: ${location.origin + location.pathname}\nמזהה חברה: ${S.cid}\nאימייל: ${c.email}\nסיסמה: ${c.password}`;
+const loginText = c => c.existing
+  ? `שלום ${c.name}, צורפת למערכת המשמרות של ${ST().business}.\nכניסה: ${location.origin + location.pathname}\nמזהה חברה: ${S.cid}\nאימייל: ${c.email}\nהסיסמה שלך לא השתנתה. אם שכחת אותה, יש "שכחתי סיסמה" במסך הכניסה.`
+  : `שלום ${c.name}, נפתח לך חשבון במערכת המשמרות של ${ST().business}.\nכניסה: ${location.origin + location.pathname}\nמזהה חברה: ${S.cid}\nאימייל: ${c.email}\nסיסמה: ${c.password}`;
 
 function viewSettings(){
   const st = S.sDraft;
@@ -1054,7 +1186,7 @@ const actions = {
     const settings = { ...clone(DEFAULT_SETTINGS), business:restaurant, tzMin:-new Date().getTimezoneOffset(), appUrl:location.origin + location.pathname };
     try{
       const { uid, code } = await B.signUp({ restaurant, name, email, password, settings });
-      store.set('companyCode', code);
+      store.set('companyCode', code); store.set('lastCompany:' + uid, code);
       S.newCompany = { code, name:restaurant };
       if (B.demo) await B.signIn(uid);
       S.user = S.user || { uid, email }; S.ready = true;
@@ -1069,7 +1201,37 @@ const actions = {
     const email = val('f-email'); if (!email) return toast('קודם כותבים את האימייל בשדה');
     try{ await B.sendReset(email); toast('אם האימייל רשום במערכת, נשלח אליו קישור לאיפוס'); }catch(e){ toast(errMsg(e)); }
   },
-  async logout(){ if (!confirmLeave()) return; S.profile = null; S.cid = null; S.newCompany = null; await B.signOut(); },
+  async logout(){ if (!confirmLeave()) return; S.profile = null; S.cid = null; S.companies = []; S.newCompany = null; await B.signOut(); },
+  async openSwitch(){
+    S.sheetMode = 'switch'; renderSwitch(); $sheet.showModal();
+    // שמות עדכניים, אם שונו בהגדרות של מסעדה אחרת
+    await Promise.all(S.companies.map(async c => { const n = await B.companyName(c.cid); if (n) c.name = n; }));
+    if (S.sheetMode === 'switch') renderSwitch();
+  },
+  async switchTo(el){
+    const cid = el.dataset.cid;
+    if (cid === S.cid) return $sheet.close();
+    if (!confirmLeave()) return;
+    $sheet.close();
+    S.loading = true; render();
+    try{
+      if (await enterCompany(cid)) toast(`עברת ל${ST().business}`);
+      else { toast(errMsg({ code:'inactive' })); S.loading = false; render(); }
+    }catch(e){ toast(errMsg(e)); S.loading = false; render(); }
+  },
+  newCompany(){ $sheet.close(); if (!confirmLeave()) return; S.view = 'newCompany'; render(); window.scrollTo(0,0); },
+  async createCompany(el){
+    const restaurant = val('f-rest'); if (!restaurant) return toast('צריך למלא את שם המסעדה');
+    el.disabled = true;
+    const settings = { ...clone(DEFAULT_SETTINGS), business:restaurant, tzMin:-new Date().getTimezoneOffset(), appUrl:location.origin + location.pathname };
+    try{
+      const code = await B.createCompany({ restaurant, name:S.profile.name, settings });
+      S.companies.push({ cid:code, name:restaurant });
+      await enterCompany(code);
+      S.newCompany = { code, name:restaurant };
+    }catch(e){ toast(errMsg(e)); el.disabled = false; }
+    render();
+  },
   tab(el){
     if (!confirmLeave()) return;
     const v = el.dataset.v;
@@ -1110,7 +1272,7 @@ const actions = {
     const a = autoAssign(); const short = keys().filter(k => a[k].length < needOf(k)).length;
     await saveWeek({ assignments:a }, short ? `השיבוץ הושלם. ${short} משמרות נשארו חסרות` : 'השיבוץ הושלם, כל המשמרות מאוישות');
   },
-  openSlot(el){ S.openKey = el.dataset.k; renderSheet(); $sheet.showModal(); },
+  openSlot(el){ S.sheetMode = 'slot'; S.openKey = el.dataset.k; renderSheet(); $sheet.showModal(); },
   closeSheet(){ $sheet.close(); },
   async saveMsg(){ await saveWeek({ message:S.msgDraft.trim() }, 'ההודעה נשמרה'); },
   shareWa(){ window.open('https://wa.me/?text=' + encodeURIComponent(scheduleText()), '_blank'); },
@@ -1135,13 +1297,14 @@ const actions = {
     if (!u.name?.trim()) return toast('צריך למלא שם');
     if (!email) return toast('צריך למלא אימייל');
     if ((u.password||'').length < 6) return toast('הסיסמה צריכה לכלול לפחות 6 תווים');
+    if (S.users.some(x => (x.email||'').toLowerCase() === email)) return toast(errMsg({ code:'already-member' }));
     el.disabled = true;
     const doc = { name:u.name.trim(), email, phone:(u.phone||'').trim(), role:u.role === 'manager' ? 'manager' : 'employee', positions:userPos(u),
       maxShifts: u.maxShifts === '' || u.maxShifts == null ? null : Math.max(0, parseInt(u.maxShifts) || 0) };
     try{
-      const uid = await B.createUser({ ...doc, password:u.password });
+      const { uid, existing } = await B.addUser({ ...doc, password:u.password }, ST().business);
       S.users.push({ uid, ...doc, active:true });
-      S.created = { ...doc, password:u.password };
+      S.created = { ...doc, password: existing ? null : u.password, existing };
     }catch(e){ toast(errMsg(e)); }
     render();
   },
@@ -1289,7 +1452,7 @@ $sheet.addEventListener('change', async e => {
   await saveWeek({ assignments:a });
   renderSheet();
 });
-$sheet.addEventListener('close', () => { S.openKey = null; });
+$sheet.addEventListener('close', () => { S.openKey = null; S.sheetMode = null; });
 $sheet.addEventListener('click', e => { if (e.target === $sheet) $sheet.close(); });
 
 /* ---------- boot ---------- */
