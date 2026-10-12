@@ -1056,8 +1056,8 @@ function viewSettings(){
       ${(st.positions || []).length ? `<div class="field">מתאימה לתפקידים<small>${(s.positions||[]).length ? 'רק עובדים עם התפקידים המסומנים יראו את המשמרת' : 'לא סומן תפקיד: המשמרת מתאימה לכולם'}</small>
         <div class="posgrid">${st.positions.map(p => `<label class="poschip"><input type="checkbox" data-action="shiftPos" data-i="${i}" data-id="${p.id}" ${(s.positions||[]).includes(p.id)?'checked':''}>${esc(p.name || 'ללא שם')}</label>`).join('')}</div></div>` : ''}
       <div class="toolbar">
-        <button class="btn sm" data-action="moveShift" data-i="${i}" data-d="-1" ${i===0?'disabled':''}>הזזה ימינה</button>
-        <button class="btn sm" data-action="moveShift" data-i="${i}" data-d="1" ${i===st.shifts.length-1?'disabled':''}>הזזה שמאלה</button>
+        <button class="btn sm" data-action="moveShift" data-i="${i}" data-d="-1" ${i===0?'disabled':''}>הזזה למעלה</button>
+        <button class="btn sm" data-action="moveShift" data-i="${i}" data-d="1" ${i===st.shifts.length-1?'disabled':''}>הזזה למטה</button>
         <button class="btn sm danger" data-action="delShift" data-i="${i}">מחיקת המשמרת</button>
       </div></div>`).join('')}
     <button class="btn" data-action="addShift">הוספת משמרת</button>
