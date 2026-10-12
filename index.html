@@ -176,10 +176,8 @@ dialog::backdrop{background:rgba(30,36,51,.45)}
 .month{font-weight:700;margin:16px 0 0;font-size:.95rem}
 .tot{font-weight:700;border-top:2px solid var(--ink)!important}
 .divider{margin:28px 0 8px;padding-top:18px;border-top:1px solid var(--line);color:var(--muted)}
-.code{font-family:'Secular One',sans-serif;font-size:2.8rem;letter-spacing:.18em;text-align:center;background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:10px 0;margin:6px 0 12px}
-.codebox{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;margin:10px 0}
-.codebox b{font-family:'Secular One',sans-serif;font-weight:400;font-size:1.35rem;letter-spacing:.12em}
-.codebox span{flex:1;min-width:160px;color:var(--muted);font-size:.88rem}
+.picklist{margin-top:8px;background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:0 14px}
+.picklist .userbtn b{font-size:1.05rem}
 .posgrid{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;font-weight:400}
 .poschip{display:flex;align-items:center;gap:7px;border:1.5px solid var(--line);background:#fff;border-radius:99px;padding:6px 12px 6px 14px;cursor:pointer}
 .poschip:has(input:checked){border-color:var(--ink);background:#EEF1F6}
@@ -248,6 +246,7 @@ const onColor = hex => { const n = parseInt(hex.slice(1),16); const l = (0.299*(
 const byName = (a,b) => (a.name||'').localeCompare(b.name||'','he');
 const clone = o => JSON.parse(JSON.stringify(o));
 const val = id => document.getElementById(id)?.value.trim() || '';
+const newSettings = business => ({ ...clone(DEFAULT_SETTINGS), positions:[], business, tzMin:-new Date().getTimezoneOffset(), appUrl:location.origin + location.pathname });
 const genCode = () => String(100000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 900000));
 const store = { get(k){ try{ return localStorage.getItem(k) || ''; }catch{ return ''; } }, set(k,v){ try{ localStorage.setItem(k,v); }catch{} } };
 const genPw = () => Array.from({length:8}, () => 'abcdefghjkmnpqrstuvwxyz23456789'[Math.floor(Math.random()*31)]).join('');
@@ -262,12 +261,12 @@ function errMsg(e){
   if (c.includes('weak-password')) return 'הסיסמה צריכה לכלול לפחות 6 תווים';
   if (c.includes('invalid-email')) return 'כתובת האימייל לא תקינה';
   if (c.includes('too-many-requests')) return 'יותר מדי ניסיונות. נסה שוב בעוד כמה דקות';
-  if (c === 'bad-company') return 'מזהה החברה, האימייל או הסיסמה שגויים';
-  if (c === 'no-company') return 'החשבון הזה לא משויך לאף מסעדה. אפשר לפתוח חשבון מסעדה, או לבקש ממנהל להוסיף אותך';
-  if (c === 'inactive') return 'החשבון שלך לא פעיל במסעדה הזו. פנה למנהל';
-  if (c === 'legacy-wait') return 'המערכת עודכנה. בקש מבעל המסעדה להיכנס פעם אחת, ואז נסה שוב';
-  if (c === 'exists-wrong-pw') return 'האימייל הזה כבר רשום. כדי לפתוח איתו מסעדה, הקלד את הסיסמה שלו';
-  if (c === 'already-member') return 'העובד הזה כבר נמצא ברשימת העובדים של המסעדה';
+  if (c === 'no-company') return 'החשבון הזה לא משויך לאף עסק. אפשר לפתוח חשבון עסק, או לבקש ממנהל להוסיף אותך';
+  if (c === 'inactive') return 'החשבון שלך לא פעיל באף עסק. פנה למנהל';
+  if (c === 'inactive-here') return 'החשבון שלך לא פעיל בעסק הזה. פנה למנהל';
+  if (c === 'legacy-wait') return 'המערכת עודכנה. בקש מבעל העסק להיכנס פעם אחת, ואז נסה שוב';
+  if (c === 'exists-wrong-pw') return 'האימייל הזה כבר רשום. כדי לפתוח איתו עסק, הקלד את הסיסמה שלו';
+  if (c === 'already-member') return 'העובד הזה כבר נמצא ברשימת העובדים של העסק';
   if (c === 'needs-login') return 'האימייל הזה רשום, אבל העובד צריך להיכנס למערכת פעם אחת לפני שאפשר לצרף אותו';
   if (c.includes('permission-denied')) return 'אין הרשאה לפעולה הזו';
   return e?.message || 'משהו השתבש, נסה שוב';
@@ -348,7 +347,7 @@ function demoBackend(){
       return { uid, code:createCompany({ restaurant, name, settings }) };
     },
     async createCompany(args){ return createCompany(args); },
-    async myCompanies(){ return Object.entries(companies).filter(([,c]) => c.members[current.uid]).map(([c,x]) => ({ cid:c, name:x.settings.business })); },
+    async myCompanies(){ return Object.entries(companies).filter(([,c]) => c.members[current.uid]).map(([c,x]) => ({ cid:c, name:x.settings.business, active:x.members[current.uid].active !== false })); },
     async companyName(c){ return companies[c]?.settings.business || null; },
     async getMember(uid){ return C().members[uid] ? clone(C().members[uid]) : null; },
     async getCompany(){ return { ownerUid:C().ownerUid }; },
@@ -376,10 +375,10 @@ function demoBackend(){
 
 /* ---------- backend: Firebase ---------- */
 /* מבנה הנתונים:
-   companies/{מזהה}                  המסעדה (ownerUid = הבעלים)
-   companies/{מזהה}/members/{uid}    העובד במסעדה הזו: שם, הרשאה, תפקידים, פעיל
-   companies/{מזהה}/settings, weeks  ההגדרות והסידורים של המסעדה
-   users/{uid}/companies/{מזהה}      רשימת המסעדות של כל חשבון
+   companies/{מזהה}                  העסק (ownerUid = הבעלים)
+   companies/{מזהה}/members/{uid}    העובד בעסק הזה: שם, הרשאה, תפקידים, פעיל
+   companies/{מזהה}/settings, weeks  ההגדרות והסידורים של העסק
+   users/{uid}/companies/{מזהה}      רשימת העסקים של כל חשבון
    emails/{אימייל}                   מאיזה אימייל לאיזה חשבון, כדי לצרף עובד קיים */
 async function firebaseBackend(cfg){
   const base = 'https://www.gstatic.com/firebasejs/10.12.2/';
@@ -418,7 +417,7 @@ async function firebaseBackend(cfg){
       try { await F.setDoc(F.doc(db,'companies',c), { name:restaurant, ownerUid:u.uid, createdAt:now() }); code = c; }
       catch(e){ if (!String(e?.code).includes('permission-denied')) throw e; }  // המספר תפוס, מגרילים שוב
     }
-    if (!code) throw new Error('לא הצלחנו ליצור מזהה חברה, נסה שוב');
+    if (!code) throw new Error('לא הצלחנו לפתוח את העסק, נסה שוב');
     await F.setDoc(memberRef(code, u.uid), { name, email:(u.email||'').toLowerCase(), role:'owner', positions:[], active:true, joinedAt:now() });
     await F.setDoc(indexRef(u.uid, code), { name:restaurant, joinedAt:now() });
     await F.setDoc(F.doc(db,'companies',code,'settings','main'), settings);
@@ -437,7 +436,7 @@ async function firebaseBackend(cfg){
       try { cred = await A.createUserWithEmailAndPassword(auth, email, password); }
       catch(e){
         if (!String(e?.code).includes('email-already-in-use')) throw e;
-        // כבר יש חשבון (למשל עובד במסעדה אחרת): פותחים לו מסעדה נוספת
+        // כבר יש חשבון (למשל עובד בעסק אחר): פותחים לו עסק נוסף
         try { cred = await A.signInWithEmailAndPassword(auth, email, password); } catch { throw { code:'exists-wrong-pw' }; }
         isNew = false;
       }
@@ -450,9 +449,14 @@ async function firebaseBackend(cfg){
       }
     },
     createCompany,
+    // כל העסקים של החשבון, ולכל אחד אם המשתמש עדיין פעיל בו (כל משתמש יכול לקרוא את הכרטיס של עצמו)
     async myCompanies(){
-      const q = await F.getDocs(F.collection(db, 'users', auth.currentUser.uid, 'companies'));
-      return q.docs.map(d => ({ cid:d.id, name:d.data().name || '' }));
+      const me = auth.currentUser.uid;
+      const q = await F.getDocs(F.collection(db, 'users', me, 'companies'));
+      return Promise.all(q.docs.map(async d => {
+        let m = null; try { m = snap(await F.getDoc(memberRef(d.id, me))); } catch {}
+        return { cid:d.id, name:d.data().name || '', active:!!m && m.active !== false };
+      }));
     },
     async companyName(c){ try { return snap(await F.getDoc(F.doc(db,'companies',c,'settings','main')))?.business || null; } catch { return null; } },
     async getMember(uid){ return snap(await F.getDoc(memberRef(cid, uid))); },
@@ -469,7 +473,7 @@ async function firebaseBackend(cfg){
         await A.signOut(cr.auth);
       } catch(e){
         if (!String(e?.code).includes('email-already-in-use')) throw e;
-        // החשבון כבר קיים: מצרפים אותו למסעדה, והסיסמה שלו לא משתנה
+        // החשבון כבר קיים: מצרפים אותו לעסק, והסיסמה שלו לא משתנה
         const m = snap(await F.getDoc(F.doc(db, 'emails', doc.email)));
         if (!m?.uid) throw { code:'needs-login' };
         uid = m.uid; existing = true;
@@ -490,7 +494,7 @@ async function firebaseBackend(cfg){
       b.update(memberRef(cid, auth.currentUser.uid), { role:'manager' });
       await b.commit();
     },
-    // העברה חד-פעמית מהגרסה הקודמת, שבה כל משתמש היה שייך למסעדה אחת (users/{uid}.companyId)
+    // העברה חד-פעמית מהגרסה הקודמת, שבה כל משתמש היה שייך לעסק אחד (users/{uid}.companyId)
     async migrateLegacy(){
       const me = auth.currentUser;
       let p = null; try { p = snap(await F.getDoc(F.doc(db,'users',me.uid))); } catch {}
@@ -499,7 +503,7 @@ async function firebaseBackend(cfg){
       try {
         await F.setDoc(memberRef(c, me.uid), { name:p.name || '', email:(p.email || me.email || '').toLowerCase(), phone:p.phone || '',
           role:'owner', positions:p.positions || [], maxShifts:p.maxShifts ?? null, active:true, joinedAt:now() });
-      } catch { return { list:[], legacy:true }; }   // רק הבעלים מעביר את המסעדה
+      } catch { return { list:[], legacy:true }; }   // רק הבעלים מעביר את העסק
       const name = snap(await F.getDoc(F.doc(db,'companies',c,'settings','main')))?.business || '';
       await F.setDoc(indexRef(me.uid, c), { name, joinedAt:now() });
       const q = await F.getDocs(F.query(F.collection(db,'users'), F.where('companyId','==',c)));
@@ -532,7 +536,7 @@ async function firebaseBackend(cfg){
 
 /* ---------- state ---------- */
 const S = {
-  ready:false, user:null, profile:null, cid:null, companies:[], sheetMode:null, authMode:'login', pendingCode:null, signingUp:false, newCompany:null, users:[], settings:clone(DEFAULT_SETTINGS), view:null,
+  ready:false, user:null, profile:null, cid:null, companies:[], sheetMode:null, authMode:'login', freshLogin:false, picking:false, pickNew:false, signingUp:false, users:[], settings:clone(DEFAULT_SETTINGS), view:null,
   weekStart: addDays(sundayOf(new Date()),7),
   week:{}, mySub:null, draft:{}, note:'', dirty:false, subs:{}, msgDraft:'',
   sDraft:null, sDirty:false, uDraft:null, editUid:null, created:null,
@@ -646,27 +650,30 @@ async function loadWeek(){
 }
 function loadDraftFor(uid){ const s = S.subs[uid]; S.draft = { ...(s?.avail || {}) }; S.note = s?.note || ''; S.dirty = false; }
 async function afterLogin(){
-  const code = S.pendingCode; S.pendingCode = null;
+  const fresh = S.freshLogin; S.freshLogin = false;
   B.ensureEmailIndex().catch(() => {});
-  let list = await B.myCompanies();
-  if (!list.length) {
+  let all = await B.myCompanies();
+  if (!all.length) {
     const m = await B.migrateLegacy().catch(() => ({ list:[] }));
-    list = m.list;
-    if (!list.length) { toast(errMsg({ code: m.legacy ? 'legacy-wait' : 'no-company' })); await B.signOut(); return; }
+    all = m.list.map(c => ({ ...c, active:true }));
+    if (!all.length) { toast(errMsg({ code: m.legacy ? 'legacy-wait' : 'no-company' })); await B.signOut(); return; }
   }
+  // עסקים שבהם סימנו את המשתמש כלא פעיל לא מופיעים בכלל
+  const list = all.filter(c => c.active);
+  if (!list.length) { toast(errMsg({ code:'inactive' })); await B.signOut(); return; }
   S.companies = list;
-  // כניסה עם מזהה חברה: נכנסים בדיוק למסעדה הזו
-  if (code) {
-    if (!list.some(c => c.cid === code)) { toast(errMsg({ code:'bad-company' })); await B.signOut(); return; }
-    if (!await enterCompany(code)) { toast(errMsg({ code:'inactive' })); await B.signOut(); return; }
-    store.set('companyCode', code);
-    return;
-  }
-  // פתיחה רגילה: המסעדה האחרונה במכשיר הזה, ואם היא לא זמינה, הבאה בתור
+  // אחרי כניסה עם סיסמה: מי שפעיל בכמה עסקים בוחר מהרשימה
+  if (fresh && list.length > 1) { S.picking = true; S.pickNew = false; render(); refreshNames(); return; }
+  // פתיחה רגילה: העסק האחרון במכשיר הזה, ואם הוא לא זמין, הבא בתור
   const last = store.get('lastCompany:' + S.user.uid);
   const order = [...list].sort((a,b) => (b.cid === last) - (a.cid === last));
   for (const c of order) if (await enterCompany(c.cid)) return;
   toast(errMsg({ code:'inactive' })); await B.signOut();
+}
+async function refreshNames(){
+  try { const fresh = await B.myCompanies(); S.companies = fresh.filter(c => c.active || c.cid === S.cid).map(c => ({ ...c, name:S.companies.find(x => x.cid === c.cid)?.name || c.name })); } catch {}
+  await Promise.all(S.companies.map(async c => { const n = await B.companyName(c.cid); if (n) c.name = n; }));
+  if (S.picking) render(); else if (S.sheetMode === 'switch') renderSwitch();
 }
 async function enterCompany(cid){
   B.setCompany(cid);
@@ -686,8 +693,8 @@ async function enterCompany(cid){
 /* ---------- render ---------- */
 function render(){
   if (!S.ready) { $app.innerHTML = `<p class="loading">טוען…</p>`; return; }
+  if (S.user && S.picking) { $app.innerHTML = viewPicker(); return; }
   if (!S.user || !S.profile) { $app.innerHTML = viewLogin(); return; }
-  if (S.newCompany) { $app.innerHTML = viewWelcome(); return; }
   const tabs = isMgr()
     ? [['manage','שיבוץ'],['team','עובדים'],['reports','דוחות'],['settings','הגדרות']]
     : [['submit','זמינות'],['mine','הסידור שלי'],['hours','שעות']];
@@ -698,7 +705,7 @@ function render(){
   $app.innerHTML = `
     ${B.demo ? `<div class="demo">מצב הדגמה: הנתונים נשמרים רק עד רענון הדף.</div>` : ''}
     <header class="top">
-      <h1 class="brand"><button class="brandbtn" data-action="openSwitch" aria-label="${esc(ST().business)}: החלפת מסעדה">
+      <h1 class="brand"><button class="brandbtn" data-action="openSwitch" aria-label="${esc(ST().business)}: החלפת עסק">
         <span class="bars" aria-hidden="true"><i></i><i></i><i></i></span>${esc(ST().business)}<span class="caret" aria-hidden="true">▾</span></button></h1>
       <div class="who"><span class="me"><b>${esc(S.profile.name)}</b>${myTitle() ? `<small>${esc(myTitle())}</small>` : ''}</span><button class="link" data-action="logout">יציאה</button></div>
     </header>
@@ -725,17 +732,15 @@ function dayGrid(cell){
 const BRAND = `<h1><span class="bars" aria-hidden="true"><i></i><i></i><i></i></span>משמרות</h1>`;
 function viewLogin(){
   if (S.authMode === 'signup') return viewSignup();
-  const toSignup = `<p class="divider">מנהלים מסעדה ועוד אין לכם חשבון?</p>
-    <button class="btn" data-action="authMode" data-m="signup">פתיחת חשבון מסעדה</button>`;
+  const toSignup = `<p class="divider">מנהלים עסק ועוד אין לכם חשבון?</p>
+    <button class="btn" data-action="authMode" data-m="signup">פתיחת חשבון עסק</button>`;
   if (B.demo) {
-    return `<div class="login">${BRAND}<p>מצב הדגמה. בוחרים משתמש כדי לראות את המערכת מהצד שלו. יוסי ונועה עובדים בשתי מסעדות.</p>
+    return `<div class="login">${BRAND}<p>מצב הדגמה. בוחרים משתמש כדי לראות את המערכת מהצד שלו. יוסי ונועה עובדים בשני עסקים.</p>
       <div class="userpick">${Object.entries(B.accounts).map(([uid,u]) =>
-        `<button data-action="demoLogin" data-uid="${uid}"><b>${esc(u.name)}</b><span>${esc(B.companiesOf(uid).join(', ') || 'בלי מסעדה')}</span></button>`).join('')}</div>
+        `<button data-action="demoLogin" data-uid="${uid}"><b>${esc(u.name)}</b><span>${esc(B.companiesOf(uid).join(', ') || 'בלי עסק')}</span></button>`).join('')}</div>
       ${toSignup}</div>`;
   }
   return `<div class="login">${BRAND}<p>כניסה עם הפרטים שקיבלת מהמנהל</p>
-    <label class="field">מזהה חברה<small>6 ספרות שמקבלים מהמנהל</small>
-      <input type="text" id="f-code" inputmode="numeric" maxlength="6" autocomplete="organization" dir="ltr" value="${esc(store.get('companyCode'))}"></label>
     <label class="field">אימייל<input type="email" id="f-email" autocomplete="email" dir="ltr"></label>
     <label class="field">סיסמה<input type="password" id="f-pw" autocomplete="current-password" dir="ltr"></label>
     <div class="toolbar" style="margin-top:16px">
@@ -745,40 +750,42 @@ function viewLogin(){
     ${toSignup}</div>`;
 }
 function viewSignup(){
-  return `<div class="login">${BRAND}<p>פתיחת חשבון מסעדה. אחרי הפתיחה תקבל מזהה חברה בן 6 ספרות, שאיתו אתה והעובדים נכנסים למערכת. כבר יש לך חשבון במסעדה אחרת? ממלאים את אותו אימייל וסיסמה.</p>
-    <label class="field">שם המסעדה<input type="text" id="f-rest" autocomplete="organization"></label>
+  return `<div class="login">${BRAND}<p>פתיחת חשבון עסק. אתה תהיה הבעלים שלו, ואת העובדים מוסיפים אחר כך מלשונית "עובדים". כבר יש לך חשבון בעסק אחר? ממלאים את אותו אימייל וסיסמה.</p>
+    <label class="field">שם העסק<input type="text" id="f-rest" autocomplete="organization"></label>
     <label class="field">השם שלך<input type="text" id="f-name" autocomplete="name"></label>
     <label class="field">אימייל<input type="email" id="f-email" autocomplete="email" dir="ltr"></label>
     <label class="field">סיסמה<small>לפחות 6 תווים</small><input type="password" id="f-pw" autocomplete="new-password" dir="ltr"></label>
     <div class="toolbar" style="margin-top:16px">
-      <button class="btn primary" data-action="signup">פתיחת חשבון מסעדה</button>
+      <button class="btn primary" data-action="signup">פתיחת חשבון עסק</button>
       <button class="link" data-action="authMode" data-m="login">כבר יש לי חשבון</button>
     </div></div>`;
 }
-function viewWelcome(){
-  const c = S.newCompany;
-  return `<div class="login">${BRAND}
-    <p>החשבון של ${esc(c.name)} נפתח. זה מזהה החברה שלך:</p>
-    <div class="code" dir="ltr">${c.code}</div>
-    <p>שומרים אותו. אתה והעובדים צריכים אותו בכל כניסה, והוא תמיד מופיע אצלך בלשונית "עובדים".</p>
-    <div class="toolbar"><button class="btn" data-action="copyCode">העתקת המזהה</button>
-      <button class="btn primary" data-action="welcomeDone">כניסה למערכת</button></div></div>`;
+function viewPicker(){
+  if (S.pickNew) return `<div class="login">${BRAND}<p>פתיחת עסק חדש בחשבון שלך. אתה תהיה הבעלים שלו.</p>
+    <label class="field">שם העסק<input type="text" id="f-rest" autocomplete="organization"></label>
+    <label class="field">השם שלך<small>כך תופיע לעובדים בעסק הזה</small><input type="text" id="f-name" autocomplete="name"></label>
+    <div class="toolbar" style="margin-top:16px"><button class="btn primary" data-action="pickCreate">פתיחת העסק</button>
+      <button class="link" data-action="pickNew" data-on="">חזרה לרשימה</button></div></div>`;
+  return `<div class="login">${BRAND}<p>לאיזה עסק להיכנס?</p>
+    <ul class="list picklist">${S.companies.map(c => `<li class="btnrow"><button class="userbtn" data-action="pickCompany" data-cid="${c.cid}">
+      <b>${esc(c.name || 'עסק')}</b><span class="sub" aria-hidden="true">כניסה</span></button></li>`).join('')}</ul>
+    <div class="toolbar" style="margin-top:16px"><button class="btn" data-action="pickNew" data-on="1">פתיחת עסק חדש</button>
+      <button class="link" data-action="logout">יציאה</button></div></div>`;
 }
-
 function viewNewCompany(){
   return `<div class="toolbar"><button class="btn sm" data-action="tab" data-v="${isMgr() ? 'manage' : 'submit'}">ביטול</button></div>
-    <div class="card"><h3>פתיחת מסעדה חדשה</h3>
-      <p class="hint">המסעדה החדשה נפתחת בחשבון שלך, ואתה הבעלים שלה. המסעדות האחרות שלך לא משתנות, ועוברים ביניהן בלחיצה על שם המסעדה למעלה.</p>
-      <label class="field">שם המסעדה<input type="text" id="f-rest" autocomplete="organization"></label>
-      <div class="toolbar" style="margin-top:16px"><button class="btn primary" data-action="createCompany">פתיחת המסעדה</button></div></div>`;
+    <div class="card"><h3>פתיחת עסק חדש</h3>
+      <p class="hint">העסק החדש נפתח בחשבון שלך, ואתה הבעלים שלו. העסקים האחרים שלך לא משתנים, ועוברים ביניהם בלחיצה על שם העסק למעלה.</p>
+      <label class="field">שם העסק<input type="text" id="f-rest" autocomplete="organization"></label>
+      <div class="toolbar" style="margin-top:16px"><button class="btn primary" data-action="createCompany">פתיחת העסק</button></div></div>`;
 }
 function renderSwitch(){
   $sheet.innerHTML = `<div class="sheet" style="--c:var(--ink)">
-    <header><div><h2>המסעדות שלך</h2></div><button class="iconbtn" data-action="closeSheet" aria-label="סגירה">✕</button></header>
+    <header><div><h2>העסקים שלך</h2></div><button class="iconbtn" data-action="closeSheet" aria-label="סגירה">✕</button></header>
     <ul class="list">${S.companies.map(c => `<li class="btnrow"><button class="userbtn" data-action="switchTo" data-cid="${c.cid}">
-      <span><b>${esc(c.name || 'מסעדה')}</b><span class="sub" style="display:block">מזהה ${ltr(c.cid)}</span></span>
+      <b>${esc(c.name || 'עסק')}</b>
       ${c.cid === S.cid ? '<span class="pill ok">כאן עכשיו</span>' : ''}</button></li>`).join('')}</ul>
-    <div class="toolbar" style="margin-top:12px"><button class="btn" data-action="newCompany">פתיחת מסעדה חדשה</button></div></div>`;
+    <div class="toolbar" style="margin-top:12px"><button class="btn" data-action="newCompany">פתיחת עסק חדש</button></div></div>`;
 }
 
 const legend = () => `<div class="legend">
@@ -884,7 +891,6 @@ function viewTeam(){
   };
   return `
     <div class="status"><span class="pill ${submitted===W.length?'ok':''}">${submitted} מתוך ${W.length} הגישו לשבוע הזה</span></div>
-    <div class="codebox"><span>מזהה החברה, לכניסה של כל העובדים</span><b dir="ltr">${esc(S.cid)}</b><button class="btn sm" data-action="copyCode">העתקה</button></div>
     <div class="toolbar"><button class="btn primary" data-action="newUser">הוספת עובד</button></div>
     <ul class="list">${active.map(row).join('')}</ul>
     ${inactive.length ? `<h3>לא פעילים</h3><ul class="list">${inactive.map(row).join('')}</ul>` : ''}`;
@@ -904,7 +910,7 @@ function userFields(isNew){
       <label class="field">מקסימום משמרות בשבוע<small>ריק = לפי ההגדרות (${ST().maxPerWeek || 'ללא'})</small>
         <input type="number" min="0" inputmode="numeric" data-u="maxShifts" value="${esc(u.maxShifts ?? '')}"></label>
     </div>
-    <div class="field">תפקידים במסעדה<small>${isMgrRole(u.role) ? 'מנהל עם תפקיד משתבץ למשמרות. בלי תפקיד הוא רק מנהל.' : 'משמרות שמוגדרות לתפקיד מסוים יופיעו רק למי שיש לו אותו.'}</small>
+    <div class="field">תפקידים בעסק<small>${isMgrRole(u.role) ? 'מנהל עם תפקיד משתבץ למשמרות. בלי תפקיד הוא רק מנהל.' : 'משמרות שמוגדרות לתפקיד מסוים יופיעו רק למי שיש לו אותו.'}</small>
       <div class="posgrid">${positions().map(p => `<label class="poschip"><input type="checkbox" data-action="userPos" data-id="${p.id}" ${(u.positions||[]).includes(p.id)?'checked':''}>${esc(p.name)}</label>`).join('')
         || '<span class="sub">עוד אין תפקידים. מוסיפים אותם בהגדרות.</span>'}</div></div>
     ${isNew ? '' : lockedSelf(u) ? '' : `<label class="check"><input type="checkbox" data-u="active" ${u.active!==false?'checked':''}>פעיל (משתמש לא פעיל לא יכול להיכנס)</label>`}`;
@@ -936,7 +942,7 @@ function viewUser(){
       </div></div>
     ${S.profile.role === 'owner' && u.uid !== S.user.uid && u.active !== false ? `<div class="card">
       <h3>העברת הבעלות</h3>
-      <p class="hint">${esc(u.name)} יהפוך לבעלים של המסעדה, ואתה תרד לדרגת מנהל. למסעדה תמיד יש בעלים אחד, ורק הבעלים יכול להעביר את הבעלות.</p>
+      <p class="hint">${esc(u.name)} יהפוך לבעלים של העסק, ואתה תרד לדרגת מנהל. לעסק תמיד יש בעלים אחד, ורק הבעלים יכול להעביר את הבעלות.</p>
       <button class="btn danger" data-action="transferOwner">העברת הבעלות ל${esc(u.name)}</button></div>` : ''}
     ${isW ? `<h3>משובץ השבוע</h3>
       ${mine.length ? `<ul class="list">${mine.map(k => { const [d,id] = k.split('_'), s = shiftById(id);
@@ -948,8 +954,8 @@ function viewUser(){
 function viewNewUser(){
   if (S.created) {
     const c = S.created;
-    return `<div class="card"><h3>${esc(c.name)} ${c.existing ? 'צורף למסעדה' : 'נוסף למערכת'}</h3>
-      <p class="hint">${c.existing ? `${esc(c.name)} כבר רשום במערכת ולכן צורף למסעדה. הוא נכנס עם הסיסמה שכבר יש לו, והסיסמה שהקלדת לא נשמרה.`
+    return `<div class="card"><h3>${esc(c.name)} ${c.existing ? 'צורף לעסק' : 'נוסף למערכת'}</h3>
+      <p class="hint">${c.existing ? `${esc(c.name)} כבר רשום במערכת ולכן צורף לעסק. הוא נכנס עם הסיסמה שכבר יש לו, והסיסמה שהקלדת לא נשמרה.`
         : 'שלח לעובד את פרטי הכניסה. הסיסמה לא תוצג שוב.'}</p>
       <pre>${esc(loginText(c))}</pre>
       <div class="toolbar">
@@ -965,8 +971,8 @@ function viewNewUser(){
       <div class="toolbar" style="margin-top:16px"><button class="btn primary" data-action="createUser">הוספת העובד</button></div></div>`;
 }
 const loginText = c => c.existing
-  ? `שלום ${c.name}, צורפת למערכת המשמרות של ${ST().business}.\nכניסה: ${location.origin + location.pathname}\nמזהה חברה: ${S.cid}\nאימייל: ${c.email}\nהסיסמה שלך לא השתנתה. אם שכחת אותה, יש "שכחתי סיסמה" במסך הכניסה.`
-  : `שלום ${c.name}, נפתח לך חשבון במערכת המשמרות של ${ST().business}.\nכניסה: ${location.origin + location.pathname}\nמזהה חברה: ${S.cid}\nאימייל: ${c.email}\nסיסמה: ${c.password}`;
+  ? `שלום ${c.name}, צורפת למערכת המשמרות של ${ST().business}.\nכניסה: ${location.origin + location.pathname}\nאימייל: ${c.email}\nהסיסמה שלך לא השתנתה. אם שכחת אותה, יש "שכחתי סיסמה" במסך הכניסה.`
+  : `שלום ${c.name}, נפתח לך חשבון במערכת המשמרות של ${ST().business}.\nכניסה: ${location.origin + location.pathname}\nאימייל: ${c.email}\nסיסמה: ${c.password}`;
 
 function viewSettings(){
   const st = S.sDraft;
@@ -974,11 +980,10 @@ function viewSettings(){
   const dlDay = H ? Math.floor(from/24) : -1, dlHour = H ? from % 24 : 20;
   return `
     <h3>כללי</h3>
-    <div class="codebox"><span>מזהה החברה</span><b dir="ltr">${esc(S.cid)}</b><button class="btn sm" data-action="copyCode">העתקה</button></div>
     <label class="field">שם העסק<input type="text" data-s="business" value="${esc(st.business)}"></label>
 
     <h3>תפקידים</h3>
-    <p class="hint">למשל מלצר, טבח, ברמן. לכל עובד אפשר לתת כמה תפקידים, ולכל משמרת לקבוע לאילו תפקידים היא מתאימה.</p>
+    <p class="hint">למשל מלצר, קופאי, מחסנאי או נהג. לכל עובד אפשר לתת כמה תפקידים, ולכל משמרת לקבוע לאילו תפקידים היא מתאימה.</p>
     ${(st.positions || []).map((p,i) => `<div class="row">
       <label class="field grow">שם התפקיד<input type="text" data-s="positions.${i}.name" value="${esc(p.name)}"></label>
       <button class="btn sm danger" data-action="delPos" data-i="${i}" style="margin-bottom:2px">מחיקה</button></div>`).join('')}
@@ -1165,52 +1170,66 @@ async function saveWeek(patch, msg){
   render();
 }
 const actions = {
-  async demoLogin(el){ await B.signIn(el.dataset.uid); },
+  async demoLogin(el){ S.freshLogin = true; await B.signIn(el.dataset.uid); },
   period(el){ S.rep = el.dataset.p; render(); },
   repUser(el){ S.repUid = el.dataset.uid; render(); window.scrollTo(0,0); },
   repBack(){ S.repUid = null; render(); },
   refreshRep(){ loadReports(); },
   csv(){ downloadCsv(); },
   async login(){
-    const code = val('f-code').replace(/\D/g,'');
-    if (code.length !== 6) return toast('מזהה החברה צריך להיות 6 ספרות');
     if (!val('f-email') || !val('f-pw')) return toast('צריך למלא אימייל וסיסמה');
-    S.pendingCode = code;
+    S.freshLogin = true;
     try{ await B.signIn(val('f-email'), val('f-pw')); }
-    catch(e){ S.pendingCode = null; toast(String(e?.code).includes('invalid-credential') ? errMsg({ code:'bad-company' }) : errMsg(e)); }
+    catch(e){ S.freshLogin = false; toast(errMsg(e)); }
+  },
+  async pickCompany(el){
+    S.picking = false; S.loading = true; render();
+    try{
+      if (!await enterCompany(el.dataset.cid)) { toast(errMsg({ code:'inactive-here' })); S.companies = S.companies.filter(c => c.cid !== el.dataset.cid); S.picking = true; S.loading = false; render(); }
+    }catch(e){ toast(errMsg(e)); S.picking = true; S.loading = false; render(); }
+  },
+  pickNew(el){ S.pickNew = !!el.dataset.on; render(); },
+  async pickCreate(el){
+    const restaurant = val('f-rest'), name = val('f-name');
+    if (!restaurant) return toast('צריך למלא את שם העסק');
+    if (!name) return toast('צריך למלא את השם שלך');
+    el.disabled = true;
+    try{
+      const code = await B.createCompany({ restaurant, name, settings:newSettings(restaurant) });
+      S.companies.push({ cid:code, name:restaurant });
+      S.picking = false; S.pickNew = false;
+      await enterCompany(code); toast(`${restaurant} נפתח`);
+    }catch(e){ toast(errMsg(e)); el.disabled = false; }
+    render();
   },
   authMode(el){ S.authMode = el.dataset.m; render(); window.scrollTo(0,0); },
   async signup(el){
     const restaurant = val('f-rest'), name = val('f-name'), email = val('f-email').toLowerCase(), password = document.getElementById('f-pw')?.value || '';
-    if (!restaurant) return toast('צריך למלא את שם המסעדה');
+    if (!restaurant) return toast('צריך למלא את שם העסק');
     if (!name) return toast('צריך למלא את השם שלך');
     if (!email) return toast('צריך למלא אימייל');
     if (password.length < 6) return toast('הסיסמה צריכה לכלול לפחות 6 תווים');
     el.disabled = true; S.signingUp = true;
-    const settings = { ...clone(DEFAULT_SETTINGS), business:restaurant, tzMin:-new Date().getTimezoneOffset(), appUrl:location.origin + location.pathname };
+    const settings = newSettings(restaurant);
     try{
       const { uid, code } = await B.signUp({ restaurant, name, email, password, settings });
-      store.set('companyCode', code); store.set('lastCompany:' + uid, code);
-      S.newCompany = { code, name:restaurant };
+      store.set('lastCompany:' + uid, code);
       if (B.demo) await B.signIn(uid);
       S.user = S.user || { uid, email }; S.ready = true;
       await afterLogin();
       S.authMode = 'login';
+      toast(`${restaurant} נפתח`);
     }catch(e){ toast(errMsg(e)); el.disabled = false; }
     S.signingUp = false; render();
   },
-  copyCode(){ copyText(S.newCompany?.code || S.cid); },
-  welcomeDone(){ S.newCompany = null; render(); },
   async forgot(){
     const email = val('f-email'); if (!email) return toast('קודם כותבים את האימייל בשדה');
     try{ await B.sendReset(email); toast('אם האימייל רשום במערכת, נשלח אליו קישור לאיפוס'); }catch(e){ toast(errMsg(e)); }
   },
-  async logout(){ if (!confirmLeave()) return; S.profile = null; S.cid = null; S.companies = []; S.newCompany = null; await B.signOut(); },
+  async logout(){ if (!confirmLeave()) return; S.profile = null; S.cid = null; S.companies = []; S.picking = false; S.pickNew = false; await B.signOut(); },
   async openSwitch(){
     S.sheetMode = 'switch'; renderSwitch(); $sheet.showModal();
-    // שמות עדכניים, אם שונו בהגדרות של מסעדה אחרת
-    await Promise.all(S.companies.map(async c => { const n = await B.companyName(c.cid); if (n) c.name = n; }));
-    if (S.sheetMode === 'switch') renderSwitch();
+    refreshNames();  // שמות עדכניים, אם שונו בהגדרות של עסק אחר
   },
   async switchTo(el){
     const cid = el.dataset.cid;
@@ -1220,19 +1239,18 @@ const actions = {
     S.loading = true; render();
     try{
       if (await enterCompany(cid)) toast(`עברת ל${ST().business}`);
-      else { toast(errMsg({ code:'inactive' })); S.loading = false; render(); }
+      else { toast(errMsg({ code:'inactive-here' })); S.companies = S.companies.filter(c => c.cid !== cid); S.loading = false; render(); }
     }catch(e){ toast(errMsg(e)); S.loading = false; render(); }
   },
   newCompany(){ $sheet.close(); if (!confirmLeave()) return; S.view = 'newCompany'; render(); window.scrollTo(0,0); },
   async createCompany(el){
-    const restaurant = val('f-rest'); if (!restaurant) return toast('צריך למלא את שם המסעדה');
+    const restaurant = val('f-rest'); if (!restaurant) return toast('צריך למלא את שם העסק');
     el.disabled = true;
-    const settings = { ...clone(DEFAULT_SETTINGS), business:restaurant, tzMin:-new Date().getTimezoneOffset(), appUrl:location.origin + location.pathname };
+    const settings = newSettings(restaurant);
     try{
       const code = await B.createCompany({ restaurant, name:S.profile.name, settings });
       S.companies.push({ cid:code, name:restaurant });
-      await enterCompany(code);
-      S.newCompany = { code, name:restaurant };
+      await enterCompany(code); toast(`${restaurant} נפתח`);
     }catch(e){ toast(errMsg(e)); el.disabled = false; }
     render();
   },
