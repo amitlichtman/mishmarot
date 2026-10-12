@@ -47,7 +47,7 @@ button{cursor:pointer}
 .weeknav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:18px 0 6px}
 .weeknav h2{font-family:'Secular One',sans-serif;font-weight:400;font-size:1.3rem;margin:0;text-align:center}
 .weeknav small{display:block;font-family:'Rubik';font-size:.8rem;color:var(--muted)}
-.iconbtn{border:1px solid var(--line);background:#fff;border-radius:8px;width:42px;height:42px;font-size:1.2rem;line-height:1;flex:none}
+.iconbtn{border:1px solid var(--line);background:#fff;border-radius:8px;width:42px;height:42px;font-size:1.2rem;line-height:1;flex:none;display:inline-grid;place-items:center}
 
 h3{font-family:'Secular One',sans-serif;font-weight:400;font-size:1.15rem;margin:26px 0 6px}
 .hint{color:var(--muted);margin:4px 0 10px;font-size:.92rem}
@@ -65,7 +65,7 @@ h3{font-family:'Secular One',sans-serif;font-weight:400;font-size:1.15rem;margin
 .day{display:grid;grid-template-columns:58px repeat(var(--n,3),minmax(76px,1fr));
   min-width:calc(58px + var(--n,3) * 82px);gap:6px;padding:7px 0;border-bottom:1px solid var(--line)}
 .day:last-child{border-bottom:0}
-.dlabel{display:flex;flex-direction:column;justify-content:center}
+.dlabel{display:flex;flex-direction:column;justify-content:center;position:sticky;inset-inline-start:0;z-index:2;background:var(--paper);margin-block:-7px;padding-block:7px;box-shadow:-6px 0 6px -6px rgba(30,36,51,.25)}
 .dlabel b{font-weight:700}
 .dlabel span{color:var(--muted);font-size:.82rem}
 .off{border-radius:10px;background:repeating-linear-gradient(-45deg,#ECEEF2 0 2px,transparent 2px 9px)}
@@ -704,9 +704,9 @@ function render(){
     </header>
     <nav class="tabs">${tabs.map(([v,l]) => `<button data-action="tab" data-v="${v}" ${tabOf===v?'aria-current="page"':''}>${l}</button>`).join('')}</nav>
     ${showWeek ? `<div class="weeknav">
-      <button class="iconbtn" data-action="week" data-d="-7" aria-label="השבוע הקודם">›</button>
+      <button class="iconbtn" data-action="week" data-d="-7" aria-label="השבוע הקודם"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       <h2>${fmt(S.weekStart)}–${fmt(end)}<small>${weekLabel()}</small></h2>
-      <button class="iconbtn" data-action="week" data-d="7" aria-label="השבוע הבא">‹</button>
+      <button class="iconbtn" data-action="week" data-d="7" aria-label="השבוע הבא"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
     </div>` : ''}
     ${S.loading && showWeek ? `<p class="loading">טוען…</p>` : views[S.view]()}`;
 }
