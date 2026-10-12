@@ -178,6 +178,7 @@ dialog::backdrop{background:rgba(30,36,51,.45)}
 .divider{margin:28px 0 8px;padding-top:18px;border-top:1px solid var(--line);color:var(--muted)}
 .picklist{margin-top:8px;background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:0 14px}
 .picklist .userbtn b{font-size:1.05rem}
+.poscard{background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:2px 14px 12px;margin:10px 0}
 .posgrid{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;font-weight:400}
 .poschip{display:flex;align-items:center;gap:7px;border:1.5px solid var(--line);background:#fff;border-radius:99px;padding:6px 12px 6px 14px;cursor:pointer}
 .poschip:has(input:checked){border-color:var(--ink);background:#EEF1F6}
@@ -246,7 +247,7 @@ const onColor = hex => { const n = parseInt(hex.slice(1),16); const l = (0.299*(
 const byName = (a,b) => (a.name||'').localeCompare(b.name||'','he');
 const clone = o => JSON.parse(JSON.stringify(o));
 const val = id => document.getElementById(id)?.value.trim() || '';
-const newSettings = business => ({ ...clone(DEFAULT_SETTINGS), positions:[], business, tzMin:-new Date().getTimezoneOffset(), appUrl:location.origin + location.pathname });
+const newSettings = business => ({ ...clone(DEFAULT_SETTINGS), positions:[], viewsVersion:1, business, tzMin:-new Date().getTimezoneOffset(), appUrl:location.origin + location.pathname });
 const genCode = () => String(100000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 900000));
 const store = { get(k){ try{ return localStorage.getItem(k) || ''; }catch{ return ''; } }, set(k,v){ try{ localStorage.setItem(k,v); }catch{} } };
 const genPw = () => Array.from({length:8}, () => 'abcdefghjkmnpqrstuvwxyz23456789'[Math.floor(Math.random()*31)]).join('');
@@ -370,6 +371,11 @@ function demoBackend(){
     async saveSubmission(w,uid,data){ (C().subs[w] ??= {})[uid] = clone(data); },
     async listSubmissions(w){ return clone(C().subs[w] || {}); },
     async listWeeks(){ return Object.entries(C().weeks).map(([id,w]) => ({ id, ...clone(w) })); },
+    async getWeekStatus(w){ return clone((C().status ??= {})[w] || {}); },
+    async setWeekStatus(w,data){ (C().status ??= {})[w] = { ...((C().status)[w] || {}), ...clone(data) }; },
+    async getMyView(w,uid){ return clone((C().views ??= {})[uid]?.[w] || null); },
+    async listMySchedule(uid){ return Object.entries((C().views ??= {})[uid] || {}).map(([id,v]) => ({ id, ...clone(v) })); },
+    async writeViews(w, map){ const V = (C().views ??= {}); for (const [uid,v] of Object.entries(map)) (V[uid] ??= {})[w] = clone(v); },
   };
 }
 
@@ -531,6 +537,19 @@ async function firebaseBackend(cfg){
       const o = {}; q.docs.forEach(d => o[d.id] = d.data()); return o;
     },
     async listWeeks(){ const q = await F.getDocs(ccol('weeks')); return q.docs.map(d => ({ id:d.id, ...d.data() })); },
+    // מה שעובדים רואים: סטטוס השבוע (סגור להגשה או לא), ועותק אישי של הסידור עם המשמרות שמותר להם לראות
+    async getWeekStatus(w){ return snap(await F.getDoc(cdoc('weeks',w,'status','main'))) || {}; },
+    async setWeekStatus(w,data){ await F.setDoc(cdoc('weeks',w,'status','main'), data, { merge:true }); },
+    async getMyView(w,uid){ return snap(await F.getDoc(cdoc('members',uid,'schedule',w))); },
+    async listMySchedule(uid){ const q = await F.getDocs(ccol('members',uid,'schedule')); return q.docs.map(d => ({ id:d.id, ...d.data() })); },
+    async writeViews(w, map){
+      const entries = Object.entries(map);
+      for (let i = 0; i < entries.length; i += 400) {
+        const b = F.writeBatch(db);
+        entries.slice(i, i + 400).forEach(([uid,v]) => b.set(cdoc('members',uid,'schedule',w), v));
+        await b.commit();
+      }
+    },
   };
 }
 
@@ -555,6 +574,16 @@ const myTitle = () => [S.profile?.role !== 'employee' ? ROLE_LABEL[S.profile?.ro
 /* מי משתבץ: עובד רגיל תמיד, מנהל או בעלים רק אם יש לו תפקיד */
 const isWorker = u => !!u && u.active !== false && (u.role === 'employee' || userPos(u).length > 0 || !!u.works);
 /* האם המשמרת מתאימה לעובד: משמרת בלי תפקידים מתאימה לכולם */
+/* בסידור שפורסם: מנהלים רואים הכול. עובד רואה משמרות כלליות, משמרות של התפקידים שלו,
+   משמרות של תפקידים שהמנהל התיר לתפקיד שלו לראות, ומשמרות שהוא משובץ בהן */
+function canSee(u, s){
+  if (isMgrRole(u?.role)) return true;
+  const need = (s?.positions || []).filter(posName);
+  if (!need.length) return true;
+  const allowed = new Set();
+  userPos(u).forEach(id => { allowed.add(id); (positions().find(p => p.id === id)?.sees || []).forEach(x => allowed.add(x)); });
+  return need.some(id => allowed.has(id));
+}
 const canWork = (u, s) => { const need = (s?.positions || []).filter(posName); return !need.length || userPos(u).some(p => need.includes(p)); };
 const members = () => S.users.filter(u => u.active !== false);
 const workers = () => members().filter(isWorker).sort(byName);
@@ -638,7 +667,11 @@ const $sheet = document.getElementById('sheet');
 async function loadWeek(){
   S.loading = true; render();
   try{
-    S.week = await B.getWeek(wid());
+    if (isMgr()) S.week = await B.getWeek(wid());
+    else {
+      const [st, v] = await Promise.all([B.getWeekStatus(wid()), B.getMyView(wid(), S.user.uid)]);
+      S.week = { ...st, ...(v?.published ? v : {}) };
+    }
     S.msgDraft = S.week.message || '';
     if (isMgr()) { S.subs = await B.listSubmissions(wid()); if (S.view === 'user') loadDraftFor(S.editUid); }
     else {
@@ -686,6 +719,14 @@ async function enterCompany(cid){
   Object.assign(S, { subs:{}, week:{}, allWeeks:null, repUid:null, editUid:null, draft:{}, note:'', dirty:false, sDirty:false, mySub:null });
   const c = S.companies.find(x => x.cid === cid); if (c) c.name = ST().business;
   S.view = isMgr() ? 'manage' : 'submit';
+  if (isMgr() && !ST().viewsVersion) {
+    resyncPublished(true).then(async () => {
+      const st = { ...clone(S.settings), viewsVersion:1 };
+      const status = (await B.listWeeks()).filter(w => w.locked);
+      for (const w of status) await B.setWeekStatus(w.id, { locked:true });
+      await B.saveSettings(st); S.settings = normSettings(st);
+    }).catch(e => console.warn(e));
+  }
   await loadWeek();
   return true;
 }
@@ -721,8 +762,7 @@ function weekLabel(){
   const diff = Math.round((S.weekStart - sundayOf(new Date())) / 864e5 / 7);
   return diff===0 ? 'השבוע' : diff===1 ? 'שבוע הבא' : diff===-1 ? 'שבוע שעבר' : diff>0 ? `בעוד ${diff} שבועות` : `לפני ${-diff} שבועות`;
 }
-function dayGrid(cell){
-  const sh = ST().shifts;
+function dayGrid(cell, sh = ST().shifts){
   return `<div class="grid"><div style="--n:${sh.length}">${DAYS.map((dn,d) => `<div class="day">
     <div class="dlabel"><b>${dn}</b><span>${fmt(addDays(S.weekStart,d))}</span></div>
     ${sh.map(s => needAt(s,d) > 0 ? cell(d,s,K(d,s.id)) : `<div class="off" aria-hidden="true"></div>`).join('')}
@@ -813,7 +853,7 @@ function availEditor(asManager){
     : saved ? `<span>הזמינות לשבוע הזה שמורה</span>` : `<span>${asManager ? 'העובד עוד לא הגיש' : 'עוד לא הגשת לשבוע הזה'}</span>`;
   return `${msg}${legend()}
     ${editable ? `<div class="toolbar"><button class="btn sm" data-action="allYes">סימון הכל כ"יכול"</button><button class="btn sm" data-action="allClear">ניקוי</button></div>` : ''}
-    ${dayGrid(cell)}
+    ${dayGrid(cell, ST().shifts.filter(s => canWork(who, s)))}
     ${asManager ? (S.note ? `<p class="notice msg">הערת העובד: ${esc(S.note)}</p>` : '')
       : `<label class="field">הערה למנהל<textarea id="note" ${editable?'':'disabled'} placeholder="למשל: ביום שלישי יכול רק עד 20:00">${esc(S.note)}</textarea></label>`}
     ${editable ? `<div class="savebar"><div class="in">${state}<button class="btn primary" data-action="save">שמירת זמינות</button></div></div>` : ''}`;
@@ -821,7 +861,7 @@ function availEditor(asManager){
 const viewSubmit = () => availEditor(false);
 
 function viewMine(){
-  if (!S.week.published) return `<p class="empty">הסידור לשבוע הזה עוד לא פורסם.<br>אפשר בינתיים להגיש זמינות בלשונית "הגשת זמינות".</p>`;
+  if (!S.week.published) return `<p class="empty">הסידור לשבוע הזה עוד לא פורסם.<br>אפשר בינתיים להגיש זמינות בלשונית "זמינות".</p>`;
   const a = asg(), uid = S.user.uid;
   const mine = keys().filter(k => a[k].includes(uid));
   return `
@@ -830,10 +870,11 @@ function viewMine(){
     ${mine.length ? `<ul class="list">${mine.map(k => { const [d,id] = k.split('_'), s = shiftById(id);
       return `<li><span class="myshift"><i class="dot" style="--c:${s.color}"></i><b>יום ${DAYS[d]} ${fmt(addDays(S.weekStart,+d))}</b></span><span>${esc(s.name)}, ${ltr(hrs(s))}</span></li>`; }).join('')}</ul>`
       : `<p class="hint">לא שובצת למשמרות השבוע.</p>`}
-    <h3>הסידור המלא</h3>
+    <h3>הסידור</h3>
     ${dayGrid((d,s,k) => { const n = a[k];
       return `<div class="slot" style="--c:${s.color}"><span class="sn">${esc(s.name)}</span><span class="hr">${hrs(s)}</span>
-        <span class="names ${n.length?'':'none'}">${n.length ? n.map(u => u===uid ? `<b>${esc(nameOf(u))}</b>` : esc(nameOf(u))).join('<br>') : 'אין שיבוץ'}</span></div>`; })}`;
+        <span class="names ${n.length?'':'none'}">${n.length ? n.map(u => u===uid ? `<b>${esc(nameOf(u))}</b>` : esc(nameOf(u))).join('<br>') : 'אין שיבוץ'}</span></div>`; },
+      ST().shifts.filter(s => canSee(S.profile, s) || mine.some(k => k.endsWith('_' + s.id))))}`;
 }
 
 function viewManage(){
@@ -984,9 +1025,14 @@ function viewSettings(){
 
     <h3>תפקידים</h3>
     <p class="hint">למשל מלצר, קופאי, מחסנאי או נהג. לכל עובד אפשר לתת כמה תפקידים, ולכל משמרת לקבוע לאילו תפקידים היא מתאימה.</p>
-    ${(st.positions || []).map((p,i) => `<div class="row">
-      <label class="field grow">שם התפקיד<input type="text" data-s="positions.${i}.name" value="${esc(p.name)}"></label>
-      <button class="btn sm danger" data-action="delPos" data-i="${i}" style="margin-bottom:2px">מחיקה</button></div>`).join('')}
+    ${(st.positions || []).map((p,i) => { const others = st.positions.filter(o => o.id !== p.id);
+      return `<div class="poscard">
+      <div class="row">
+        <label class="field grow">שם התפקיד<input type="text" data-s="positions.${i}.name" value="${esc(p.name)}"></label>
+        <button class="btn sm danger" data-action="delPos" data-i="${i}" style="margin-bottom:2px">מחיקה</button></div>
+      ${others.length ? `<div class="field">רואים בסידור גם את המשמרות של<small>${esc(p.name || 'התפקיד הזה')} תמיד רואה את המשמרות שלו ואת המשמרות הכלליות</small>
+        <div class="posgrid">${others.map(o => `<label class="poschip"><input type="checkbox" data-action="posSees" data-i="${i}" data-id="${o.id}" ${(p.sees||[]).includes(o.id)?'checked':''}>${esc(o.name || 'ללא שם')}</label>`).join('')}</div></div>` : ''}
+      </div>`; }).join('')}
     <div class="toolbar"><button class="btn" data-action="addPos">הוספת תפקיד</button></div>
 
     <h3>משמרות</h3>
@@ -1050,7 +1096,7 @@ function periodTitle(p){
 }
 async function loadReports(){
   S.allWeeks = null; render();
-  try{ S.allWeeks = await B.listWeeks(); }catch(e){ toast(errMsg(e)); S.allWeeks = []; }
+  try{ S.allWeeks = isMgr() ? await B.listWeeks() : await B.listMySchedule(S.user.uid); }catch(e){ toast(errMsg(e)); S.allWeeks = []; }
   render();
 }
 /* כל משמרת שובצה בסידור שפורסם = רשומה. שעות לפי הגדרות המשמרת ביום הפרסום */
@@ -1164,8 +1210,37 @@ function confirmLeave(){
   if ((S.dirty || S.sDirty) && !confirm('יש שינויים שלא נשמרו. להמשיך בלי לשמור?')) return false;
   S.dirty = false; S.sDirty = false; return true;
 }
+/* העותק של כל עובד: רק משמרות שהוא רשאי לראות (לפי ההגדרות), ותמיד משמרות שהוא משובץ בהן */
+function viewFor(u, w){
+  if (!w.published) return { published:false };
+  const ids = new Set(), all = w.assignments || {};
+  Object.keys(all).forEach(k => {
+    const id = k.split('_')[1], s = shiftById(id) || { id, positions:[] };
+    if (canSee(u, s) || (all[k] || []).includes(u.uid)) ids.add(id);
+  });
+  const assignments = {}, shiftsSnap = {};
+  Object.entries(all).forEach(([k,v]) => { if (ids.has(k.split('_')[1])) assignments[k] = v; });
+  ids.forEach(id => { const sn = w.shiftsSnap?.[id]; if (sn) shiftsSnap[id] = sn; });
+  return { published:true, message:w.message || '', assignments, shiftsSnap };
+}
+async function syncViews(weekIdv, w){
+  const map = {};
+  S.users.forEach(u => { map[u.uid] = viewFor(u, w); });
+  await B.writeViews(weekIdv, map);
+}
+/* אחרי שינוי בהגדרות או בעובדים: מעדכנים את העותקים של הסידורים שפורסמו (מהשבוע הנוכחי והלאה, או את כולם) */
+async function resyncPublished(all = false){
+  const from = weekId(sundayOf(new Date()));
+  const weeks = (await B.listWeeks()).filter(w => w.published && (all || w.id >= from));
+  for (const w of weeks) await syncViews(w.id, w);
+}
 async function saveWeek(patch, msg){
-  try{ await B.updateWeek(wid(), patch); S.week = { ...S.week, ...patch }; S.allWeeks = null; if (msg) toast(msg); }
+  try{
+    await B.updateWeek(wid(), patch); S.week = { ...S.week, ...patch }; S.allWeeks = null;
+    if ('locked' in patch) await B.setWeekStatus(wid(), { locked:!!patch.locked });
+    if (S.week.published || patch.published === false) await syncViews(wid(), S.week);
+    if (msg) toast(msg);
+  }
   catch(e){ toast(errMsg(e)); }
   render();
 }
@@ -1327,6 +1402,7 @@ const actions = {
       const { uid, existing } = await B.addUser({ ...doc, password:u.password }, ST().business);
       S.users.push({ uid, ...doc, active:true });
       S.created = { ...doc, password: existing ? null : u.password, existing };
+      resyncPublished().catch(e => console.warn(e));
     }catch(e){ toast(errMsg(e)); }
     render();
   },
@@ -1342,11 +1418,17 @@ const actions = {
     sh.positions = [...set]; S.sDirty = true; render();
   },
   addPos(){ (S.sDraft.positions ??= []).push({ id:'p'+Math.random().toString(36).slice(2,8), name:'' }); S.sDirty = true; render(); },
+  posSees(el){
+    const p = S.sDraft.positions[+el.dataset.i], set = new Set(p.sees || []);
+    el.checked ? set.add(el.dataset.id) : set.delete(el.dataset.id);
+    p.sees = [...set]; S.sDirty = true;
+  },
   delPos(el){
     const p = S.sDraft.positions[+el.dataset.i];
     if (!confirm(`למחוק את התפקיד "${p.name || 'ללא שם'}"? הוא יוסר מכל העובדים ומכל המשמרות.`)) return;
     S.sDraft.positions.splice(+el.dataset.i, 1);
     S.sDraft.shifts.forEach(sh => sh.positions = (sh.positions || []).filter(id => id !== p.id));
+    S.sDraft.positions.forEach(o => o.sees = (o.sees || []).filter(id => id !== p.id));
     S.sDirty = true; render();
   },
   waCreated(){ const c = S.created; window.open(`https://wa.me/${waPhone(c.phone)}?text=` + encodeURIComponent(loginText(c)), '_blank'); },
@@ -1368,6 +1450,7 @@ const actions = {
       await B.updateUser(u.uid, data);
       Object.assign(S.users.find(x => x.uid === u.uid), data);
       if (u.uid === S.user.uid) Object.assign(S.profile, data);
+      resyncPublished().catch(e => console.warn(e));
       toast('הפרטים נשמרו');
     }catch(e){ toast(errMsg(e)); }
     render();
@@ -1414,7 +1497,7 @@ const actions = {
   async saveSettings(el){
     const st = clone(S.sDraft);
     if (!st.shifts.length) return toast('צריך לפחות משמרת אחת');
-    st.positions = (st.positions || []).map(p => ({ id:p.id, name:(p.name||'').trim() }));
+    st.positions = (st.positions || []).map(p => ({ id:p.id, name:(p.name||'').trim(), sees:(p.sees || []).filter(x => x !== p.id && (st.positions || []).some(o => o.id === x)) }));
     if (st.positions.some(p => !p.name)) return toast('לכל תפקיד צריך שם');
     if (new Set(st.positions.map(p => p.name)).size !== st.positions.length) return toast('יש שני תפקידים עם אותו שם');
     for (const s of st.shifts) {
@@ -1431,7 +1514,7 @@ const actions = {
     st.tzMin = -new Date().getTimezoneOffset();
     st.appUrl = location.origin + location.pathname;
     el.disabled = true;
-    try{ await B.saveSettings(st); S.settings = normSettings(st); S.sDraft = clone(S.settings); S.sDirty = false; toast('ההגדרות נשמרו'); }
+    try{ await B.saveSettings(st); S.settings = normSettings(st); S.sDraft = clone(S.settings); S.sDirty = false; toast('ההגדרות נשמרו'); resyncPublished().catch(e => console.warn(e)); }
     catch(e){ toast(errMsg(e)); }
     render();
   },
