@@ -172,6 +172,11 @@ dialog::backdrop{background:rgba(30,36,51,.45)}
 .tag{font-size:.75rem;border-radius:99px;padding:1px 8px;background:#E6E9EF;color:var(--muted);margin-inline-start:6px}
 .month{font-weight:700;margin:16px 0 0;font-size:.95rem}
 .tot{font-weight:700;border-top:2px solid var(--ink)!important}
+.divider{margin:28px 0 8px;padding-top:18px;border-top:1px solid var(--line);color:var(--muted)}
+.code{font-family:'Secular One',sans-serif;font-size:2.8rem;letter-spacing:.18em;text-align:center;background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:10px 0;margin:6px 0 12px}
+.codebox{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;margin:10px 0}
+.codebox b{font-family:'Secular One',sans-serif;font-weight:400;font-size:1.35rem;letter-spacing:.12em}
+.codebox span{flex:1;min-width:160px;color:var(--muted);font-size:.88rem}
 #toast{position:fixed;left:50%;bottom:92px;transform:translateX(-50%);background:var(--ink);color:#fff;
   padding:10px 16px;border-radius:10px;font-size:.92rem;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90vw;z-index:20}
 #toast.show{opacity:1}
@@ -233,6 +238,8 @@ const onColor = hex => { const n = parseInt(hex.slice(1),16); const l = (0.299*(
 const byName = (a,b) => (a.name||'').localeCompare(b.name||'','he');
 const clone = o => JSON.parse(JSON.stringify(o));
 const val = id => document.getElementById(id)?.value.trim() || '';
+const genCode = () => String(100000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 900000));
+const store = { get(k){ try{ return localStorage.getItem(k) || ''; }catch{ return ''; } }, set(k,v){ try{ localStorage.setItem(k,v); }catch{} } };
 const genPw = () => Array.from({length:8}, () => 'abcdefghjkmnpqrstuvwxyz23456789'[Math.floor(Math.random()*31)]).join('');
 const waPhone = p => { let d = String(p||'').replace(/\D/g,''); if (d.startsWith('0')) d = '972'+d.slice(1); return d; };
 
@@ -245,6 +252,9 @@ function errMsg(e){
   if (c.includes('weak-password')) return 'הסיסמה צריכה לכלול לפחות 6 תווים';
   if (c.includes('invalid-email')) return 'כתובת האימייל לא תקינה';
   if (c.includes('too-many-requests')) return 'יותר מדי ניסיונות. נסה שוב בעוד כמה דקות';
+  if (c === 'bad-company') return 'מזהה החברה, האימייל או הסיסמה שגויים';
+  if (c === 'has-company') return 'האימייל הזה כבר משויך למסעדה. נכנסים עם מזהה החברה שלה';
+  if (c === 'no-company') return 'החשבון הזה לא משויך למסעדה. אפשר לפתוח חשבון מסעדה עם אותו אימייל וסיסמה';
   if (c.includes('permission-denied')) return 'אין הרשאה לפעולה הזו';
   return e?.message || 'משהו השתבש, נסה שוב';
 }
@@ -255,6 +265,7 @@ async function copyText(t){
 
 /* ---------- backend: demo ---------- */
 function demoBackend(){
+  const DEMO = '123456';
   const users = {
     m1:{ name:'דנה', email:'dana@demo', role:'manager', active:true },
     e1:{ name:'יוסי', email:'yossi@demo', role:'employee', active:true, phone:'0501234567' },
@@ -264,50 +275,58 @@ function demoBackend(){
     e5:{ name:'רון', email:'ron@demo', role:'employee', active:true },
     e6:{ name:'שירה', email:'shira@demo', role:'employee', active:true },
   };
-  let settings = null; const weeks = {}, subs = {};
+  Object.values(users).forEach(u => u.companyId = DEMO);
+  const companies = { [DEMO]: { name:'מסעדת הדגמה', settings:{ ...clone(DEFAULT_SETTINGS), business:'מסעדת הדגמה' }, weeks:{}, subs:{} } };
   let seed = 7; const rnd = () => (seed = (seed*16807) % 2147483647) / 2147483647;
-  const next = weekId(addDays(sundayOf(new Date()),7));
-  subs[next] = {};
+  const D = companies[DEMO], next = weekId(addDays(sundayOf(new Date()),7));
+  D.subs[next] = {};
   ['e2','e3','e4','e5','e6'].forEach(uid => {
     const avail = {};
     DAYS.forEach((_,d) => DEFAULT_SETTINGS.shifts.forEach(s => {
       const r = rnd(), k = K(d,s.id);
       if (r<.55) avail[k]='yes'; else if (r<.68) avail[k]='maybe'; else if (r<.9) avail[k]='no';
     }));
-    subs[next][uid] = { avail, note: uid==='e3' ? 'בחמישי יש לי מבחן' : '' };
+    D.subs[next][uid] = { avail, note: uid==='e3' ? 'בחמישי יש לי מבחן' : '' };
   });
-  // היסטוריה לדוחות: שלושה שבועות שפורסמו
   const ppl = ['e1','e2','e3','e4','e5','e6'];
   for (let back = 0; back < 6; back++) {
     const ws = addDays(sundayOf(new Date()), -7*back), a = {};
-    DAYS.forEach((_,d) => DEFAULT_SETTINGS.shifts.forEach(s => {
-      a[K(d,s.id)] = [...ppl].sort(() => rnd()-.5).slice(0, s.need[d]);
-    }));
-    weeks[weekId(ws)] = { published:true, assignments:a };
+    DAYS.forEach((_,d) => DEFAULT_SETTINGS.shifts.forEach(s => { a[K(d,s.id)] = [...ppl].sort(() => rnd()-.5).slice(0, s.need[d]); }));
+    D.weeks[weekId(ws)] = { published:true, assignments:a };
   }
-  let current = null; const ls = []; const emit = () => ls.forEach(f => f(current));
+  let current = null, cid = null; const ls = []; const emit = () => ls.forEach(f => f(current));
+  const C = () => companies[cid];
   return {
-    demo:true, users,
+    demo:true, users, companies, DEMO,
     onAuth(cb){ ls.push(cb); cb(current); },
+    setCompany(c){ cid = c; },
     async signIn(uid){ current = { uid }; emit(); },
-    async signOut(){ current = null; emit(); },
+    async signOut(){ current = null; cid = null; emit(); },
     async sendReset(){ },
+    async signUp({ restaurant, name, email, settings }){
+      if (Object.values(users).some(u => u.email === email)) throw { code:'email-already-in-use' };
+      let code; do { code = genCode(); } while (companies[code]);
+      const uid = 'u'+Math.random().toString(36).slice(2,8);
+      companies[code] = { name:restaurant, settings:clone(settings), weeks:{}, subs:{} };
+      users[uid] = { name, email, role:'manager', active:true, works:false, companyId:code };
+      return { uid, code };
+    },
     async getProfile(uid){ return users[uid] ? clone(users[uid]) : null; },
-    async listUsers(){ return Object.entries(users).map(([uid,u]) => ({ uid, ...clone(u) })); },
+    async listUsers(){ return Object.entries(users).filter(([,u]) => u.companyId === cid).map(([uid,u]) => ({ uid, ...clone(u) })); },
     async createUser(data){
       if (Object.values(users).some(u => u.email === data.email)) throw { code:'email-already-in-use' };
       const uid = 'u'+Math.random().toString(36).slice(2,8);
-      const { password, ...doc } = data; users[uid] = { ...doc, active:true }; return uid;
+      const { password, ...doc } = data; users[uid] = { ...doc, companyId:cid, active:true }; return uid;
     },
     async updateUser(uid,data){ users[uid] = { ...users[uid], ...clone(data) }; },
-    async getSettings(){ return settings ? clone(settings) : null; },
-    async saveSettings(s){ settings = clone(s); },
-    async getWeek(id){ return clone(weeks[id] || {}); },
-    async updateWeek(id,data){ weeks[id] = { ...(weeks[id]||{}), ...clone(data) }; },
-    async getSubmission(w,uid){ return subs[w]?.[uid] ? clone(subs[w][uid]) : null; },
-    async saveSubmission(w,uid,data){ (subs[w] ??= {})[uid] = clone(data); },
-    async listSubmissions(w){ return clone(subs[w] || {}); },
-    async listWeeks(){ return Object.entries(weeks).map(([id,w]) => ({ id, ...clone(w) })); },
+    async getSettings(){ return C().settings ? clone(C().settings) : null; },
+    async saveSettings(s){ C().settings = clone(s); },
+    async getWeek(id){ return clone(C().weeks[id] || {}); },
+    async updateWeek(id,data){ C().weeks[id] = { ...(C().weeks[id]||{}), ...clone(data) }; },
+    async getSubmission(w,uid){ return C().subs[w]?.[uid] ? clone(C().subs[w][uid]) : null; },
+    async saveSubmission(w,uid,data){ (C().subs[w] ??= {})[uid] = clone(data); },
+    async listSubmissions(w){ return clone(C().subs[w] || {}); },
+    async listWeeks(){ return Object.entries(C().weeks).map(([id,w]) => ({ id, ...clone(w) })); },
   };
 }
 
@@ -320,6 +339,10 @@ async function firebaseBackend(cfg){
   const app = AppM.initializeApp(cfg), auth = A.getAuth(app), db = F.getFirestore(app);
   auth.languageCode = 'he';
   const snap = s => s.exists() ? s.data() : null;
+  let cid = null;
+  // כל הנתונים של מסעדה יושבים תחת companies/{מזהה החברה}
+  const cdoc = (...p) => F.doc(db, 'companies', cid, ...p);
+  const ccol = (...p) => F.collection(db, 'companies', cid, ...p);
   // אפליקציה משנית ליצירת משתמשים, כדי שהמנהל לא יתנתק
   let creatorAuth = null;
   async function getCreator(){
@@ -332,37 +355,70 @@ async function firebaseBackend(cfg){
   return {
     demo:false,
     onAuth(cb){ A.onAuthStateChanged(auth, u => cb(u ? { uid:u.uid, email:u.email } : null)); },
+    setCompany(c){ cid = c; },
     async signIn(email,pw){ await A.signInWithEmailAndPassword(auth,email,pw); },
-    async signOut(){ await A.signOut(auth); },
+    async signOut(){ cid = null; await A.signOut(auth); },
     async sendReset(email){ await A.sendPasswordResetEmail(auth,email); },
+    async signUp({ restaurant, name, email, password, settings }){
+      let cred, isNew = true;
+      try { cred = await A.createUserWithEmailAndPassword(auth, email, password); }
+      catch(e){
+        if (!String(e?.code).includes('email-already-in-use')) throw e;
+        // חשבון קיים בלי מסעדה (למשל מגרסה קודמת): מחברים אותו למסעדה החדשה
+        try { cred = await A.signInWithEmailAndPassword(auth, email, password); } catch { throw e; }
+        isNew = false;
+        const p = snap(await F.getDoc(F.doc(db,'users',cred.user.uid)));
+        if (p?.companyId) { await A.signOut(auth); throw { code:'has-company' }; }
+      }
+      const uid = cred.user.uid;
+      try{
+        let code = null;
+        for (let i = 0; i < 10 && !code; i++) {
+          const c = genCode();
+          try { await F.setDoc(F.doc(db,'companies',c), { name:restaurant, ownerUid:uid, createdAt:F.serverTimestamp() }); code = c; }
+          catch(e){ if (!String(e?.code).includes('permission-denied')) throw e; }  // המספר תפוס, מגרילים שוב
+        }
+        if (!code) throw new Error('לא הצלחנו ליצור מזהה חברה, נסה שוב');
+        await F.setDoc(F.doc(db,'users',uid), { companyId:code, name, email, role:'manager', active:true, works:false });
+        await F.setDoc(F.doc(db,'companies',code,'settings','main'), settings);
+        return { uid, code };
+      }catch(e){
+        if (isNew) await A.deleteUser(cred.user).catch(() => {});
+        else await A.signOut(auth);
+        throw e;
+      }
+    },
     async getProfile(uid){ return snap(await F.getDoc(F.doc(db,'users',uid))); },
-    async listUsers(){ const q = await F.getDocs(F.collection(db,'users')); return q.docs.map(d => ({ uid:d.id, ...d.data() })); },
+    async listUsers(){
+      const q = await F.getDocs(F.query(F.collection(db,'users'), F.where('companyId','==',cid)));
+      return q.docs.map(d => ({ uid:d.id, ...d.data() }));
+    },
     async createUser(data){
       const ca = await getCreator();
       const cred = await A.createUserWithEmailAndPassword(ca, data.email, data.password);
       await A.signOut(ca);
       const { password, ...doc } = data;
-      await F.setDoc(F.doc(db,'users',cred.user.uid), { ...doc, active:true });
+      await F.setDoc(F.doc(db,'users',cred.user.uid), { ...doc, companyId:cid, active:true });
       return cred.user.uid;
     },
     async updateUser(uid,data){ await F.setDoc(F.doc(db,'users',uid), data, { merge:true }); },
-    async getSettings(){ return snap(await F.getDoc(F.doc(db,'settings','main'))); },
-    async saveSettings(s){ await F.setDoc(F.doc(db,'settings','main'), s); },
-    async getWeek(id){ return snap(await F.getDoc(F.doc(db,'weeks',id))) || {}; },
-    async updateWeek(id,data){ await F.setDoc(F.doc(db,'weeks',id), data, { mergeFields:Object.keys(data) }); },
-    async getSubmission(w,uid){ return snap(await F.getDoc(F.doc(db,'weeks',w,'submissions',uid))); },
-    async saveSubmission(w,uid,data){ await F.setDoc(F.doc(db,'weeks',w,'submissions',uid), { ...data, updatedAt:F.serverTimestamp() }); },
+    async getSettings(){ return snap(await F.getDoc(cdoc('settings','main'))); },
+    async saveSettings(s){ await F.setDoc(cdoc('settings','main'), s); },
+    async getWeek(id){ return snap(await F.getDoc(cdoc('weeks',id))) || {}; },
+    async updateWeek(id,data){ await F.setDoc(cdoc('weeks',id), data, { mergeFields:Object.keys(data) }); },
+    async getSubmission(w,uid){ return snap(await F.getDoc(cdoc('weeks',w,'submissions',uid))); },
+    async saveSubmission(w,uid,data){ await F.setDoc(cdoc('weeks',w,'submissions',uid), { ...data, updatedAt:F.serverTimestamp() }); },
     async listSubmissions(w){
-      const q = await F.getDocs(F.collection(db,'weeks',w,'submissions'));
+      const q = await F.getDocs(ccol('weeks',w,'submissions'));
       const o = {}; q.docs.forEach(d => o[d.id] = d.data()); return o;
     },
-    async listWeeks(){ const q = await F.getDocs(F.collection(db,'weeks')); return q.docs.map(d => ({ id:d.id, ...d.data() })); },
+    async listWeeks(){ const q = await F.getDocs(ccol('weeks')); return q.docs.map(d => ({ id:d.id, ...d.data() })); },
   };
 }
 
 /* ---------- state ---------- */
 const S = {
-  ready:false, user:null, profile:null, users:[], settings:clone(DEFAULT_SETTINGS), view:null,
+  ready:false, user:null, profile:null, cid:null, authMode:'login', pendingCode:null, signingUp:false, newCompany:null, users:[], settings:clone(DEFAULT_SETTINGS), view:null,
   weekStart: addDays(sundayOf(new Date()),7),
   week:{}, mySub:null, draft:{}, note:'', dirty:false, subs:{}, msgDraft:'',
   sDraft:null, sDirty:false, uDraft:null, editUid:null, created:null,
@@ -466,8 +522,12 @@ function loadDraftFor(uid){ const s = S.subs[uid]; S.draft = { ...(s?.avail || {
 async function afterLogin(){
   let p = null;
   try { p = await B.getProfile(S.user.uid); } catch {}
+  const code = S.pendingCode; S.pendingCode = null;
+  if (p && !p.companyId) { toast(errMsg({ code:'no-company' })); await B.signOut(); return; }
+  if (code && p && p.companyId !== code) { toast(errMsg({ code:'bad-company' })); await B.signOut(); return; }
   if (!p || p.active === false) { toast('החשבון הזה לא פעיל. פנה למנהל.'); await B.signOut(); return; }
-  S.profile = p;
+  S.profile = p; S.cid = p.companyId; B.setCompany(p.companyId);
+  if (code) store.set('companyCode', code);
   S.settings = normSettings(await B.getSettings());
   S.users = await B.listUsers();
   S.view = isMgr() ? 'manage' : 'submit';
@@ -478,6 +538,7 @@ async function afterLogin(){
 function render(){
   if (!S.ready) { $app.innerHTML = `<p class="loading">טוען…</p>`; return; }
   if (!S.user || !S.profile) { $app.innerHTML = viewLogin(); return; }
+  if (S.newCompany) { $app.innerHTML = viewWelcome(); return; }
   const tabs = isMgr()
     ? [['manage','שיבוץ'],['team','עובדים'],['reports','דוחות'],['settings','הגדרות']]
     : [['submit','זמינות'],['mine','הסידור שלי'],['hours','שעות']];
@@ -511,20 +572,47 @@ function dayGrid(cell){
   </div>`).join('')}</div></div>`;
 }
 
+const BRAND = `<h1><span class="bars" aria-hidden="true"><i></i><i></i><i></i></span>משמרות</h1>`;
 function viewLogin(){
-  const head = `<h1><span class="bars" aria-hidden="true"><i></i><i></i><i></i></span>משמרות</h1>`;
+  if (S.authMode === 'signup') return viewSignup();
+  const toSignup = `<p class="divider">מנהלים מסעדה ועוד אין לכם חשבון?</p>
+    <button class="btn" data-action="authMode" data-m="signup">פתיחת חשבון מסעדה</button>`;
   if (B.demo) {
-    return `<div class="login">${head}<p>מצב הדגמה. בוחרים משתמש כדי לראות את המערכת מהצד שלו.</p>
+    return `<div class="login">${BRAND}<p>מצב הדגמה. בוחרים משתמש כדי לראות את המערכת מהצד שלו. מזהה החברה של מסעדת ההדגמה הוא ${B.DEMO}.</p>
       <div class="userpick">${Object.entries(B.users).filter(([,u]) => u.active!==false).map(([uid,u]) =>
-        `<button data-action="demoLogin" data-uid="${uid}"><b>${esc(u.name)}</b><span>${u.role==='manager'?'מנהלת':'עובד/ת'}</span></button>`).join('')}</div></div>`;
+        `<button data-action="demoLogin" data-uid="${uid}"><b>${esc(u.name)}</b><span>${u.role==='manager'?'מנהל/ת':'עובד/ת'}, ${esc(B.companies[u.companyId]?.name)}</span></button>`).join('')}</div>
+      ${toSignup}</div>`;
   }
-  return `<div class="login">${head}<p>כניסה עם הפרטים שקיבלת מהמנהל</p>
+  return `<div class="login">${BRAND}<p>כניסה עם הפרטים שקיבלת מהמנהל</p>
+    <label class="field">מזהה חברה<small>6 ספרות שמקבלים מהמנהל</small>
+      <input type="text" id="f-code" inputmode="numeric" maxlength="6" autocomplete="organization" dir="ltr" value="${esc(store.get('companyCode'))}"></label>
     <label class="field">אימייל<input type="email" id="f-email" autocomplete="email" dir="ltr"></label>
     <label class="field">סיסמה<input type="password" id="f-pw" autocomplete="current-password" dir="ltr"></label>
     <div class="toolbar" style="margin-top:16px">
       <button class="btn primary" data-action="login">כניסה</button>
       <button class="link" data-action="forgot">שכחתי סיסמה</button>
+    </div>
+    ${toSignup}</div>`;
+}
+function viewSignup(){
+  return `<div class="login">${BRAND}<p>פתיחת חשבון מסעדה. אחרי הפתיחה תקבל מזהה חברה בן 6 ספרות, שאיתו אתה והעובדים נכנסים למערכת.</p>
+    <label class="field">שם המסעדה<input type="text" id="f-rest" autocomplete="organization"></label>
+    <label class="field">השם שלך<input type="text" id="f-name" autocomplete="name"></label>
+    <label class="field">אימייל<input type="email" id="f-email" autocomplete="email" dir="ltr"></label>
+    <label class="field">סיסמה<small>לפחות 6 תווים</small><input type="password" id="f-pw" autocomplete="new-password" dir="ltr"></label>
+    <div class="toolbar" style="margin-top:16px">
+      <button class="btn primary" data-action="signup">פתיחת חשבון מסעדה</button>
+      <button class="link" data-action="authMode" data-m="login">כבר יש לי חשבון</button>
     </div></div>`;
+}
+function viewWelcome(){
+  const c = S.newCompany;
+  return `<div class="login">${BRAND}
+    <p>החשבון של ${esc(c.name)} נפתח. זה מזהה החברה שלך:</p>
+    <div class="code" dir="ltr">${c.code}</div>
+    <p>שומרים אותו. אתה והעובדים צריכים אותו בכל כניסה, והוא תמיד מופיע אצלך בלשונית "עובדים".</p>
+    <div class="toolbar"><button class="btn" data-action="copyCode">העתקת המזהה</button>
+      <button class="btn primary" data-action="welcomeDone">כניסה למערכת</button></div></div>`;
 }
 
 const legend = () => `<div class="legend">
@@ -624,6 +712,7 @@ function viewTeam(){
   };
   return `
     <div class="status"><span class="pill ${submitted===W.length?'ok':''}">${submitted} מתוך ${W.length} הגישו לשבוע הזה</span></div>
+    <div class="codebox"><span>מזהה החברה, לכניסה של כל העובדים</span><b dir="ltr">${esc(S.cid)}</b><button class="btn sm" data-action="copyCode">העתקה</button></div>
     <div class="toolbar"><button class="btn primary" data-action="newUser">הוספת עובד</button></div>
     <ul class="list">${active.map(row).join('')}</ul>
     ${inactive.length ? `<h3>לא פעילים</h3><ul class="list">${inactive.map(row).join('')}</ul>` : ''}`;
@@ -687,7 +776,7 @@ function viewNewUser(){
     <div class="card"><h3>עובד חדש</h3>${userFields(true)}
       <div class="toolbar" style="margin-top:16px"><button class="btn primary" data-action="createUser">הוספת העובד</button></div></div>`;
 }
-const loginText = c => `שלום ${c.name}, נפתח לך חשבון במערכת המשמרות.\nכניסה: ${location.origin + location.pathname}\nאימייל: ${c.email}\nסיסמה: ${c.password}`;
+const loginText = c => `שלום ${c.name}, נפתח לך חשבון במערכת המשמרות של ${ST().business}.\nכניסה: ${location.origin + location.pathname}\nמזהה חברה: ${S.cid}\nאימייל: ${c.email}\nסיסמה: ${c.password}`;
 
 function viewSettings(){
   const st = S.sDraft;
@@ -695,6 +784,7 @@ function viewSettings(){
   const dlDay = H ? Math.floor(from/24) : -1, dlHour = H ? from % 24 : 20;
   return `
     <h3>כללי</h3>
+    <div class="codebox"><span>מזהה החברה</span><b dir="ltr">${esc(S.cid)}</b><button class="btn sm" data-action="copyCode">העתקה</button></div>
     <label class="field">שם העסק<input type="text" data-s="business" value="${esc(st.business)}"></label>
 
     <h3>משמרות</h3>
@@ -881,12 +971,41 @@ const actions = {
   repBack(){ S.repUid = null; render(); },
   refreshRep(){ loadReports(); },
   csv(){ downloadCsv(); },
-  async login(){ try{ await B.signIn(val('f-email'), val('f-pw')); }catch(e){ toast(errMsg(e)); } },
+  async login(){
+    const code = val('f-code').replace(/\D/g,'');
+    if (code.length !== 6) return toast('מזהה החברה צריך להיות 6 ספרות');
+    if (!val('f-email') || !val('f-pw')) return toast('צריך למלא אימייל וסיסמה');
+    S.pendingCode = code;
+    try{ await B.signIn(val('f-email'), val('f-pw')); }
+    catch(e){ S.pendingCode = null; toast(String(e?.code).includes('invalid-credential') ? errMsg({ code:'bad-company' }) : errMsg(e)); }
+  },
+  authMode(el){ S.authMode = el.dataset.m; render(); window.scrollTo(0,0); },
+  async signup(el){
+    const restaurant = val('f-rest'), name = val('f-name'), email = val('f-email').toLowerCase(), password = document.getElementById('f-pw')?.value || '';
+    if (!restaurant) return toast('צריך למלא את שם המסעדה');
+    if (!name) return toast('צריך למלא את השם שלך');
+    if (!email) return toast('צריך למלא אימייל');
+    if (password.length < 6) return toast('הסיסמה צריכה לכלול לפחות 6 תווים');
+    el.disabled = true; S.signingUp = true;
+    const settings = { ...clone(DEFAULT_SETTINGS), business:restaurant, tzMin:-new Date().getTimezoneOffset(), appUrl:location.origin + location.pathname };
+    try{
+      const { uid, code } = await B.signUp({ restaurant, name, email, password, settings });
+      store.set('companyCode', code);
+      S.newCompany = { code, name:restaurant };
+      if (B.demo) await B.signIn(uid);
+      S.user = S.user || { uid, email }; S.ready = true;
+      await afterLogin();
+      S.authMode = 'login';
+    }catch(e){ toast(errMsg(e)); el.disabled = false; }
+    S.signingUp = false; render();
+  },
+  copyCode(){ copyText(S.newCompany?.code || S.cid); },
+  welcomeDone(){ S.newCompany = null; render(); },
   async forgot(){
     const email = val('f-email'); if (!email) return toast('קודם כותבים את האימייל בשדה');
     try{ await B.sendReset(email); toast('אם האימייל רשום במערכת, נשלח אליו קישור לאיפוס'); }catch(e){ toast(errMsg(e)); }
   },
-  async logout(){ if (!confirmLeave()) return; S.profile = null; await B.signOut(); },
+  async logout(){ if (!confirmLeave()) return; S.profile = null; S.cid = null; S.newCompany = null; await B.signOut(); },
   tab(el){
     if (!confirmLeave()) return;
     const v = el.dataset.v;
@@ -1057,7 +1176,7 @@ document.addEventListener('change', e => {
   S.sDraft.deadlineHours = day < 0 ? 0 : 168 - (day*24 + hour);
   S.sDirty = true; render();
 });
-document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('.login input')) actions.login(); });
+document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('.login input')) document.querySelector('.login .btn.primary')?.click(); });
 $sheet.addEventListener('change', async e => {
   const uid = e.target.dataset.assign; if (!uid) return;
   const a = asg(), k = S.openKey;
@@ -1075,8 +1194,9 @@ $sheet.addEventListener('click', e => { if (e.target === $sheet) $sheet.close();
   catch(e){ console.error(e); B = demoBackend(); toast('החיבור ל-Firebase נכשל, עובר למצב הדגמה'); }
   B.onAuth(async u => {
     S.user = u; S.ready = true;
+    if (S.signingUp) return;  // ההרשמה ממשיכה בעצמה
     if (u) { try{ await afterLogin(); }catch(e){ toast(errMsg(e)); render(); } }
-    else { S.profile = null; S.dirty = false; S.sDirty = false; render(); }
+    else { S.profile = null; S.cid = null; S.dirty = false; S.sDirty = false; render(); }
   });
 })();
 </script>
