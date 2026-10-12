@@ -33,7 +33,10 @@ button{cursor:pointer}
 .bars i:nth-child(1){height:12px;background:#E9A23B}
 .bars i:nth-child(2){height:17px;background:#D6577A}
 .bars i:nth-child(3){height:22px;background:#34478F}
-.who{display:flex;align-items:center;gap:8px;font-size:.9rem;color:var(--muted)}
+.who{display:flex;align-items:center;gap:10px;font-size:.9rem;color:var(--muted)}
+.who .me{display:flex;flex-direction:column;align-items:flex-start;line-height:1.25}
+.who .me b{color:var(--ink);font-weight:500}
+.who .me small{font-size:.78rem}
 .link{border:0;background:none;text-decoration:underline;padding:4px;color:var(--ink)}
 .demo{background:#FFF7E6;border:1px solid #F3D9A4;border-radius:10px;padding:8px 12px;font-size:.88rem;margin-bottom:12px}
 
@@ -544,6 +547,7 @@ const isMgr = () => isMgrRole(S.profile?.role);
 const positions = () => ST().positions || [];
 const posName = id => positions().find(p => p.id === id)?.name;
 const userPos = u => (u?.positions || []).filter(posName);
+const myTitle = () => [S.profile?.role !== 'employee' ? ROLE_LABEL[S.profile?.role] : null, ...userPos(S.profile).map(posName)].filter(Boolean).join(', ');
 /* מי משתבץ: עובד רגיל תמיד, מנהל או בעלים רק אם יש לו תפקיד */
 const isWorker = u => !!u && u.active !== false && (u.role === 'employee' || userPos(u).length > 0 || !!u.works);
 /* האם המשמרת מתאימה לעובד: משמרת בלי תפקידים מתאימה לכולם */
@@ -696,7 +700,7 @@ function render(){
     <header class="top">
       <h1 class="brand"><button class="brandbtn" data-action="openSwitch" aria-label="${esc(ST().business)}: החלפת מסעדה">
         <span class="bars" aria-hidden="true"><i></i><i></i><i></i></span>${esc(ST().business)}<span class="caret" aria-hidden="true">▾</span></button></h1>
-      <div class="who">${esc(S.profile.name)}<button class="link" data-action="logout">יציאה</button></div>
+      <div class="who"><span class="me"><b>${esc(S.profile.name)}</b>${myTitle() ? `<small>${esc(myTitle())}</small>` : ''}</span><button class="link" data-action="logout">יציאה</button></div>
     </header>
     <nav class="tabs">${tabs.map(([v,l]) => `<button data-action="tab" data-v="${v}" ${tabOf===v?'aria-current="page"':''}>${l}</button>`).join('')}</nav>
     ${showWeek ? `<div class="weeknav">
