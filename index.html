@@ -359,7 +359,8 @@ function demoBackend(){
     async myCompanies(){ return Object.entries(companies).filter(([,c]) => c.members[current.uid]).map(([c,x]) => ({ cid:c, name:x.settings.business, active:x.members[current.uid].active !== false })); },
     async companyName(c){ return companies[c]?.settings.business || null; },
     async getMember(uid){ return C().members[uid] ? clone(C().members[uid]) : null; },
-    async getCompany(){ return { ownerUid:C().ownerUid }; },
+    async getCompany(){ return { ownerUid:C().ownerUid, name:C().name }; },
+    async setCompanyName(n){ C().name = n; },
     async listUsers(){ return Object.entries(C().members).map(([uid,u]) => ({ uid, ...clone(u) })); },
     async addUser(data){
       const { password, ...doc } = data;
@@ -475,6 +476,8 @@ async function firebaseBackend(cfg){
     async companyName(c){ try { return snap(await F.getDoc(F.doc(db,'companies',c,'settings','main')))?.business || null; } catch { return null; } },
     async getMember(uid){ return snap(await F.getDoc(memberRef(cid, uid))); },
     async getCompany(){ return snap(await F.getDoc(F.doc(db,'companies',cid))); },
+    // שם העסק בפרטי החברה, כדי שיתאים לשם בהגדרות
+    async setCompanyName(n){ await F.setDoc(F.doc(db,'companies',cid), { name:n }, { merge:true }); },
     async listUsers(){ const q = await F.getDocs(ccol('members')); return q.docs.map(d => ({ uid:d.id, ...d.data() })); },
     async addUser(data, companyName){
       const { password, ...doc } = data;
@@ -727,6 +730,7 @@ async function enterCompany(cid){
   Object.assign(S, { subs:{}, week:{}, allWeeks:null, repUid:null, editUid:null, draft:{}, note:'', dirty:false, sDirty:false, mySub:null });
   const c = S.companies.find(x => x.cid === cid); if (c) c.name = ST().business;
   S.view = isMgr() ? 'manage' : 'submit';
+  if (isMgr()) B.getCompany().then(c => { if (c && c.name !== ST().business) return B.setCompanyName(ST().business); }).catch(e => console.warn(e));
   if (isMgr() && !ST().viewsVersion) {
     resyncPublished(true).then(async () => {
       const st = { ...clone(S.settings), viewsVersion:1 };
@@ -1056,8 +1060,8 @@ function viewSettings(){
       ${(st.positions || []).length ? `<div class="field">מתאימה לתפקידים<small>${(s.positions||[]).length ? 'רק עובדים עם התפקידים המסומנים יראו את המשמרת' : 'לא סומן תפקיד: המשמרת מתאימה לכולם'}</small>
         <div class="posgrid">${st.positions.map(p => `<label class="poschip"><input type="checkbox" data-action="shiftPos" data-i="${i}" data-id="${p.id}" ${(s.positions||[]).includes(p.id)?'checked':''}>${esc(p.name || 'ללא שם')}</label>`).join('')}</div></div>` : ''}
       <div class="toolbar">
-        <button class="btn sm" data-action="moveShift" data-i="${i}" data-d="-1" ${i===0?'disabled':''}>הזזה למעלה</button>
-        <button class="btn sm" data-action="moveShift" data-i="${i}" data-d="1" ${i===st.shifts.length-1?'disabled':''}>הזזה למטה</button>
+        <button class="btn sm" data-action="moveShift" data-i="${i}" data-d="-1" ${i===0?'disabled':''}>הזזה ימינה</button>
+        <button class="btn sm" data-action="moveShift" data-i="${i}" data-d="1" ${i===st.shifts.length-1?'disabled':''}>הזזה שמאלה</button>
         <button class="btn sm danger" data-action="delShift" data-i="${i}">מחיקת המשמרת</button>
       </div></div>`).join('')}
     <button class="btn" data-action="addShift">הוספת משמרת</button>
@@ -1528,7 +1532,7 @@ const actions = {
     st.tzMin = -new Date().getTimezoneOffset();
     st.appUrl = location.origin + location.pathname;
     el.disabled = true;
-    try{ await B.saveSettings(st); S.settings = normSettings(st); S.sDraft = clone(S.settings); S.sDirty = false; toast('ההגדרות נשמרו'); resyncPublished().catch(e => console.warn(e)); }
+    try{ await B.saveSettings(st); await B.setCompanyName(st.business); S.settings = normSettings(st); S.sDraft = clone(S.settings); S.sDirty = false; toast('ההגדרות נשמרו'); resyncPublished().catch(e => console.warn(e)); }
     catch(e){ toast(errMsg(e)); }
     render();
   },
