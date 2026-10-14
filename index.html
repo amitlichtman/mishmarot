@@ -361,6 +361,8 @@ function demoBackend(){
     async getMember(uid){ return C().members[uid] ? clone(C().members[uid]) : null; },
     async getCompany(){ return { ownerUid:C().ownerUid, name:C().name }; },
     async setCompanyName(n){ C().name = n; },
+    async renameInLists(){ },
+    async fixMyListName(){ },
     async listUsers(){ return Object.entries(C().members).map(([uid,u]) => ({ uid, ...clone(u) })); },
     async addUser(data){
       const { password, ...doc } = data;
@@ -478,6 +480,16 @@ async function firebaseBackend(cfg){
     async getCompany(){ return snap(await F.getDoc(F.doc(db,'companies',cid))); },
     // שם העסק בפרטי החברה, כדי שיתאים לשם בהגדרות
     async setCompanyName(n){ await F.setDoc(F.doc(db,'companies',cid), { name:n }, { merge:true }); },
+    // השם החדש גם ברשימת העסקים של כל עובד בעסק (users/{uid}/companies/{עסק})
+    async renameInLists(uids, n){
+      for (let i = 0; i < uids.length; i += 400) {
+        const b = F.writeBatch(db);
+        uids.slice(i, i + 400).forEach(u => b.set(indexRef(u, cid), { name:n }, { merge:true }));
+        await b.commit();
+      }
+    },
+    // תיקון של השם ברשימה שלי, אם השתנה לפני העדכון הזה
+    async fixMyListName(c, n){ await F.updateDoc(indexRef(auth.currentUser.uid, c), { name:n }); },
     async listUsers(){ const q = await F.getDocs(ccol('members')); return q.docs.map(d => ({ uid:d.id, ...d.data() })); },
     async addUser(data, companyName){
       const { password, ...doc } = data;
@@ -715,8 +727,17 @@ async function afterLogin(){
   toast(errMsg({ code:'inactive' })); await B.signOut();
 }
 async function refreshNames(){
-  try { const fresh = await B.myCompanies(); S.companies = fresh.filter(c => c.active || c.cid === S.cid).map(c => ({ ...c, name:S.companies.find(x => x.cid === c.cid)?.name || c.name })); } catch {}
-  await Promise.all(S.companies.map(async c => { const n = await B.companyName(c.cid); if (n) c.name = n; }));
+  const listed = {};
+  try {
+    const fresh = await B.myCompanies(); fresh.forEach(c => listed[c.cid] = c.name);
+    S.companies = fresh.filter(c => c.active || c.cid === S.cid).map(c => ({ ...c, name:S.companies.find(x => x.cid === c.cid)?.name || c.name }));
+  } catch {}
+  await Promise.all(S.companies.map(async c => {
+    const n = await B.companyName(c.cid); if (!n) return;
+    c.name = n;
+    // השם ברשימה שלי ישן? מתקנים, כדי שבפעם הבאה יופיע נכון מההתחלה
+    if (c.cid in listed && listed[c.cid] !== n) B.fixMyListName(c.cid, n).catch(() => {});
+  }));
   if (S.picking) render(); else if (S.sheetMode === 'switch') renderSwitch();
 }
 async function enterCompany(cid){
@@ -1532,7 +1553,13 @@ const actions = {
     st.tzMin = -new Date().getTimezoneOffset();
     st.appUrl = location.origin + location.pathname;
     el.disabled = true;
-    try{ await B.saveSettings(st); await B.setCompanyName(st.business); S.settings = normSettings(st); S.sDraft = clone(S.settings); S.sDirty = false; toast('ההגדרות נשמרו'); resyncPublished().catch(e => console.warn(e)); }
+    const renamed = st.business !== S.settings.business;
+    try{ await B.saveSettings(st); await B.setCompanyName(st.business);
+      if (renamed) {
+        B.renameInLists(S.users.map(u => u.uid), st.business).catch(e => console.warn(e));
+        const c = S.companies.find(x => x.cid === S.cid); if (c) c.name = st.business;
+      }
+      S.settings = normSettings(st); S.sDraft = clone(S.settings); S.sDirty = false; toast('ההגדרות נשמרו'); resyncPublished().catch(e => console.warn(e)); }
     catch(e){ toast(errMsg(e)); }
     render();
   },
