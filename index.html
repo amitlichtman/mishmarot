@@ -81,11 +81,17 @@ h3{font-family:'Secular One',sans-serif;font-weight:400;font-size:1.15rem;margin
 .chip:active:not(:disabled){transform:scale(.96)}
 .chip .sn{font-weight:700;font-size:.88rem}
 .chip .st{font-size:.75rem}
+.chip{box-shadow:inset 0 4px 0 var(--c)}
 .chip.unset .st{color:var(--muted)}
-.chip.yes{background:var(--c);border:1.5px solid var(--c);color:var(--on)}
-.chip.maybe{border:2px solid var(--c);background:repeating-linear-gradient(-45deg,color-mix(in srgb,var(--c) 22%,#fff) 0 6px,#fff 6px 12px)}
-.chip.no{background:#E9ECF1;border:1.5px solid #E9ECF1;color:var(--muted)}
-.chip.no .sn{text-decoration:line-through}
+.chip.set{background:color-mix(in srgb,var(--sc) 22%,#fff);border:2px solid var(--sc)}
+.chip.set .st{font-weight:500}
+.chip.never{background:color-mix(in srgb,var(--sc) 12%,#F3F4F7);color:var(--muted)}
+.chip.never .sn{text-decoration:line-through}
+.stpick{display:grid;gap:8px;margin:6px 0 4px}
+.stpick button{display:flex;align-items:center;gap:10px;border:2px solid var(--sc,var(--line));background:color-mix(in srgb,var(--sc,#fff) 18%,#fff);border-radius:10px;padding:12px;font-weight:500;text-align:right}
+.stpick button[aria-pressed="true"]{outline:3px solid var(--ink);outline-offset:1px}
+.stpick .lv{margin-inline-start:auto;font-weight:400;font-size:.8rem;color:var(--muted)}
+.statecard{background:#fff;border:1.5px solid var(--line);border-inline-start:7px solid var(--sc);border-radius:12px;padding:2px 14px 12px;margin:10px 0}
 .chip:disabled{cursor:default}
 
 .slot{border-radius:10px;border:1.5px solid var(--line);border-top:5px solid var(--c);background:#fff;
@@ -223,8 +229,19 @@ const FIREBASE_CONFIG = {
 
 /* ===== ברירות מחדל. המנהל משנה הכול במסך ההגדרות ===== */
 const PALETTE = ['#E9A23B','#D6577A','#34478F','#2E8B7A','#7A5AC8','#C2662D','#4A90C2','#8A94A6'];
+/* מצבי זמינות: המנהל מגדיר אותם בהגדרות. המזהים של ברירת המחדל זהים לגרסאות הקודמות, כך שהגשות ישנות ממשיכות לעבוד */
+const LEVELS = [['high','עדיפות גבוהה'],['normal','רגיל'],['low','עדיפות נמוכה'],['never','לא לשבץ']];
+const LEVEL_RANK = { high:0, normal:1, low:2 };
+const STATE_PALETTE = ['#17855B','#2E8B7A','#4A90C2','#7A5AC8','#E9A23B','#C2662D','#D6577A','#8A94A6'];
+const DEFAULT_STATES = [
+  { id:'yes', name:'יכול', color:'#17855B', level:'normal' },
+  { id:'maybe', name:'מעדיף שלא', color:'#E9A23B', level:'low' },
+  { id:'no', name:'לא יכול', color:'#8A94A6', level:'never' },
+];
+const UNSET_LABEL = 'לא סומן';
 const DEFAULT_SETTINGS = {
   business: 'משמרות',
+  availStates: DEFAULT_STATES,
   positions: [ { id:'waiter', name:'מלצר' }, { id:'cook', name:'טבח' } ],
   shifts: [
     { id:'morning', name:'בוקר', start:'07:00', end:'15:00', color:'#E9A23B', need:[2,2,2,2,2,2,2] },
@@ -239,8 +256,6 @@ const DEFAULT_SETTINGS = {
 };
 const DAYS = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
 const DAYS_SHORT = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳'];
-const LABEL = { yes:'יכול', maybe:'מעדיף שלא', no:'לא יכול', unset:'לא סומן' };
-const CYCLE = { unset:'yes', yes:'maybe', maybe:'no', no:'unset' };
 
 /* ---------- utils ---------- */
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -586,6 +601,11 @@ const S = {
   rep:'month', repUid:null, allWeeks:null,
 };
 const ST = () => S.settings;
+const states = () => ST().availStates;
+const stateOf = v => states().find(x => x.id === v) || null;           // מצב שנמחק או לא מוכר = לא סומן
+const stateName = v => stateOf(v)?.name || UNSET_LABEL;
+const assignable = v => { const st = stateOf(v); return !!st && st.level !== 'never'; };
+const rankOf = v => LEVEL_RANK[stateOf(v)?.level] ?? 9;
 const MGR_ROLES = ['manager','owner'];
 const ROLE_LABEL = { owner:'בעלים', manager:'מנהל', employee:'עובד' };
 const isMgrRole = r => MGR_ROLES.includes(r);
@@ -628,6 +648,8 @@ const emptyAsg = () => Object.fromEntries(keys().map(k => [k, []]));
 function normSettings(x){
   const s = { ...clone(DEFAULT_SETTINGS), ...(x || {}) };
   s.positions = (s.positions || []).filter(p => p && p.id);
+  s.availStates = (Array.isArray(s.availStates) ? s.availStates : []).filter(x => x && x.id && x.name && LEVELS.some(([l]) => l === x.level));
+  if (s.availStates.length < 2) s.availStates = clone(DEFAULT_STATES);
   s.shifts = (s.shifts || []).map(sh => ({ ...sh, positions:(sh.positions || []).filter(id => s.positions.some(p => p.id === id)), need: Array.from({length:7}, (_,d) => needAt(sh,d)) }));
   return s;
 }
@@ -660,12 +682,12 @@ const WARN = { day:'כבר משובץ ביום הזה', rest:'לא מספיק מ
 function autoAssign(){
   const E = workers(), ks = keys(), a = Object.fromEntries(ks.map(k => [k, []]));
   const av = (uid,k) => S.subs[uid]?.avail?.[k];
-  const ok = v => v === 'yes' || v === 'maybe';
+  const ok = assignable;
   const supply = k => E.filter(u => canWork(u, shiftById(k.split('_')[1])) && ok(av(u.uid,k))).length / needOf(k);
   const load = u => ks.filter(k => a[k].includes(u.uid)).length;
   for (const k of [...ks].sort((x,y) => supply(x) - supply(y))) {          // קודם המשמרות שהכי קשה לאייש
     E.filter(u => canWork(u, shiftById(k.split('_')[1])) && ok(av(u.uid,k)) && !conflicts(u,k,a).length)
-     .sort((x,y) => (av(x.uid,k)==='yes'?0:1) - (av(y.uid,k)==='yes'?0:1) || load(x) - load(y))
+     .sort((x,y) => rankOf(av(x.uid,k)) - rankOf(av(y.uid,k)) || load(x) - load(y))
      .slice(0, needOf(k)).forEach(u => a[k].push(u.uid));
   }
   return a;
@@ -852,6 +874,16 @@ function viewNewCompany(){
       <label class="field">שם העסק<input type="text" id="f-rest" autocomplete="organization"></label>
       <div class="toolbar" style="margin-top:16px"><button class="btn primary" data-action="createCompany">פתיחת העסק</button></div></div>`;
 }
+function renderAvailPicker(){
+  const k = S.pickKey; if (!k) return;
+  const [d,id] = k.split('_'), s = shiftById(id), cur = S.draft[k];
+  const lv = Object.fromEntries(LEVELS);
+  $sheet.innerHTML = `<div class="sheet" style="--c:${s.color}">
+    <header><div><h2>${esc(s.name)}, יום ${DAYS[d]} ${fmt(addDays(S.weekStart,+d))}</h2><div class="hint" style="margin:0">${ltr(hrs(s))}</div></div>
+      <button class="iconbtn" data-action="closeSheet" aria-label="סגירה">✕</button></header>
+    <div class="stpick">${states().map(st => `<button style="--sc:${st.color}" data-action="pickState" data-id="${st.id}" aria-pressed="${cur === st.id}">${esc(st.name)}</button>`).join('')}
+      <button data-action="pickState" data-id="" aria-pressed="${!stateOf(cur)}">${UNSET_LABEL}</button></div></div>`;
+}
 function renderSwitch(){
   $sheet.innerHTML = `<div class="sheet" style="--c:var(--ink)">
     <header><div><h2>העסקים שלך</h2></div><button class="iconbtn" data-action="closeSheet" aria-label="סגירה">✕</button></header>
@@ -861,10 +893,10 @@ function renderSwitch(){
     <div class="toolbar" style="margin-top:12px"><button class="btn" data-action="newCompany">פתיחת עסק חדש</button></div></div>`;
 }
 
-const legend = () => `<div class="legend">
-  <span><i class="sw" style="background:var(--ink)"></i>יכול</span>
-  <span><i class="sw" style="border:2px solid var(--ink);background:repeating-linear-gradient(-45deg,#d5d8de 0 3px,#fff 3px 6px)"></i>מעדיף שלא</span>
-  <span><i class="sw" style="background:#E9ECF1"></i>לא יכול</span></div>`;
+const legend = () => `<div class="legend">${states().map(st =>
+  `<span><i class="sw" style="--sc:${st.color};background:color-mix(in srgb,${st.color} 22%,#fff);border:2px solid ${st.color}"></i>${esc(st.name)}</span>`).join('')}</div>`;
+/* מה מסמנים בלחיצה על "סימון הכל": המצב הרגיל הראשון, ואם אין, הראשון שאפשר לשבץ */
+const fillState = () => states().find(x => x.level === 'normal') || states().find(x => x.level !== 'never');
 
 const availSubject = () => S.view === 'user' ? S.users.find(u => u.uid === S.editUid) : S.profile;
 const availKeys = () => { const u = availSubject(); return keys().filter(k => canWork(u, shiftById(k.split('_')[1]))); };
@@ -875,17 +907,19 @@ function availEditor(asManager){
   if (asManager) msg = `<p class="hint">עריכה בשם העובד. אפשר לערוך גם אחרי שההגשה נסגרה.</p>`;
   else if (S.week.locked) msg = `<p class="notice">ההגשה לשבוע הזה נסגרה. לשינויים פונים למנהל.</p>`;
   else if (dl && Date.now() >= dl) msg = `<p class="notice">מועד ההגשה לשבוע הזה עבר. לשינויים פונים למנהל.</p>`;
-  else msg = `<p class="hint">לוחצים על משמרת כדי להחליף מצב: יכול, מעדיף שלא, לא יכול.${dl ? `<br><b>אפשר להגיש עד ${fmtDl(dl)}.</b>` : ''}</p>`;
-  const cell = (d,s,k) => { const v = S.draft[k] || 'unset';
+  else msg = `<p class="hint">${states().length <= 3 ? `לוחצים על משמרת כדי להחליף מצב: ${states().map(x => esc(x.name)).join(', ')}.` : 'לוחצים על משמרת ובוחרים מצב.'}${dl ? `<br><b>אפשר להגיש עד ${fmtDl(dl)}.</b>` : ''}</p>`;
+  const cell = (d,s,k) => { const st = stateOf(S.draft[k]);
     if (!canWork(who, s)) return `<div class="off" aria-hidden="true"></div>`;
-    return `<button class="chip ${v}" style="--c:${s.color};--on:${onColor(s.color)}" data-action="cycle" data-k="${k}" ${editable?'':'disabled'}
-      aria-label="משמרת ${esc(s.name)} ביום ${DAYS[d]}: ${LABEL[v]}" title="${hrs(s)}">
-      <span class="sn">${esc(s.name)}</span><span class="hr">${hrs(s)}</span><span class="st">${LABEL[v]}</span></button>`; };
+    const cls = !st ? 'unset' : st.level === 'never' ? 'set never' : 'set';
+    return `<button class="chip ${cls}" style="--c:${s.color};${st ? `--sc:${st.color}` : ''}" data-action="cycle" data-k="${k}" ${editable?'':'disabled'}
+      aria-label="משמרת ${esc(s.name)} ביום ${DAYS[d]}: ${esc(st?.name || UNSET_LABEL)}" title="${hrs(s)}">
+      <span class="sn">${esc(s.name)}</span><span class="hr">${hrs(s)}</span><span class="st">${esc(st?.name || UNSET_LABEL)}</span></button>`; };
+  const fs = fillState();
   const saved = asManager ? !!S.subs[S.editUid] : !!S.mySub;
   const state = S.dirty ? `<span class="dirty">יש שינויים שלא נשמרו</span>`
     : saved ? `<span>הזמינות לשבוע הזה שמורה</span>` : `<span>${asManager ? 'העובד עוד לא הגיש' : 'עוד לא הגשת לשבוע הזה'}</span>`;
   return `${msg}${legend()}
-    ${editable ? `<div class="toolbar"><button class="btn sm" data-action="allYes">סימון הכל כ"יכול"</button><button class="btn sm" data-action="allClear">ניקוי</button></div>` : ''}
+    ${editable ? `<div class="toolbar">${fs ? `<button class="btn sm" data-action="allYes">סימון הכל כ"${esc(fs.name)}"</button>` : ''}<button class="btn sm" data-action="allClear">ניקוי</button></div>` : ''}
     ${dayGrid(cell, ST().shifts.filter(s => canWork(who, s)))}
     ${asManager ? (S.note ? `<p class="notice msg">הערת העובד: ${esc(S.note)}</p>` : '')
       : `<label class="field">הערה למנהל<textarea id="note" ${editable?'':'disabled'} placeholder="למשל: ביום שלישי יכול רק עד 20:00">${esc(S.note)}</textarea></label>`}
@@ -1056,6 +1090,22 @@ function viewSettings(){
     <h3>כללי</h3>
     <label class="field">שם העסק<input type="text" data-s="business" value="${esc(st.business)}"></label>
 
+    <h3>מצבי זמינות</h3>
+    <p class="hint">המצבים שעובדים בוחרים בהגשת זמינות. לכל מצב קובעים איך השיבוץ מתייחס אליו. עם עד 3 מצבים עובדים מחליפים מצב בלחיצות חוזרות, ומעל 3 נפתח חלון בחירה.</p>
+    ${(st.availStates || []).map((x,i) => `<div class="statecard" style="--sc:${x.color}">
+      <div class="row">
+        <label class="field grow">שם המצב<input type="text" maxlength="30" data-s="availStates.${i}.name" value="${esc(x.name)}"></label>
+        <label class="field">בשיבוץ<select data-s="availStates.${i}.level">${LEVELS.map(([l,t]) => `<option value="${l}" ${x.level===l?'selected':''}>${t}</option>`).join('')}</select></label>
+      </div>
+      <div class="swatches">${STATE_PALETTE.map(c => `<button class="swatch" style="background:${c}" data-action="stateColor" data-i="${i}" data-c="${c}" aria-label="בחירת צבע" aria-pressed="${c===x.color}"></button>`).join('')}</div>
+      <div class="toolbar">
+        <button class="btn sm" data-action="moveState" data-i="${i}" data-d="-1" ${i===0?'disabled':''}>למעלה</button>
+        <button class="btn sm" data-action="moveState" data-i="${i}" data-d="1" ${i===st.availStates.length-1?'disabled':''}>למטה</button>
+        <button class="btn sm danger" data-action="delState" data-i="${i}" ${st.availStates.length<=2?'disabled':''}>מחיקה</button>
+      </div></div>`).join('')}
+    <div class="toolbar"><button class="btn" data-action="addState" ${(st.availStates || []).length>=6?'disabled':''}>הוספת מצב</button>
+      <button class="btn" data-action="resetStates">חזרה לברירת המחדל</button></div>
+
     <h3>תפקידים</h3>
     <p class="hint">למשל מלצר, קופאי, מחסנאי או נהג. לכל עובד אפשר לתת כמה תפקידים, ולכל משמרת לקבוע לאילו תפקידים היא מתאימה.</p>
     ${(st.positions || []).map((p,i) => { const others = st.positions.filter(o => o.id !== p.id);
@@ -1222,8 +1272,10 @@ function renderSheet(){
   const k = S.openKey; if (!k) return;
   const [d,id] = k.split('_'), s = shiftById(id), a = asg(), on = new Set(a[k]);
   const count = uid => keys().filter(x => a[x].includes(uid)).length;
-  const groups = [['yes','יכולים'],['maybe','מעדיפים שלא'],['unset','לא סימנו'],['no','לא יכולים']];
-  const rows = workers().filter(u => on.has(u.uid) || canWork(u,s)).map(u => ({ u, v: S.subs[u.uid]?.avail?.[k] || 'unset', w: on.has(u.uid) ? [] : conflicts(u,k,a) }));
+  // קבוצות לפי המצבים שהמנהל הגדיר: קודם עדיפות גבוהה, רגיל, נמוכה, אחר כך מי שלא סימן, ובסוף "לא לשבץ"
+  const ordered = [...states()].sort((x,y) => (LEVEL_RANK[x.level] ?? 9) - (LEVEL_RANK[y.level] ?? 9));
+  const groups = [...ordered.filter(x => x.level !== 'never').map(x => [x.id, x.name]), ['unset', UNSET_LABEL], ...ordered.filter(x => x.level === 'never').map(x => [x.id, x.name])];
+  const rows = workers().filter(u => on.has(u.uid) || canWork(u,s)).map(u => { const v = S.subs[u.uid]?.avail?.[k]; return { u, v: stateOf(v) ? v : 'unset', w: on.has(u.uid) ? [] : conflicts(u,k,a) }; });
   const sp = (s.positions || []).map(posName).filter(Boolean);
   $sheet.innerHTML = `<div class="sheet" style="--c:${s.color}">
     <header><div><h2>${esc(s.name)}, יום ${DAYS[d]} ${fmt(addDays(S.weekStart,+d))}</h2>
@@ -1380,8 +1432,20 @@ const actions = {
   async week(el){ if (!confirmLeave()) return; S.weekStart = addDays(S.weekStart, +el.dataset.d); await loadWeek(); },
 
   /* זמינות */
-  cycle(el){ const k = el.dataset.k, v = CYCLE[S.draft[k] || 'unset']; if (v==='unset') delete S.draft[k]; else S.draft[k] = v; S.dirty = true; render(); },
-  allYes(){ availKeys().forEach(k => S.draft[k] = 'yes'); S.dirty = true; render(); },
+  cycle(el){
+    const k = el.dataset.k, list = states();
+    if (list.length > 3) { S.sheetMode = 'avail'; S.pickKey = k; renderAvailPicker(); $sheet.showModal(); return; }
+    const i = list.findIndex(x => x.id === S.draft[k]);             // לא סומן -> מצב ראשון -> ... -> לא סומן
+    const nx = list[i + 1];
+    if (nx) S.draft[k] = nx.id; else delete S.draft[k];
+    S.dirty = true; render();
+  },
+  pickState(el){
+    const k = S.pickKey; if (!k) return;
+    if (el.dataset.id) S.draft[k] = el.dataset.id; else delete S.draft[k];
+    S.dirty = true; $sheet.close(); render();
+  },
+  allYes(){ const fs = fillState(); if (!fs) return; availKeys().forEach(k => S.draft[k] = fs.id); S.dirty = true; render(); },
   allClear(){ S.draft = {}; S.dirty = true; render(); },
   async save(el){
     el.disabled = true;
@@ -1455,6 +1519,29 @@ const actions = {
     const sh = S.sDraft.shifts[+el.dataset.i], set = new Set(sh.positions || []);
     el.checked ? set.add(el.dataset.id) : set.delete(el.dataset.id);
     sh.positions = [...set]; S.sDirty = true; render();
+  },
+  stateColor(el){ S.sDraft.availStates[+el.dataset.i].color = el.dataset.c; S.sDirty = true; render(); },
+  moveState(el){
+    const i = +el.dataset.i, j = i + +el.dataset.d, a = S.sDraft.availStates;
+    [a[i], a[j]] = [a[j], a[i]]; S.sDirty = true; render();
+  },
+  addState(){
+    const a = S.sDraft.availStates; if (a.length >= 6) return;
+    const used = new Set(a.map(x => x.color)), color = STATE_PALETTE.find(c => !used.has(c)) || STATE_PALETTE[0];
+    a.push({ id:'s' + Math.random().toString(36).slice(2,8), name:'', color, level:'normal' });
+    S.sDirty = true; render();
+  },
+  delState(el){
+    const a = S.sDraft.availStates, x = a[+el.dataset.i];
+    if (a.length <= 2) return toast('צריך לפחות שני מצבים');
+    const n = Object.values(S.subs || {}).filter(sub => Object.values(sub.avail || {}).includes(x.id)).length;
+    const warn = n ? `\n${n} עובדים בחרו במצב הזה בשבוע המוצג. אחרי המחיקה ההגשות שלהם במשמרות האלה ייחשבו "${UNSET_LABEL}".` : '';
+    if (!confirm(`למחוק את המצב "${x.name || 'ללא שם'}"?${warn}`)) return;
+    a.splice(+el.dataset.i, 1); S.sDirty = true; render();
+  },
+  resetStates(){
+    if (!confirm('לחזור לשלושת המצבים של ברירת המחדל (יכול, מעדיף שלא, לא יכול)?')) return;
+    S.sDraft.availStates = clone(DEFAULT_STATES); S.sDirty = true; render();
   },
   addPos(){ (S.sDraft.positions ??= []).push({ id:'p'+Math.random().toString(36).slice(2,8), name:'' }); S.sDirty = true; render(); },
   posSees(el){
@@ -1536,6 +1623,11 @@ const actions = {
   async saveSettings(el){
     const st = clone(S.sDraft);
     if (!st.shifts.length) return toast('צריך לפחות משמרת אחת');
+    st.availStates = (st.availStates || []).map(x => ({ id:x.id, name:(x.name || '').trim(), color:x.color, level:x.level }));
+    if (st.availStates.length < 2 || st.availStates.length > 6) return toast('צריך בין 2 ל-6 מצבי זמינות');
+    if (st.availStates.some(x => !x.name)) return toast('לכל מצב זמינות צריך שם');
+    if (new Set(st.availStates.map(x => x.name)).size !== st.availStates.length) return toast('יש שני מצבי זמינות עם אותו שם');
+    if (!st.availStates.some(x => x.level !== 'never')) return toast('צריך לפחות מצב אחד שאפשר לשבץ בו');
     st.positions = (st.positions || []).map(p => ({ id:p.id, name:(p.name||'').trim(), sees:(p.sees || []).filter(x => x !== p.id && (st.positions || []).some(o => o.id === x)) }));
     if (st.positions.some(p => !p.name)) return toast('לכל תפקיד צריך שם');
     if (new Set(st.positions.map(p => p.name)).size !== st.positions.length) return toast('יש שני תפקידים עם אותו שם');
