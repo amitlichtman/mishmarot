@@ -199,6 +199,22 @@ dialog::backdrop{background:rgba(30,36,51,.45)}
 .brandbtn .bars{flex:none}
 .brandbtn .bn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .brandbtn .caret{font-family:'Rubik';font-size:.9rem;color:var(--muted)}
+.kiosk{padding-top:4px}
+.ktop{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 14px;margin-bottom:6px}
+.kclock{font-family:'Secular One',sans-serif;font-size:clamp(1.1rem,4.5vw,1.6rem);color:var(--ink)}
+.kgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin:12px 0 24px}
+.kperson{display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-height:84px;padding:14px;border:2px solid var(--line);background:#fff;border-radius:14px;text-align:right}
+.kperson b{font-size:1.15rem}
+.kperson span{font-size:.85rem;color:var(--muted)}
+.kperson.on{border-color:var(--ok);background:#EEF8F3}
+.kperson.on span{color:var(--ok);font-weight:500}
+.kwarn{color:var(--warn);font-weight:500;margin:14px 0 0}
+.kfoot{text-align:center;padding-bottom:30px}
+.kbtn{width:100%;padding:14px;font-size:1.1rem}
+.kdone{text-align:center;padding:30px 18px}
+.kdone .kbig{font-family:'Secular One',sans-serif;font-size:2rem;margin:0}
+.kdone p{font-size:1.2rem;margin:6px 0}
+.tag.bad{background:#FDEDE4;color:var(--warn)}
 #toast{position:fixed;left:50%;bottom:92px;transform:translateX(-50%);background:var(--ink);color:#fff;
   padding:10px 16px;border-radius:10px;font-size:.92rem;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90vw;z-index:20}
 #toast.show{opacity:1}
@@ -254,10 +270,13 @@ const DEFAULT_SETTINGS = {
   onePerDay: true,
   maxPerWeek: 6,
 };
+/* חשבונות של מכשירי שעון נוכחות מקבלים כתובת מומצאת בדומיין הזה. אף מייל לא נשלח אליה */
+const CLOCK_DOMAIN = 'clock.example.com';
 const DAYS = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
 const DAYS_SHORT = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳'];
 
 /* ---------- utils ---------- */
+const randStr = n => Array.from(crypto.getRandomValues(new Uint8Array(n)), b => 'abcdefghijkmnpqrstuvwxyz23456789'[b % 32]).join('');
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const addDays = (d,n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
 const sundayOf = d => { const x = new Date(d); x.setHours(0,0,0,0); x.setDate(x.getDate()-x.getDay()); return x; };
@@ -287,6 +306,7 @@ function errMsg(e){
   if (c.includes('too-many-requests')) return 'יותר מדי ניסיונות. נסה שוב בעוד כמה דקות';
   if (c === 'no-company') return 'החשבון הזה לא משויך לאף עסק. אפשר לפתוח חשבון עסק, או לבקש ממנהל להוסיף אותך';
   if (c === 'inactive') return 'החשבון שלך לא פעיל באף עסק. פנה למנהל';
+  if (c === 'clock-off') return 'המכשיר הזה כבר לא שעון נוכחות. אפשר להיכנס עם החשבון שלך';
   if (c === 'inactive-here') return 'החשבון שלך לא פעיל בעסק הזה. פנה למנהל';
   if (c === 'legacy-wait') return 'המערכת עודכנה. בקש מבעל העסק להיכנס פעם אחת, ואז נסה שוב';
   if (c === 'exists-wrong-pw') return 'האימייל הזה כבר רשום. כדי לפתוח איתו עסק, הקלד את הסיסמה שלו';
@@ -371,7 +391,7 @@ function demoBackend(){
       return { uid, code:createCompany({ restaurant, name, settings }) };
     },
     async createCompany(args){ return createCompany(args); },
-    async myCompanies(){ return Object.entries(companies).filter(([,c]) => c.members[current.uid]).map(([c,x]) => ({ cid:c, name:x.settings.business, active:x.members[current.uid].active !== false })); },
+    async myCompanies(){ return Object.entries(companies).filter(([,c]) => c.members[current.uid]).map(([c,x]) => ({ cid:c, name:x.settings.business, active:x.members[current.uid].active !== false, role:x.members[current.uid].role })); },
     async companyName(c){ return companies[c]?.settings.business || null; },
     async getMember(uid){ return C().members[uid] ? clone(C().members[uid]) : null; },
     async getCompany(){ return { ownerUid:C().ownerUid, name:C().name }; },
@@ -402,6 +422,18 @@ function demoBackend(){
     async getMyView(w,uid){ return clone((C().views ??= {})[uid]?.[w] || null); },
     async listMySchedule(uid){ return Object.entries((C().views ??= {})[uid] || {}).map(([id,v]) => ({ id, ...clone(v) })); },
     async writeViews(w, map){ const V = (C().views ??= {}); for (const [uid,v] of Object.entries(map)) (V[uid] ??= {})[w] = clone(v); },
+    // שעון נוכחות (בהדגמה כל סיסמה שאינה ריקה נחשבת נכונה)
+    async verifyEmployee(email, pw){ if (!pw) throw { code:'auth/invalid-credential' }; const u = Object.keys(accounts).find(x => accounts[x].email === email); if (!u) throw { code:'auth/invalid-credential' }; return u; },
+    async createClock(name){
+      const uid = newUid(), email = `clock-${uid}@${CLOCK_DOMAIN}`;
+      accounts[uid] = { name:'שעון: ' + name, email };
+      C().members[uid] = { name, role:'kiosk', active:true, joinedAt:new Date() };
+      return { uid, email, pw:'' };
+    },
+    async getClockList(){ return clone(C().clock || null); },
+    async setClockList(d){ C().clock = clone(d); },
+    async addPunch(uid, type){ (C().punches ??= []).push({ id:newUid(), uid, type, at:new Date(), by:current.uid }); },
+    async listPunches(from, to){ return (C().punches || []).filter(p => p.at >= from && (!to || p.at < to)).map(p => ({ ...p })).sort((a,b) => a.at - b.at); },
   };
 }
 
@@ -437,6 +469,7 @@ async function firebaseBackend(cfg){
   }
   async function ensureEmailIndex(){
     const u = auth.currentUser; if (!u?.email) return;
+    if (u.email.toLowerCase().endsWith('@' + CLOCK_DOMAIN)) return;   // חשבון של שעון נוכחות לא נרשם ברשימת האימיילים
     const e = u.email.toLowerCase(), r = F.doc(db, 'emails', e);
     const s = snap(await F.getDoc(r));
     if (s?.uid !== u.uid) await F.setDoc(r, { uid:u.uid });
@@ -487,7 +520,7 @@ async function firebaseBackend(cfg){
       const q = await F.getDocs(F.collection(db, 'users', me, 'companies'));
       return Promise.all(q.docs.map(async d => {
         let m = null; try { m = snap(await F.getDoc(memberRef(d.id, me))); } catch {}
-        return { cid:d.id, name:d.data().name || '', active:!!m && m.active !== false };
+        return { cid:d.id, name:d.data().name || '', active:!!m && m.active !== false, role:m?.role };
       }));
     },
     async companyName(c){ try { return snap(await F.getDoc(F.doc(db,'companies',c,'settings','main')))?.business || null; } catch { return null; } },
@@ -580,6 +613,40 @@ async function firebaseBackend(cfg){
     async setWeekStatus(w,data){ await F.setDoc(cdoc('weeks',w,'status','main'), data, { merge:true }); },
     async getMyView(w,uid){ return snap(await F.getDoc(cdoc('members',uid,'schedule',w))); },
     async listMySchedule(uid){ const q = await F.getDocs(ccol('members',uid,'schedule')); return q.docs.map(d => ({ id:d.id, ...d.data() })); },
+    // ===== שעון נוכחות =====
+    // בדיקת הסיסמה של העובד באפליקציה המשנית, בלי לנתק את המנהל שמחובר במכשיר
+    async verifyEmployee(email, pw){
+      const cr = await getCreator();
+      const cred = await A.signInWithEmailAndPassword(cr.auth, email, pw);
+      const uid = cred.user.uid;
+      await A.signOut(cr.auth);
+      return uid;
+    },
+    // חשבון חדש למכשיר שעון: כתובת וסיסמה אקראיות שאף אחד לא צריך לדעת.
+    // נוצר באפליקציה המשנית, כך שהמנהל עוד מחובר כשהוא רושם את המכשיר בעסק
+    async createClock(name, business){
+      const cr = await getCreator();
+      const email = `clock-${randStr(20)}@${CLOCK_DOMAIN}`, pw = randStr(32);
+      const cred = await A.createUserWithEmailAndPassword(cr.auth, email, pw);
+      const uid = cred.user.uid;
+      await A.signOut(cr.auth);
+      const b = F.writeBatch(db);
+      b.set(memberRef(cid, uid), { name, role:'kiosk', active:true, joinedAt:now(), createdBy:auth.currentUser.uid });
+      b.set(indexRef(uid, cid), { name:business || '', joinedAt:now() });
+      await b.commit();
+      return { uid, email, pw };
+    },
+    // הרשימה שמכשיר השעון רואה: שם העסק, ולכל עובד פעיל שם ואימייל בלבד
+    async getClockList(){ return snap(await F.getDoc(cdoc('clock','list'))); },
+    async setClockList(d){ await F.setDoc(cdoc('clock','list'), d); },
+    // השעה נקבעת בשרת, לא בשעון של המכשיר
+    async addPunch(uid, type){ await F.addDoc(ccol('attendance'), { uid, type, at:F.serverTimestamp(), by:auth.currentUser.uid }); },
+    async listPunches(from, to){
+      const parts = [F.where('at', '>=', F.Timestamp.fromDate(from))];
+      if (to) parts.push(F.where('at', '<', F.Timestamp.fromDate(to)));
+      const q = await F.getDocs(F.query(ccol('attendance'), ...parts, F.orderBy('at')));
+      return q.docs.map(d => { const x = d.data(); return { id:d.id, ...x, at:x.at?.toDate?.() || new Date() }; });
+    },
     async writeViews(w, map){
       const entries = Object.entries(map);
       for (let i = 0; i < entries.length; i += 400) {
@@ -598,7 +665,8 @@ const S = {
   week:{}, mySub:null, draft:{}, note:'', dirty:false, subs:{}, msgDraft:'',
   sDraft:null, sDirty:false, uDraft:null, editUid:null, created:null,
   loading:false, openKey:null,
-  rep:'month', repUid:null, allWeeks:null,
+  rep:'month', repUid:null, allWeeks:null, repMode:'plan', actual:null,
+  kiosk:{ punches:[], q:'', sel:null, busy:false, done:null, off:null }, clocks:[], clockSig:null,
 };
 const ST = () => S.settings;
 const states = () => ST().availStates;
@@ -607,7 +675,7 @@ const stateName = v => stateOf(v)?.name || UNSET_LABEL;
 const assignable = v => { const st = stateOf(v); return !!st && st.level !== 'never'; };
 const rankOf = v => LEVEL_RANK[stateOf(v)?.level] ?? 9;
 const MGR_ROLES = ['manager','owner'];
-const ROLE_LABEL = { owner:'בעלים', manager:'מנהל', employee:'עובד' };
+const ROLE_LABEL = { owner:'בעלים', manager:'מנהל', employee:'עובד', kiosk:'שעון נוכחות' };
 const isMgrRole = r => MGR_ROLES.includes(r);
 const isMgr = () => isMgrRole(S.profile?.role);
 const positions = () => ST().positions || [];
@@ -738,7 +806,7 @@ async function afterLogin(){
   }
   // עסקים שבהם סימנו את המשתמש כלא פעיל לא מופיעים בכלל
   const list = all.filter(c => c.active);
-  if (!list.length) { toast(errMsg({ code:'inactive' })); await B.signOut(); return; }
+  if (!list.length) { toast(errMsg({ code: all.some(c => c.role === 'kiosk') ? 'clock-off' : 'inactive' })); await B.signOut(); return; }
   S.companies = list;
   // אחרי כניסה עם סיסמה: מי שפעיל בכמה עסקים בוחר מהרשימה
   if (fresh && list.length > 1) { S.picking = true; S.pickNew = false; render(); refreshNames(); return; }
@@ -767,12 +835,16 @@ async function enterCompany(cid){
   let p = null; try { p = await B.getMember(S.user.uid); } catch {}
   if (!p || p.active === false) { if (S.cid) B.setCompany(S.cid); return false; }
   S.cid = cid; S.profile = { ...p, uid:S.user.uid };
+  if (p.role === 'kiosk') { await enterClock(); return true; }
   store.set('lastCompany:' + S.user.uid, cid);
   S.settings = normSettings(await B.getSettings());
-  S.users = await B.listUsers();
+  const everyone = await B.listUsers();
+  S.users = everyone.filter(u => u.role !== 'kiosk');      // מכשירי שעון הם לא עובדים
+  S.clocks = everyone.filter(u => u.role === 'kiosk'); S.clockSig = null;
   Object.assign(S, { subs:{}, week:{}, allWeeks:null, repUid:null, editUid:null, draft:{}, note:'', dirty:false, sDirty:false, mySub:null });
   const c = S.companies.find(x => x.cid === cid); if (c) c.name = ST().business;
   S.view = isMgr() ? 'manage' : 'submit';
+  if (isMgr()) syncClockList().catch(e => console.warn(e));
   if (isMgr()) B.getCompany().then(c => { if (c && c.name !== ST().business) return B.setCompanyName(ST().business); }).catch(e => console.warn(e));
   if (isMgr() && !ST().viewsVersion) {
     resyncPublished(true).then(async () => {
@@ -786,10 +858,30 @@ async function enterCompany(cid){
   return true;
 }
 
+/* מכשיר שעון: רואה רק את רשימת העובדים שהמנהל הכין לו ואת ההחתמות */
+async function enterClock(){
+  const cl = await B.getClockList().catch(() => null);
+  S.settings = normSettings({ business: cl?.business || '' });
+  S.users = (cl?.people || []).map(u => ({ ...u, active:true }));
+  S.view = 'kiosk'; S.kiosk.q = '';
+  await loadPunches();
+}
+/* המנהל מעדכן את הרשימה של מכשירי השעון אחרי כל שינוי בעובדים או בשם העסק */
+async function syncClockList(force = false){
+  if (!isMgr() || (!force && !S.clocks.some(c => c.active !== false))) return;
+  const people = members().filter(u => u.email).map(u => ({ uid:u.uid, name:u.name || '', email:(u.email || '').toLowerCase() }))
+    .sort((a,b) => a.uid < b.uid ? -1 : 1);
+  const data = { business:ST().business, people }, sig = JSON.stringify(data);
+  if (sig === S.clockSig) return;
+  await B.setClockList(data); S.clockSig = sig;
+}
+const isClock = () => S.profile?.role === 'kiosk';
+
 /* ---------- render ---------- */
 function render(){
   if (!S.ready) { $app.innerHTML = `<p class="loading">טוען…</p>`; return; }
   if (S.user && S.picking) { $app.innerHTML = viewPicker(); return; }
+  if (S.user && S.profile && isClock()) { $app.innerHTML = viewKiosk(); return; }
   if (!S.user || !S.profile) { $app.innerHTML = viewLogin(); return; }
   const tabs = isMgr()
     ? [['manage','שיבוץ'],['team','עובדים'],['reports','דוחות'],['settings','הגדרות']]
@@ -979,6 +1071,7 @@ function viewManage(){
         <button class="btn sm" data-action="print">הדפסה</button>
         <button class="btn sm" data-action="copyPrev">העתקת השיבוץ מהשבוע הקודם</button>
         <button class="btn sm danger" data-action="clearAsg">ניקוי השיבוץ</button>
+        <button class="btn sm" data-action="kioskOn">שעון נוכחות</button>
       </div>
     </div>`;
 }
@@ -999,9 +1092,13 @@ function viewTeam(){
   };
   return `
     <div class="status"><span class="pill ${submitted===W.length?'ok':''}">${submitted} מתוך ${W.length} הגישו לשבוע הזה</span></div>
-    <div class="toolbar"><button class="btn primary" data-action="newUser">הוספת עובד</button></div>
+    <div class="toolbar"><button class="btn primary" data-action="newUser">הוספת עובד</button><button class="btn" data-action="kioskOn">שעון נוכחות</button></div>
     <ul class="list">${active.map(row).join('')}</ul>
-    ${inactive.length ? `<h3>לא פעילים</h3><ul class="list">${inactive.map(row).join('')}</ul>` : ''}`;
+    ${inactive.length ? `<h3>לא פעילים</h3><ul class="list">${inactive.map(row).join('')}</ul>` : ''}
+    ${S.clocks.length ? `<h3>מכשירי שעון נוכחות</h3><ul class="list">${[...S.clocks].sort((a,b) => (b.active !== false) - (a.active !== false)).map(c => `<li>
+      <span><b>${esc(c.name)}</b><span class="sub" style="display:block">${c.active !== false ? 'פעיל' : 'הושבת'}</span></span>
+      ${c.active !== false ? `<button class="btn sm danger" data-action="clockOff" data-uid="${c.uid}">השבתה</button>` : ''}</li>`).join('')}</ul>
+      <p class="hint">כדי להוציא מכשיר ממצב שעון נוכחות משביתים אותו כאן. ההשבתה סופית: המכשיר מתנתק תוך שעה לכל היותר, או מיד כשמרעננים בו את הדף או כשמישהו מנסה להחתים בו.</p>` : ''}`;
 }
 
 function userFields(isNew){
@@ -1233,18 +1330,19 @@ function viewHours(){
     <div class="toolbar"><button class="btn sm" data-action="csv">הורדה כקובץ אקסל (CSV)</button></div>${entryList(list)}${repNote}`;
 }
 function viewReports(){
+  if (S.repMode === 'actual') return viewActual();
   if (!S.allWeeks) return `<p class="loading">טוען…</p>`;
   const all = inPeriod(entries());
   if (S.repUid) {
     const list = all.filter(e => e.uid === S.repUid);
-    return `${periodPicker()}<div class="toolbar"><button class="btn sm" data-action="repBack">חזרה לכל העובדים</button></div>
+    return `${repModePicker()}${periodPicker()}<div class="toolbar"><button class="btn sm" data-action="repBack">חזרה לכל העובדים</button></div>
       <h3 style="margin-top:6px">${esc(nameOf(S.repUid))}, ${periodTitle(S.rep)}</h3>${statCards(list)}
       <div class="toolbar"><button class="btn sm" data-action="csv">הורדה כקובץ אקסל (CSV)</button></div>${entryList(list)}${repNote}`;
   }
   const ids = new Set([...workers().map(u => u.uid), ...all.map(e => e.uid)]);
   const rows = [...ids].map(uid => ({ uid, ...sums(all.filter(e => e.uid === uid)) })).sort((a,b) => b.h - a.h || nameOf(a.uid).localeCompare(nameOf(b.uid),'he'));
   const tot = sums(all);
-  return `${periodPicker()}<h3 style="margin-top:6px">${periodTitle(S.rep)}</h3>
+  return `${repModePicker()}${periodPicker()}<h3 style="margin-top:6px">${periodTitle(S.rep)}</h3>
     <div class="cards"><div class="stat"><b>${fmtH(tot.h)}</b><span>שעות בסך הכול</span></div><div class="stat"><b>${tot.n}</b><span>משמרות שבוצעו</span></div>
       ${tot.fn ? `<div class="stat"><b>${fmtH(tot.fh)}</b><span>שעות מתוכננות</span></div>` : ''}</div>
     <div class="toolbar"><button class="btn sm" data-action="csv">הורדת דוח מפורט (CSV)</button><button class="btn sm" data-action="refreshRep">רענון</button></div>
@@ -1264,6 +1362,148 @@ function downloadCsv(){
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], { type:'text/csv;charset=utf-8' }));
   a.download = `דוח-שעות-${uid ? nameOf(uid) + '-' : ''}${periodTitle(S.rep)}.csv`.replace(/\s+/g,'-');
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+/* ---------- שעון נוכחות ---------- */
+const clockText = () => new Intl.DateTimeFormat('he', { weekday:'long', day:'numeric', month:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit' }).format(new Date());
+async function loadPunches(){
+  if (await clockDisabled()) return;
+  try {
+    const [pl, cl] = await Promise.all([B.listPunches(new Date(Date.now() - 20*3600e3)), B.getClockList()]);
+    S.kiosk.punches = pl;
+    if (cl) { S.settings.business = cl.business || ''; S.users = (cl.people || []).map(u => ({ ...u, active:true })); }
+  } catch(e){ if (await clockDisabled()) return; toast(errMsg(e)); }
+  if (isClock() && !$sheet.open) render();
+}
+/* המנהל השבית את המכשיר? מתנתקים וחוזרים למסך הכניסה */
+async function clockDisabled(){
+  if (!isClock()) return false;
+  let m = null; try { m = await B.getMember(S.user.uid); } catch {}
+  if (m && m.active !== false) return false;
+  if ($sheet.open) $sheet.close();
+  S.profile = null; S.cid = null; S.companies = [];
+  await B.signOut(); toast(errMsg({ code:'clock-off' }));
+  return true;
+}
+/* ההחתמה האחרונה של כל עובד ב-20 השעות האחרונות: אם היא "כניסה", הוא בעבודה */
+function lastPunch(){ const l = {}; for (const p of S.kiosk.punches) l[p.uid] = p; return l; }
+function viewKiosk(){
+  const last = lastPunch(), q = S.kiosk.q.trim(), all = members().sort(byName);
+  const people = all.filter(u => !q || (u.name || '').includes(q));
+  return `<div class="kiosk">
+    <div class="ktop"><h1 class="brand"><span class="bars" aria-hidden="true"><i></i><i></i><i></i></span>${esc(ST().business)}</h1>
+      <div class="kclock" id="kclock">${clockText()}</div></div>
+    <p class="hint">שעון נוכחות. בוחרים את השם שלך ומקלידים את הסיסמה שלך כדי להחתים כניסה או יציאה.</p>
+    ${all.length > 12 ? `<input type="search" id="kq" placeholder="חיפוש לפי שם" value="${esc(S.kiosk.q)}" autocomplete="off">` : ''}
+    <div class="kgrid">${people.map(u => { const l = last[u.uid], on = l?.type === 'in';
+      return `<button class="kperson ${on ? 'on' : ''}" data-action="kPick" data-uid="${u.uid}"><b>${esc(u.name)}</b>
+        <span>${on ? `בעבודה מ-${ltr(hhmm(l.at))}` : 'לא בעבודה'}</span></button>`; }).join('') || '<p class="empty">אין עובדים בשם הזה.</p>'}</div>
+    ${B.demo ? `<div class="kfoot"><button class="link" data-action="logout">הדגמה בלבד: חזרה לבחירת משתמש</button></div>` : ''}
+  </div>`;
+}
+let kioskIdle;
+function renderKioskSheet(){
+  const k = S.kiosk; clearTimeout(kioskIdle);
+  kioskIdle = setTimeout(() => { if ($sheet.open && S.sheetMode === 'kiosk') $sheet.close(); }, 60e3);   // חלון שנשכח פתוח נסגר לבד
+  if (k.done) {
+    $sheet.innerHTML = `<div class="sheet kdone"><p class="kbig">${esc(k.done.name)}</p><p>${k.done.type === 'in' ? 'נכנסת' : 'יצאת'} ב-${ltr(hhmm(k.done.at))}</p>
+      ${k.done.type === 'out' && k.done.dur ? `<p class="hint">משך המשמרת: ${k.done.dur}</p>` : ''}</div>`;
+    return;
+  }
+  if (k.sel === '__on') {
+    $sheet.innerHTML = `<div class="sheet"><header><div><h2>שעון נוכחות</h2></div>
+      <button class="iconbtn" data-action="closeSheet" aria-label="סגירה">✕</button></header>
+      <p>להפוך את המכשיר הזה לשעון נוכחות?</p>
+      <p class="hint">המסך יציג את רשימת העובדים, וכל עובד יחתים כניסה ויציאה עם הסיסמה שלו.</p>
+      <p class="hint">המכשיר יתנתק מהחשבון שלך ויעבור לחשבון של שעון, שיכול רק להחתים. במכשיר עצמו אין יציאה ממצב שעון: כדי להוציא אותו משביתים אותו ברשימת המכשירים בלשונית "עובדים", מכל מכשיר שמחובר כמנהל.</p>
+      <label class="field">שם המכשיר<small>כדי לזהות אותו ברשימה, למשל "טאבלט בכניסה"</small><input type="text" id="k-name" maxlength="40" autocomplete="off"></label>
+      <div class="toolbar" style="margin-top:14px"><button class="btn primary" data-action="kioskOnConfirm" ${k.busy?'disabled':''}>הפעלה במכשיר הזה</button><button class="btn" data-action="closeSheet">ביטול</button></div></div>`;
+    return;
+  }
+  if (k.sel === '__off') {
+    const c = S.clocks.find(x => x.uid === k.off); if (!c) return;
+    $sheet.innerHTML = `<div class="sheet"><header><div><h2>השבתת ${esc(c.name)}</h2></div>
+      <button class="iconbtn" data-action="closeSheet" aria-label="סגירה">✕</button></header>
+      <p>המכשיר יפסיק לשמש כשעון נוכחות ויתנתק.</p>
+      <p class="hint">ההשבתה סופית. כדי שהמכשיר יחזור להיות שעון, נכנסים בו עם חשבון של מנהל ומפעילים שעון נוכחות מחדש. ההחתמות שכבר נעשו בו נשמרות.</p>
+      <div class="toolbar" style="margin-top:14px"><button class="btn danger" data-action="clockOffConfirm">השבתה</button><button class="btn" data-action="closeSheet">ביטול</button></div></div>`;
+    return;
+  }
+  const u = S.users.find(x => x.uid === k.sel); if (!u) return;
+  const l = lastPunch()[u.uid], on = l?.type === 'in';
+  $sheet.innerHTML = `<div class="sheet"><header><div><h2>${esc(u.name)}</h2><div class="hint" style="margin:0">${on ? `בעבודה מ-${ltr(hhmm(l.at))}` : 'לא בעבודה'}</div></div>
+      <button class="iconbtn" data-action="closeSheet" aria-label="סגירה">✕</button></header>
+    <label class="field">הסיסמה שלך<input type="password" id="k-pw" autocomplete="off" dir="ltr"></label>
+    <div class="toolbar" style="margin-top:14px"><button class="btn primary kbtn" data-action="kPunch" data-type="${on ? 'out' : 'in'}" ${k.busy?'disabled':''}>${on ? 'יציאה מהעבודה' : 'כניסה לעבודה'}</button></div></div>`;
+  setTimeout(() => document.getElementById('k-pw')?.focus(), 50);
+}
+const durText = ms => { const m = Math.round(ms / 60000); return `${Math.floor(m/60)}:${String(m % 60).padStart(2,'0')} שעות`; };
+
+/* נוכחות בפועל: מזווגים כל כניסה ליציאה שאחריה */
+function sessionsOf(punches){
+  const by = {};
+  for (const p of punches) {
+    const arr = by[p.uid] ??= [];
+    const open = arr.length && arr[arr.length-1].in && !arr[arr.length-1].out ? arr[arr.length-1] : null;
+    if (p.type === 'in') { if (open) open.noOut = true; arr.push({ in:p.at, out:null, by:[p.by] }); }
+    else if (open) { open.out = p.at; open.by.push(p.by); }
+    else arr.push({ in:null, out:p.at, by:[p.by] });
+  }
+  const now = Date.now();
+  Object.values(by).forEach(arr => arr.forEach(x => {
+    x.hours = x.in && x.out ? (x.out - x.in) / 3600e3 : 0;
+    x.issue = !x.in ? 'חסרה כניסה' : !x.out ? (x.noOut || now - x.in > 16*3600e3 ? 'חסרה יציאה' : 'בעבודה עכשיו') : '';
+  }));
+  return by;
+}
+async function loadActual(){
+  S.actual = null; render();
+  const [a,b] = periodRange(S.rep);
+  try { S.actual = sessionsOf(await B.listPunches(S.rep === 'all' ? new Date(2020,0,1) : a, S.rep === 'all' ? null : b)); }
+  catch(e){ toast(errMsg(e)); S.actual = {}; }
+  render();
+}
+const deviceOf = x => [...new Set((x.by || []).map(id => S.clocks.find(c => c.uid === id)?.name).filter(Boolean))].join(', ');
+const repModePicker = () => `<div class="seg"><button data-action="repMode" data-m="plan" aria-pressed="${S.repMode==='plan'}">לפי הסידור</button>
+  <button data-action="repMode" data-m="actual" aria-pressed="${S.repMode==='actual'}">נוכחות בפועל</button></div>`;
+function viewActual(){
+  if (!S.actual) return `<p class="loading">טוען…</p>`;
+  const sum = arr => arr.reduce((t,x) => t + x.hours, 0);
+  if (S.repUid) {
+    const arr = [...(S.actual[S.repUid] || [])].reverse();
+    return `${repModePicker()}${periodPicker()}<div class="toolbar"><button class="btn sm" data-action="repBack">חזרה לכל העובדים</button></div>
+      <h3 style="margin-top:6px">${esc(nameOf(S.repUid))}, ${periodTitle(S.rep)}</h3>
+      <div class="cards"><div class="stat"><b>${fmtH(sum(arr))}</b><span>שעות נוכחות</span></div><div class="stat"><b>${arr.filter(x => x.in && x.out).length}</b><span>משמרות שהושלמו</span></div></div>
+      <div class="toolbar"><button class="btn sm" data-action="csvActual">הורדה כקובץ אקסל (CSV)</button></div>
+      ${arr.length ? `<ul class="list">${arr.map(x => { const d = x.in || x.out;
+        return `<li><span><b>יום ${DAYS[d.getDay()]} ${fmt(d)}</b><span class="sub" style="display:block">${ltr(`${x.in ? hhmm(x.in) : '?'}–${x.out ? hhmm(x.out) : '?'}`)}${deviceOf(x) ? ` · ${esc(deviceOf(x))}` : ''}</span></span>
+          <span>${x.hours ? `${fmtH(x.hours)} ש׳` : ''}${x.issue ? `<span class="tag ${x.issue === 'בעבודה עכשיו' ? '' : 'bad'}">${x.issue}</span>` : ''}</span></li>`; }).join('')}</ul>`
+        : '<p class="empty">אין החתמות בתקופה הזו.</p>'}
+      <p class="hint">השעות מחושבות מהחתמות בשעון הנוכחות. משמרת בלי כניסה או בלי יציאה לא נספרת.</p>`;
+  }
+  const ids = new Set([...workers().map(u => u.uid), ...Object.keys(S.actual)]);
+  const rows = [...ids].map(uid => { const arr = S.actual[uid] || []; return { uid, h:sum(arr), n:arr.filter(x => x.in && x.out).length, bad:arr.filter(x => x.issue && x.issue !== 'בעבודה עכשיו').length, now:arr.some(x => x.issue === 'בעבודה עכשיו') }; })
+    .sort((a,b) => b.h - a.h || nameOf(a.uid).localeCompare(nameOf(b.uid),'he'));
+  const tot = rows.reduce((t,r) => t + r.h, 0);
+  return `${repModePicker()}${periodPicker()}<h3 style="margin-top:6px">${periodTitle(S.rep)}</h3>
+    <div class="cards"><div class="stat"><b>${fmtH(tot)}</b><span>שעות נוכחות בסך הכול</span></div><div class="stat"><b>${rows.filter(r => r.now).length}</b><span>בעבודה עכשיו</span></div></div>
+    <div class="toolbar"><button class="btn sm" data-action="csvActual">הורדת דוח מפורט (CSV)</button><button class="btn sm" data-action="refreshRep">רענון</button></div>
+    <ul class="list">${rows.map(r => `<li class="btnrow"><button class="userbtn" data-action="repUser" data-uid="${r.uid}">
+      <span><b>${esc(nameOf(r.uid))}</b><span class="sub" style="display:block">${r.n} משמרות${r.now ? ', בעבודה עכשיו' : ''}${r.bad ? `, <span style="color:var(--warn)">${r.bad} החתמות חסרות</span>` : ''}</span></span>
+      <span><b>${fmtH(r.h)}</b> שעות</span></button></li>`).join('')}</ul>
+    <p class="hint">השעות מחושבות מהחתמות בשעון הנוכחות.</p>`;
+}
+function downloadActualCsv(){
+  const rows = [['עובד','תאריך','יום','כניסה','יציאה','שעות','הערה','מכשיר']];
+  Object.entries(S.actual || {}).filter(([uid]) => !S.repUid || uid === S.repUid).forEach(([uid,arr]) => arr.forEach(x => {
+    const d = x.in || x.out;
+    rows.push([nameOf(uid), `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`, DAYS[d.getDay()], x.in ? hhmm(x.in) : '', x.out ? hhmm(x.out) : '', x.hours ? fmtH(x.hours) : '', x.issue, deviceOf(x)]);
+  }));
+  const csv = '﻿' + rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type:'text/csv;charset=utf-8' }));
+  a.download = `נוכחות-${S.repUid ? nameOf(S.repUid) + '-' : ''}${periodTitle(S.rep)}.csv`.replace(/\s+/g,'-');
   document.body.appendChild(a); a.click(); a.remove();
 }
 
@@ -1315,6 +1555,7 @@ async function syncViews(weekIdv, w){
 }
 /* אחרי שינוי בהגדרות או בעובדים: מעדכנים את העותקים של הסידורים שפורסמו (מהשבוע הנוכחי והלאה, או את כולם) */
 async function resyncPublished(all = false){
+  syncClockList().catch(e => console.warn(e));
   const from = weekId(sundayOf(new Date()));
   const weeks = (await B.listWeeks()).filter(w => w.published && (all || w.id >= from));
   for (const w of weeks) await syncViews(w.id, w);
@@ -1331,10 +1572,12 @@ async function saveWeek(patch, msg){
 }
 const actions = {
   async demoLogin(el){ S.freshLogin = true; await B.signIn(el.dataset.uid); },
-  period(el){ S.rep = el.dataset.p; render(); },
+  period(el){ S.rep = el.dataset.p; if (S.view === 'reports' && S.repMode === 'actual') loadActual(); else render(); },
+  repMode(el){ S.repMode = el.dataset.m; S.repUid = null; if (S.repMode === 'actual') loadActual(); else render(); },
+  csvActual(){ downloadActualCsv(); },
   repUser(el){ S.repUid = el.dataset.uid; render(); window.scrollTo(0,0); },
   repBack(){ S.repUid = null; render(); },
-  refreshRep(){ loadReports(); },
+  refreshRep(){ if (S.repMode === 'actual') loadActual(); else loadReports(); },
   csv(){ downloadCsv(); },
   async login(){
     if (!val('f-email') || !val('f-pw')) return toast('צריך למלא אימייל וסיסמה');
@@ -1393,6 +1636,69 @@ const actions = {
     location.reload();
   },
   async logout(){ if (!confirmLeave()) return; S.profile = null; S.cid = null; S.companies = []; S.picking = false; S.pickNew = false; await B.signOut(); },
+  // חלון אישור בתוך האפליקציה (חלון confirm של הדפדפן חסום בחלק מהתצוגות)
+  kioskOn(){ Object.assign(S.kiosk, { sel:'__on', busy:false, done:null }); S.sheetMode = 'kiosk'; renderKioskSheet(); $sheet.showModal(); },
+  async kioskOnConfirm(el){
+    const name = (document.getElementById('k-name')?.value || '').trim() || 'שעון נוכחות';
+    S.kiosk.busy = true; el.disabled = true;
+    try{
+      const r = await B.createClock(name, ST().business);
+      S.clocks.push({ uid:r.uid, name, role:'kiosk', active:true });
+      await syncClockList(true);
+      $sheet.close();
+      // המכשיר עובר לחשבון השעון. המנהל כבר לא מחובר בו
+      S.profile = null; S.cid = null; S.companies = []; render();
+      await (B.demo ? B.signIn(r.uid) : B.signIn(r.email, r.pw));
+      window.scrollTo(0,0);
+    }catch(e){ toast(errMsg(e)); S.kiosk.busy = false; el.disabled = false; }
+  },
+  clockOff(el){ Object.assign(S.kiosk, { sel:'__off', off:el.dataset.uid, busy:false, done:null }); S.sheetMode = 'kiosk'; renderKioskSheet(); $sheet.showModal(); },
+  async clockOffConfirm(el){
+    const c = S.clocks.find(x => x.uid === S.kiosk.off); if (!c) return;
+    el.disabled = true;
+    try{ await B.updateUser(c.uid, { active:false }); c.active = false; $sheet.close(); toast(`${c.name} הושבת`); render(); }
+    catch(e){ toast(errMsg(e)); el.disabled = false; }
+  },
+  // לפני ההחתמה מרעננים, כדי לדעת אם העובד כבר נכנס בשעון אחר
+  async kPick(el){
+    const uid = el.dataset.uid;
+    Object.assign(S.kiosk, { sel:uid, busy:false, done:null }); S.sheetMode = 'kiosk'; renderKioskSheet(); $sheet.showModal();
+    await loadPunches();
+    if ($sheet.open && S.kiosk.sel === uid && !S.kiosk.done) { const pw = document.getElementById('k-pw')?.value || ''; renderKioskSheet(); const f = document.getElementById('k-pw'); if (f) f.value = pw; }
+  },
+  async kPunch(el){
+    const k = S.kiosk, u = S.users.find(x => x.uid === k.sel), type = el.dataset.type;
+    const pw = document.getElementById('k-pw')?.value || '';
+    if (!u) return;
+    if (!pw) return toast('צריך להקליד סיסמה');
+    if (!u.email) return toast('לעובד הזה אין אימייל במערכת. פנה למנהל');
+    // יציאה פחות מ-15 דקות אחרי הכניסה: כנראה לחיצה בטעות, אז שואלים קודם
+    const pin = lastPunch()[u.uid];
+    if (type === 'out' && !el.dataset.sure && pin?.type === 'in' && Date.now() - pin.at < 15*60e3) {
+      const m = Math.floor((Date.now() - pin.at) / 60e3);
+      el.dataset.sure = '1'; el.textContent = 'כן, לצאת בכל זאת';
+      el.closest('.toolbar').insertAdjacentHTML('beforebegin', `<p class="kwarn">נכנסת ${m < 1 ? 'לפני פחות מדקה' : m === 1 ? 'רק לפני דקה' : `רק לפני ${m} דקות`}. לצאת בכל זאת?</p>`);
+      el.insertAdjacentHTML('afterend', '<button class="btn" data-action="closeSheet">ביטול</button>');
+      return;
+    }
+    k.busy = true; el.disabled = true;
+    try{
+      const uid = await B.verifyEmployee(u.email, pw);
+      if (uid !== u.uid) throw { code:'auth/invalid-credential' };
+      const prev = lastPunch()[u.uid];
+      await B.addPunch(u.uid, type);
+      await loadPunches();
+      const mine = lastPunch()[u.uid];
+      k.done = { name:u.name, type, at:mine?.at || new Date(), dur: type === 'out' && prev?.type === 'in' ? durText((mine?.at || new Date()) - prev.at) : '' };
+      renderKioskSheet();
+      setTimeout(() => { if (S.kiosk.done && $sheet.open) $sheet.close(); }, 3500);
+    }catch(e){
+      if (String(e?.code).includes('permission-denied') && await clockDisabled()) return;
+      toast(/invalid-credential|wrong-password|user-not-found/.test(e?.code || '') ? 'הסיסמה שגויה' : errMsg(e));
+      k.busy = false; el.disabled = false;
+      const f = document.getElementById('k-pw'); if (f) { f.value = ''; f.focus(); }
+    }
+  },
   async openSwitch(){
     S.sheetMode = 'switch'; renderSwitch(); $sheet.showModal();
     refreshNames();  // שמות עדכניים, אם שונו בהגדרות של עסק אחר
@@ -1648,7 +1954,7 @@ const actions = {
     const renamed = st.business !== S.settings.business;
     try{ await B.saveSettings(st); await B.setCompanyName(st.business);
       if (renamed) {
-        B.renameInLists(S.users.map(u => u.uid), st.business).catch(e => console.warn(e));
+        B.renameInLists([...S.users, ...S.clocks].map(u => u.uid), st.business).catch(e => console.warn(e));
         const c = S.companies.find(x => x.cid === S.cid); if (c) c.name = st.business;
       }
       S.settings = normSettings(st); S.sDraft = clone(S.settings); S.sDirty = false; toast('ההגדרות נשמרו'); resyncPublished().catch(e => console.warn(e)); }
@@ -1674,6 +1980,7 @@ document.addEventListener('input', e => {
   }
   else if (t.dataset.u != null) S.uDraft[t.dataset.u] = readInput(t);
   else if (t.id === 'weekMsg') S.msgDraft = t.value;
+  else if (t.id === 'kq') { S.kiosk.q = t.value; render(); const f = document.getElementById('kq'); if (f) { f.focus(); f.setSelectionRange(f.value.length, f.value.length); } }
   else if (t.id === 'note') {
     S.note = t.value;
     if (!S.dirty) { S.dirty = true; const sp = document.querySelector('.savebar span'); if (sp) { sp.className = 'dirty'; sp.textContent = 'יש שינויים שלא נשמרו'; } }
@@ -1686,7 +1993,8 @@ document.addEventListener('change', e => {
   S.sDraft.deadlineHours = day < 0 ? 0 : 168 - (day*24 + hour);
   S.sDirty = true; render();
 });
-document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('.login input')) document.querySelector('.login .btn.primary')?.click(); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.id === 'k-pw') { e.preventDefault(); document.querySelector('#sheet [data-action=kPunch]')?.click(); return; } if (e.key === 'Enter' && e.target.matches('.login input')) document.querySelector('.login .btn.primary')?.click(); });
 $sheet.addEventListener('change', async e => {
   const uid = e.target.dataset.assign; if (!uid) return;
   const a = asg(), k = S.openKey;
@@ -1694,8 +2002,16 @@ $sheet.addEventListener('change', async e => {
   await saveWeek({ assignments:a });
   renderSheet();
 });
-$sheet.addEventListener('close', () => { S.openKey = null; S.sheetMode = null; });
+$sheet.addEventListener('close', () => {
+  const wasKiosk = S.sheetMode === 'kiosk';
+  S.openKey = null; S.sheetMode = null;
+  if (wasKiosk) { clearTimeout(kioskIdle); Object.assign(S.kiosk, { sel:null, busy:false, done:null }); if (isClock()) render(); }
+});
 $sheet.addEventListener('click', e => { if (e.target === $sheet) $sheet.close(); });
+
+/* שעון חי במסך הנוכחות (בלי פנייה לשרת), ורענון הרשימה וההחתמות פעם בשעה */
+setInterval(() => { const c = document.getElementById('kclock'); if (c) c.textContent = clockText(); }, 1000);
+setInterval(() => { if (isClock() && !$sheet.open) loadPunches(); }, 3600e3);   // פעם בשעה, כדי לחסוך קריאות בשרת
 
 /* ---------- boot ---------- */
 (async () => {
