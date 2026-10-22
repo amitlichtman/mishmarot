@@ -213,6 +213,7 @@ dialog::backdrop{background:rgba(30,36,51,.45)}
 .pe-row .pe-l{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:0 8px;align-items:baseline;font-weight:500}
 .pe-row .pe-l small{font-weight:400;color:var(--muted);font-size:.8rem}
 .pe-row input{width:100%;min-width:0;box-sizing:border-box}
+.kdev{margin:-2px 0 8px;font-weight:500;color:var(--muted)}
 .kfoot{text-align:center;padding-bottom:30px}
 .kbtn{width:100%;padding:14px;font-size:1.1rem}
 .kdone{text-align:center;padding:30px 18px}
@@ -310,6 +311,7 @@ function errMsg(e){
   if (c.includes('too-many-requests')) return 'יותר מדי ניסיונות. נסה שוב בעוד כמה דקות';
   if (c === 'no-company') return 'החשבון הזה לא משויך לאף עסק. אפשר לפתוח חשבון עסק, או לבקש ממנהל להוסיף אותך';
   if (c === 'inactive') return 'החשבון שלך לא פעיל באף עסק. פנה למנהל';
+  if (c === 'not-manager') return 'רק מנהל של העסק הזה יכול להוציא את המכשיר ממצב שעון נוכחות';
   if (c === 'clock-off') return 'המכשיר הזה כבר לא שעון נוכחות. אפשר להיכנס עם החשבון שלך';
   if (c === 'inactive-here') return 'החשבון שלך לא פעיל בעסק הזה. פנה למנהל';
   if (c === 'legacy-wait') return 'המערכת עודכנה. בקש מבעל העסק להיכנס פעם אחת, ואז נסה שוב';
@@ -435,6 +437,13 @@ function demoBackend(){
       return { uid, email, pw:'' };
     },
     async getClockList(){ return clone(C().clock || null); },
+    async exitClock(email, pw){
+      const uid = Object.keys(accounts).find(u => accounts[u].email === email), m = uid && C().members[uid];
+      if (!pw || !uid) throw { code:'auth/invalid-credential' };
+      if (!m || m.active === false || !['manager','owner'].includes(m.role)) throw { code:'not-manager' };
+      C().members[current.uid].active = false;
+      return uid;
+    },
     async setClockList(d){ C().clock = clone(d); },
     async addPunch(uid, type){ (C().punches ??= []).push({ id:newUid(), uid, type, at:new Date(), by:current.uid }); },
     async listPunches(from, to){ return (C().punches || []).filter(p => !p.void && p.at >= from && (!to || p.at < to)).map(p => ({ ...p })).sort((a,b) => a.at - b.at); },
@@ -645,6 +654,17 @@ async function firebaseBackend(cfg){
     },
     // הרשימה שמכשיר השעון רואה: שם העסק, ולכל עובד פעיל שם ואימייל בלבד
     async getClockList(){ return snap(await F.getDoc(cdoc('clock','list'))); },
+    // יציאה ממצב שעון: מנהל של העסק מתחבר באפליקציה המשנית, והוא (לא המכשיר) משבית את המכשיר
+    async exitClock(email, pw){
+      const clockUid = auth.currentUser.uid, cr = await getCreator();
+      const cred = await A.signInWithEmailAndPassword(cr.auth, email, pw);
+      try {
+        const m = snap(await F.getDoc(F.doc(cr.db, 'companies', cid, 'members', cred.user.uid)));
+        if (!m || m.active === false || !['manager','owner'].includes(m.role)) throw { code:'not-manager' };
+        await F.updateDoc(F.doc(cr.db, 'companies', cid, 'members', clockUid), { active:false });
+        return cred.user.uid;
+      } finally { await A.signOut(cr.auth); }
+    },
     async setClockList(d){ await F.setDoc(cdoc('clock','list'), d); },
     // השעה נקבעת בשרת, לא בשעון של המכשיר
     async addPunch(uid, type){ await F.addDoc(ccol('attendance'), { uid, type, at:F.serverTimestamp(), by:auth.currentUser.uid }); },
@@ -1117,7 +1137,7 @@ function viewTeam(){
     ${S.clocks.length ? `<h3>מכשירי שעון נוכחות</h3><ul class="list">${[...S.clocks].sort((a,b) => (b.active !== false) - (a.active !== false)).map(c => `<li>
       <span><b>${esc(c.name)}</b><span class="sub" style="display:block">${c.active !== false ? 'פעיל' : 'הושבת'}</span></span>
       ${c.active !== false ? `<button class="btn sm danger" data-action="clockOff" data-uid="${c.uid}">השבתה</button>` : ''}</li>`).join('')}</ul>
-      <p class="hint">כדי להוציא מכשיר ממצב שעון נוכחות משביתים אותו כאן. ההשבתה סופית: המכשיר מתנתק תוך שעה לכל היותר, או מיד כשמרעננים בו את הדף או כשמישהו מנסה להחתים בו.</p>` : ''}`;
+      <p class="hint">אפשר להוציא מכשיר ממצב שעון במכשיר עצמו (עם אימייל וסיסמה של מנהל), או להשבית אותו כאן. ההשבתה סופית: המכשיר מתנתק תוך שעה לכל היותר, או מיד כשמרעננים בו את הדף או כשמישהו מנסה להחתים בו.</p>` : ''}`;
 }
 
 function userFields(isNew){
@@ -1413,12 +1433,14 @@ function viewKiosk(){
   return `<div class="kiosk">
     <div class="ktop"><h1 class="brand"><span class="bars" aria-hidden="true"><i></i><i></i><i></i></span>${esc(ST().business)}</h1>
       <div class="kclock" id="kclock">${clockText()}</div></div>
+    <p class="kdev">${esc(S.profile.name)}</p>
     <p class="hint">שעון נוכחות. בוחרים את השם שלך ומקלידים את הסיסמה שלך כדי להחתים כניסה או יציאה.</p>
     ${all.length > 12 ? `<input type="search" id="kq" placeholder="חיפוש לפי שם" value="${esc(S.kiosk.q)}" autocomplete="off">` : ''}
     <div class="kgrid">${people.map(u => { const l = last[u.uid], on = l?.type === 'in';
       return `<button class="kperson ${on ? 'on' : ''}" data-action="kPick" data-uid="${u.uid}"><b>${esc(u.name)}</b>
         <span>${on ? `בעבודה מ-${ltr(hhmm(l.at))}` : 'לא בעבודה'}</span></button>`; }).join('') || '<p class="empty">אין עובדים בשם הזה.</p>'}</div>
-    ${B.demo ? `<div class="kfoot"><button class="link" data-action="logout">הדגמה בלבד: חזרה לבחירת משתמש</button></div>` : ''}
+    <div class="kfoot"><button class="link" data-action="kExit">יציאה ממצב שעון נוכחות (למנהלים)</button>
+      ${B.demo ? `<br><button class="link" data-action="logout" style="margin-top:10px">הדגמה בלבד: חזרה לבחירת משתמש</button>` : ''}</div>
   </div>`;
 }
 let kioskIdle;
@@ -1435,7 +1457,7 @@ function renderKioskSheet(){
       <button class="iconbtn" data-action="closeSheet" aria-label="סגירה">✕</button></header>
       <p>להפוך את המכשיר הזה לשעון נוכחות?</p>
       <p class="hint">המסך יציג את רשימת העובדים, וכל עובד יחתים כניסה ויציאה עם הסיסמה שלו.</p>
-      <p class="hint">המכשיר יתנתק מהחשבון שלך ויעבור לחשבון של שעון, שיכול רק להחתים. במכשיר עצמו אין יציאה ממצב שעון: כדי להוציא אותו משביתים אותו ברשימת המכשירים בלשונית "עובדים", מכל מכשיר שמחובר כמנהל.</p>
+      <p class="hint">המכשיר יתנתק מהחשבון שלך ויעבור לחשבון של שעון, שיכול רק להחתים. כדי להוציא אותו ממצב שעון, כל מנהל של העסק לוחץ במכשיר על "יציאה ממצב שעון נוכחות" ומקליד את האימייל והסיסמה שלו. אפשר גם להשבית אותו מרשימת המכשירים בלשונית "עובדים".</p>
       <label class="field">שם המכשיר<small>כדי לזהות אותו ברשימה, למשל "טאבלט בכניסה"</small><input type="text" id="k-name" maxlength="40" autocomplete="off"></label>
       <div class="toolbar" style="margin-top:14px"><button class="btn primary" data-action="kioskOnConfirm" ${k.busy?'disabled':''}>הפעלה במכשיר הזה</button><button class="btn" data-action="closeSheet">ביטול</button></div></div>`;
     return;
@@ -1447,6 +1469,16 @@ function renderKioskSheet(){
       <p>המכשיר יפסיק לשמש כשעון נוכחות ויתנתק.</p>
       <p class="hint">ההשבתה סופית. כדי שהמכשיר יחזור להיות שעון, נכנסים בו עם חשבון של מנהל ומפעילים שעון נוכחות מחדש. ההחתמות שכבר נעשו בו נשמרות.</p>
       <div class="toolbar" style="margin-top:14px"><button class="btn danger" data-action="clockOffConfirm">השבתה</button><button class="btn" data-action="closeSheet">ביטול</button></div></div>`;
+    return;
+  }
+  if (k.sel === '__exit') {
+    $sheet.innerHTML = `<div class="sheet"><header><div><h2>יציאה ממצב שעון נוכחות</h2><div class="hint" style="margin:0">לכל מנהל של העסק</div></div>
+      <button class="iconbtn" data-action="closeSheet" aria-label="סגירה">✕</button></header>
+      <label class="field">האימייל של המנהל<input type="email" id="kx-email" autocomplete="off" dir="ltr"></label>
+      <label class="field">הסיסמה<input type="password" id="kx-pw" autocomplete="off" dir="ltr"></label>
+      <p class="hint">המכשיר יפסיק לשמש כשעון נוכחות (זה סופי), ויתחבר לחשבון של המנהל.</p>
+      <div class="toolbar" style="margin-top:14px"><button class="btn primary" data-action="kExitConfirm">יציאה</button><button class="btn" data-action="closeSheet">ביטול</button></div></div>`;
+    setTimeout(() => document.getElementById('kx-email')?.focus(), 50);
     return;
   }
   const u = S.users.find(x => x.uid === k.sel); if (!u) return;
@@ -1724,6 +1756,22 @@ const actions = {
     catch(e){ toast(errMsg(e)); el.disabled = false; }
   },
   // לפני ההחתמה מרעננים, כדי לדעת אם העובד כבר נכנס בשעון אחר
+  kExit(){ Object.assign(S.kiosk, { sel:'__exit', busy:false, done:null }); S.sheetMode = 'kiosk'; renderKioskSheet(); $sheet.showModal(); },
+  async kExitConfirm(el){
+    const email = (document.getElementById('kx-email')?.value || '').trim().toLowerCase(), pw = document.getElementById('kx-pw')?.value || '';
+    if (!email || !pw) return toast('צריך למלא אימייל וסיסמה של מנהל');
+    el.disabled = true;
+    try{
+      const cid = S.cid, uid = await B.exitClock(email, pw);
+      store.set('lastCompany:' + uid, cid);           // המנהל ייכנס ישר לעסק הזה
+      $sheet.close(); S.profile = null; S.cid = null; S.companies = []; render();
+      await (B.demo ? B.signIn(uid) : B.signIn(email, pw));
+      toast('המכשיר יצא ממצב שעון נוכחות');
+    }catch(e){
+      toast(e?.code === 'not-manager' ? errMsg(e) : /invalid-credential|wrong-password|user-not-found|invalid-email/.test(e?.code || '') ? 'האימייל או הסיסמה שגויים' : errMsg(e));
+      el.disabled = false;
+    }
+  },
   async kPick(el){
     const uid = el.dataset.uid;
     Object.assign(S.kiosk, { sel:uid, busy:false, done:null }); S.sheetMode = 'kiosk'; renderKioskSheet(); $sheet.showModal();
@@ -2058,6 +2106,7 @@ document.addEventListener('change', e => {
   S.sDirty = true; render();
 });
 document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.id === 'kx-pw') { e.preventDefault(); document.querySelector('#sheet [data-action=kExitConfirm]')?.click(); return; }
   if (e.key === 'Enter' && e.target.id === 'k-pw') { e.preventDefault(); document.querySelector('#sheet [data-action=kPunch]')?.click(); return; } if (e.key === 'Enter' && e.target.matches('.login input')) document.querySelector('.login .btn.primary')?.click(); });
 $sheet.addEventListener('change', async e => {
   const uid = e.target.dataset.assign; if (!uid) return;
