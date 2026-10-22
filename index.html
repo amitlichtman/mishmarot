@@ -209,6 +209,10 @@ dialog::backdrop{background:rgba(30,36,51,.45)}
 .kperson.on{border-color:var(--ok);background:#EEF8F3}
 .kperson.on span{color:var(--ok);font-weight:500}
 .kwarn{color:var(--warn);font-weight:500;margin:14px 0 0}
+.pe-row{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:6px 8px;margin:12px 0}
+.pe-row .pe-l{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:0 8px;align-items:baseline;font-weight:500}
+.pe-row .pe-l small{font-weight:400;color:var(--muted);font-size:.8rem}
+.pe-row input{width:100%;min-width:0;box-sizing:border-box}
 .kfoot{text-align:center;padding-bottom:30px}
 .kbtn{width:100%;padding:14px;font-size:1.1rem}
 .kdone{text-align:center;padding:30px 18px}
@@ -433,7 +437,10 @@ function demoBackend(){
     async getClockList(){ return clone(C().clock || null); },
     async setClockList(d){ C().clock = clone(d); },
     async addPunch(uid, type){ (C().punches ??= []).push({ id:newUid(), uid, type, at:new Date(), by:current.uid }); },
-    async listPunches(from, to){ return (C().punches || []).filter(p => p.at >= from && (!to || p.at < to)).map(p => ({ ...p })).sort((a,b) => a.at - b.at); },
+    async listPunches(from, to){ return (C().punches || []).filter(p => !p.void && p.at >= from && (!to || p.at < to)).map(p => ({ ...p })).sort((a,b) => a.at - b.at); },
+    async addManualPunch(uid, type, at){ (C().punches ??= []).push({ id:newUid(), uid, type, at, by:current.uid, manual:true, createdAt:new Date() }); },
+    async editPunch(p, at){ const x = C().punches.find(q => q.id === p.id); x.origAt ??= x.at; Object.assign(x, { at, editedBy:current.uid, editedAt:new Date() }); },
+    async voidPunch(p){ const x = C().punches.find(q => q.id === p.id); x.origAt ??= x.at; Object.assign(x, { void:true, editedBy:current.uid, editedAt:new Date() }); },
   };
 }
 
@@ -645,7 +652,19 @@ async function firebaseBackend(cfg){
       const parts = [F.where('at', '>=', F.Timestamp.fromDate(from))];
       if (to) parts.push(F.where('at', '<', F.Timestamp.fromDate(to)));
       const q = await F.getDocs(F.query(ccol('attendance'), ...parts, F.orderBy('at')));
-      return q.docs.map(d => { const x = d.data(); return { id:d.id, ...x, at:x.at?.toDate?.() || new Date() }; });
+      // _ts ו-_ots: חותמות הזמן המקוריות בדיוק מלא, כדי שהשרת יוכל לוודא שהשעה המקורית נשמרה כמו שהיא
+      return q.docs.map(d => { const x = d.data(); return { id:d.id, ...x, at:x.at?.toDate?.() || new Date(), origAt:x.origAt?.toDate?.(), _ts:x.at, _ots:x.origAt }; })
+        .filter(p => !p.void);   // החתמה שהמנהל ביטל לא נספרת בשום מקום
+    },
+    // תיקונים של מנהל: החתמה ידנית מסומנת manual, ובעריכה או ביטול השעה המקורית נשמרת ב-origAt
+    async addManualPunch(uid, type, at){
+      await F.addDoc(ccol('attendance'), { uid, type, at:F.Timestamp.fromDate(at), by:auth.currentUser.uid, manual:true, createdAt:now() });
+    },
+    async editPunch(p, at){
+      await F.updateDoc(cdoc('attendance', p.id), { at:F.Timestamp.fromDate(at), origAt:p._ots || p._ts, editedBy:auth.currentUser.uid, editedAt:now() });
+    },
+    async voidPunch(p){
+      await F.updateDoc(cdoc('attendance', p.id), { void:true, origAt:p._ots || p._ts, editedBy:auth.currentUser.uid, editedAt:now() });
     },
     async writeViews(w, map){
       const entries = Object.entries(map);
@@ -1446,14 +1465,16 @@ function sessionsOf(punches){
   for (const p of punches) {
     const arr = by[p.uid] ??= [];
     const open = arr.length && arr[arr.length-1].in && !arr[arr.length-1].out ? arr[arr.length-1] : null;
-    if (p.type === 'in') { if (open) open.noOut = true; arr.push({ in:p.at, out:null, by:[p.by] }); }
-    else if (open) { open.out = p.at; open.by.push(p.by); }
-    else arr.push({ in:null, out:p.at, by:[p.by] });
+    if (p.type === 'in') { if (open) open.noOut = true; arr.push({ in:p.at, out:null, inP:p, outP:null, by:[p.by] }); }
+    else if (open) { open.out = p.at; open.outP = p; open.by.push(p.by); }
+    else arr.push({ in:null, out:p.at, inP:null, outP:p, by:[p.by] });
   }
   const now = Date.now();
   Object.values(by).forEach(arr => arr.forEach(x => {
     x.hours = x.in && x.out ? (x.out - x.in) / 3600e3 : 0;
     x.issue = !x.in ? 'חסרה כניסה' : !x.out ? (x.noOut || now - x.in > 16*3600e3 ? 'חסרה יציאה' : 'בעבודה עכשיו') : '';
+    const ps = [x.inP, x.outP].filter(Boolean);
+    x.mark = ps.some(p => p.manual) ? 'ידני' : ps.some(p => p.origAt) ? 'נערך' : '';
   }));
   return by;
 }
@@ -1475,12 +1496,12 @@ function viewActual(){
     return `${repModePicker()}${periodPicker()}<div class="toolbar"><button class="btn sm" data-action="repBack">חזרה לכל העובדים</button></div>
       <h3 style="margin-top:6px">${esc(nameOf(S.repUid))}, ${periodTitle(S.rep)}</h3>
       <div class="cards"><div class="stat"><b>${fmtH(sum(arr))}</b><span>שעות נוכחות</span></div><div class="stat"><b>${arr.filter(x => x.in && x.out).length}</b><span>משמרות שהושלמו</span></div></div>
-      <div class="toolbar"><button class="btn sm" data-action="csvActual">הורדה כקובץ אקסל (CSV)</button></div>
-      ${arr.length ? `<ul class="list">${arr.map(x => { const d = x.in || x.out;
-        return `<li><span><b>יום ${DAYS[d.getDay()]} ${fmt(d)}</b><span class="sub" style="display:block">${ltr(`${x.in ? hhmm(x.in) : '?'}–${x.out ? hhmm(x.out) : '?'}`)}${deviceOf(x) ? ` · ${esc(deviceOf(x))}` : ''}</span></span>
-          <span>${x.hours ? `${fmtH(x.hours)} ש׳` : ''}${x.issue ? `<span class="tag ${x.issue === 'בעבודה עכשיו' ? '' : 'bad'}">${x.issue}</span>` : ''}</span></li>`; }).join('')}</ul>`
+      <div class="toolbar"><button class="btn sm" data-action="peOpen" data-i="-1">הוספת משמרת</button><button class="btn sm" data-action="csvActual">הורדה כקובץ אקסל (CSV)</button></div>
+      ${arr.length ? `<ul class="list">${arr.map(x => { const d = x.in || x.out, i = S.actual[S.repUid].indexOf(x);
+        return `<li class="btnrow"><button class="userbtn" data-action="peOpen" data-i="${i}"><span><b>יום ${DAYS[d.getDay()]} ${fmt(d)}</b><span class="sub" style="display:block">${ltr(`${x.in ? hhmm(x.in) : '?'}–${x.out ? hhmm(x.out) : '?'}`)}${deviceOf(x) ? ` · ${esc(deviceOf(x))}` : ''}</span></span>
+          <span>${x.hours ? `${fmtH(x.hours)} ש׳` : ''}${x.mark ? `<span class="tag">${x.mark}</span>` : ''}${x.issue ? `<span class="tag ${x.issue === 'בעבודה עכשיו' ? '' : 'bad'}">${x.issue}</span>` : ''}</span></button></li>`; }).join('')}</ul>`
         : '<p class="empty">אין החתמות בתקופה הזו.</p>'}
-      <p class="hint">השעות מחושבות מהחתמות בשעון הנוכחות. משמרת בלי כניסה או בלי יציאה לא נספרת.</p>`;
+      <p class="hint">השעות מחושבות מהחתמות בשעון הנוכחות. משמרת בלי כניסה או בלי יציאה לא נספרת. לוחצים על משמרת כדי לתקן אותה. השעה המקורית נשמרת תמיד.</p>`;
   }
   const ids = new Set([...workers().map(u => u.uid), ...Object.keys(S.actual)]);
   const rows = [...ids].map(uid => { const arr = S.actual[uid] || []; return { uid, h:sum(arr), n:arr.filter(x => x.in && x.out).length, bad:arr.filter(x => x.issue && x.issue !== 'בעבודה עכשיו').length, now:arr.some(x => x.issue === 'בעבודה עכשיו') }; })
@@ -1495,16 +1516,34 @@ function viewActual(){
     <p class="hint">השעות מחושבות מהחתמות בשעון הנוכחות.</p>`;
 }
 function downloadActualCsv(){
-  const rows = [['עובד','תאריך','יום','כניסה','יציאה','שעות','הערה','מכשיר']];
+  const rows = [['עובד','תאריך','יום','כניסה','יציאה','שעות','הערה','מכשיר','תיקון']];
   Object.entries(S.actual || {}).filter(([uid]) => !S.repUid || uid === S.repUid).forEach(([uid,arr]) => arr.forEach(x => {
     const d = x.in || x.out;
-    rows.push([nameOf(uid), `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`, DAYS[d.getDay()], x.in ? hhmm(x.in) : '', x.out ? hhmm(x.out) : '', x.hours ? fmtH(x.hours) : '', x.issue, deviceOf(x)]);
+    rows.push([nameOf(uid), `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`, DAYS[d.getDay()], x.in ? hhmm(x.in) : '', x.out ? hhmm(x.out) : '', x.hours ? fmtH(x.hours) : '', x.issue, deviceOf(x), x.mark]);
   }));
   const csv = '﻿' + rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], { type:'text/csv;charset=utf-8' }));
   a.download = `נוכחות-${S.repUid ? nameOf(S.repUid) + '-' : ''}${periodTitle(S.rep)}.csv`.replace(/\s+/g,'-');
   document.body.appendChild(a); a.click(); a.remove();
+}
+
+/* ---------- תיקון נוכחות (מנהל) ---------- */
+const dIn = d => d ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` : '';
+const fromIn = (d, t) => d && t ? new Date(`${d}T${t}`) : null;
+function renderPunchSheet(){
+  const pe = S.pe, x = pe.i >= 0 ? S.actual[pe.uid]?.[pe.i] : null, today = new Date();
+  const orig = P => P?.origAt ? `<small>במקור ${ltr(hhmm(P.origAt))}${P.editedBy ? `, תוקן על ידי ${esc(nameOf(P.editedBy))}` : ''}</small>`
+                  : P?.manual ? `<small>נוספה ידנית על ידי ${esc(nameOf(P.by))}</small>` : '';
+  const side = (key, label, at, P) => `<div class="pe-row"><span class="pe-l">${label}${orig(P)}</span>
+    <input type="date" id="pe-${key}d" value="${dIn(at || x?.in || x?.out || today)}"><input type="time" id="pe-${key}t" value="${at ? hhmm(at) : ''}"></div>`;
+  $sheet.innerHTML = `<div class="sheet"><header><div><h2>${x ? 'תיקון משמרת' : 'הוספת משמרת'}</h2><div class="hint" style="margin:0">${esc(nameOf(pe.uid))}</div></div>
+      <button class="iconbtn" data-action="closeSheet" aria-label="סגירה">✕</button></header>
+    ${side('in', 'כניסה', x?.in, x?.inP)}
+    ${side('out', 'יציאה', x?.out, x?.outP)}
+    <p class="hint">שעה שמשאירים ריקה לא נרשמת. אם היציאה הייתה אחרי חצות, משנים את תאריך היציאה ליום שאחרי.</p>
+    <div class="toolbar" style="margin-top:14px"><button class="btn primary" data-action="peSave">שמירה</button>
+      ${x ? '<button class="btn danger" data-action="peVoid">מחיקת המשמרת</button>' : ''}</div></div>`;
 }
 
 /* ---------- slot sheet ---------- */
@@ -1575,6 +1614,31 @@ const actions = {
   period(el){ S.rep = el.dataset.p; if (S.view === 'reports' && S.repMode === 'actual') loadActual(); else render(); },
   repMode(el){ S.repMode = el.dataset.m; S.repUid = null; if (S.repMode === 'actual') loadActual(); else render(); },
   csvActual(){ downloadActualCsv(); },
+  peOpen(el){ S.pe = { uid:S.repUid, i:+el.dataset.i }; S.sheetMode = 'punch'; renderPunchSheet(); $sheet.showModal(); },
+  async peSave(el){
+    const pe = S.pe, x = pe.i >= 0 ? S.actual[pe.uid]?.[pe.i] : null, v = id => document.getElementById(id)?.value || '';
+    const at = { in:fromIn(v('pe-ind'), v('pe-int')), out:fromIn(v('pe-outd'), v('pe-outt')) };
+    if (!at.in && !at.out) return toast('צריך למלא לפחות שעת כניסה או שעת יציאה');
+    if (at.in && at.out && at.out <= at.in) return toast('שעת היציאה צריכה להיות אחרי שעת הכניסה. יציאה אחרי חצות? שנה את תאריך היציאה');
+    if ([at.in, at.out].some(d => d && d > new Date())) return toast('אי אפשר לרשום שעה שעוד לא הגיעה');
+    el.disabled = true;
+    try{
+      for (const k of ['in','out']) {
+        const P = x?.[k + 'P'];
+        if (P && at[k] && hhmm(P.at) + dIn(P.at) !== hhmm(at[k]) + dIn(at[k])) await B.editPunch(P, at[k]);
+        else if (P && !at[k]) await B.voidPunch(P);
+        else if (!P && at[k]) await B.addManualPunch(pe.uid, k, at[k]);
+      }
+      $sheet.close(); toast('הנוכחות עודכנה'); await loadActual();
+    }catch(e){ toast(errMsg(e)); el.disabled = false; }
+  },
+  async peVoid(el){
+    const x = S.actual[S.pe.uid]?.[S.pe.i]; if (!x) return;
+    if (!el.dataset.sure) { el.dataset.sure = '1'; el.textContent = 'בטוח? ללחוץ שוב כדי למחוק'; return; }
+    el.disabled = true;
+    try{ for (const P of [x.inP, x.outP]) if (P) await B.voidPunch(P); $sheet.close(); toast('המשמרת נמחקה מהדוח'); await loadActual(); }
+    catch(e){ toast(errMsg(e)); el.disabled = false; }
+  },
   repUser(el){ S.repUid = el.dataset.uid; render(); window.scrollTo(0,0); },
   repBack(){ S.repUid = null; render(); },
   refreshRep(){ if (S.repMode === 'actual') loadActual(); else loadReports(); },
