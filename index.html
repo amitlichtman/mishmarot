@@ -220,6 +220,14 @@ dialog::backdrop{background:rgba(30,36,51,.45)}
 .kdone .kbig{font-family:'Secular One',sans-serif;font-size:2rem;margin:0}
 .kdone p{font-size:1.2rem;margin:6px 0}
 .tag.bad{background:#FDEDE4;color:var(--warn)}
+#install{padding-top:10px;padding-bottom:0}
+.inst{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.inst img{width:42px;height:42px;border-radius:10px;flex:none}
+.inst .it{flex:1;min-width:0}
+.inst .it b{display:block}
+.inst .it span{font-size:.88rem;color:var(--muted)}
+.inst .ib{display:flex;flex-direction:column;gap:6px;flex:none}
+.inst svg{vertical-align:-3px}
 #toast{position:fixed;left:50%;bottom:92px;transform:translateX(-50%);background:var(--ink);color:#fff;
   padding:10px 16px;border-radius:10px;font-size:.92rem;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90vw;z-index:20}
 #toast.show{opacity:1}
@@ -233,6 +241,7 @@ dialog::backdrop{background:rgba(30,36,51,.45)}
 </style>
 </head>
 <body>
+<div class="wrap" id="install" hidden></div>
 <div class="wrap" id="app"></div>
 <dialog id="sheet"></dialog>
 <div id="toast" role="status" aria-live="polite"></div>
@@ -918,6 +927,7 @@ const isClock = () => S.profile?.role === 'kiosk';
 
 /* ---------- render ---------- */
 function render(){
+  renderInstall();
   if (!S.ready) { $app.innerHTML = `<p class="loading">טוען…</p>`; return; }
   if (S.user && S.picking) { $app.innerHTML = viewPicker(); return; }
   if (S.user && S.profile && isClock()) { $app.innerHTML = viewKiosk(); return; }
@@ -2125,6 +2135,39 @@ $sheet.addEventListener('click', e => { if (e.target === $sheet) $sheet.close();
 /* שעון חי במסך הנוכחות (בלי פנייה לשרת), ורענון הרשימה וההחתמות פעם בשעה */
 setInterval(() => { const c = document.getElementById('kclock'); if (c) c.textContent = clockText(); }, 1000);
 setInterval(() => { if (isClock() && !$sheet.open) loadPunches(); }, 3600e3);   // פעם בשעה, כדי לחסוך קריאות בשרת
+
+/* ---------- הצעה להתקין את האפליקציה ---------- */
+/* מי שפתח באתר ולא התקין: באנדרואיד כפתור התקנה, באייפון הוראות (אפל לא מאפשרת התקנה בלחיצה) */
+let installEvt = null;
+const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const installSnoozed = () => Date.now() - (+store.get('installLater') || 0) < 14*864e5;   // "לא עכשיו" מסתיר לשבועיים
+function renderInstall(){
+  const box = document.getElementById('install'); if (!box) return;
+  const kind = isStandalone() || installSnoozed() || isClock() ? null : installEvt ? 'android' : isIOS() ? 'ios' : null;
+  box.hidden = !kind;
+  if (!kind) { box.innerHTML = ''; return; }
+  const share = '<svg viewBox="0 0 24 24" width="17" height="17" aria-label="שיתוף"><path d="M12 3v12M7.5 7.5 12 3l4.5 4.5M6 11H5v10h14V11h-1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  box.innerHTML = `<div class="inst"><img src="icon-192.png" alt="">
+    <div class="it"><b>התקנת האפליקציה</b><span>${kind === 'android'
+      ? 'אייקון במסך הבית, ונפתח במסך מלא כמו אפליקציה'
+      : `לוחצים על כפתור השיתוף ${share} ואז על "הוספה למסך הבית"`}</span></div>
+    <div class="ib">${kind === 'android' ? '<button class="btn sm primary" data-action="installApp">התקנה</button>' : ''}
+      <button class="btn sm" data-action="installLater">לא עכשיו</button></div></div>`;
+}
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; renderInstall(); });
+window.addEventListener('appinstalled', () => { installEvt = null; renderInstall(); });
+Object.assign(actions, {
+  async installApp(){
+    if (!installEvt) return;
+    installEvt.prompt();
+    const { outcome } = await installEvt.userChoice.catch(() => ({}));
+    installEvt = null;
+    if (outcome === 'dismissed') store.set('installLater', String(Date.now()));
+    renderInstall();
+  },
+  installLater(){ store.set('installLater', String(Date.now())); renderInstall(); },
+});
 
 /* ---------- boot ---------- */
 (async () => {
