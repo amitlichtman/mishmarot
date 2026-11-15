@@ -234,9 +234,9 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center}
 .cpos i{font-style:normal;font-size:.75rem;padding:1px 8px;border-radius:9px;background:#EEF0F5;color:var(--muted)}
 .cph{flex-basis:100%;font-size:.82rem;color:var(--muted)}
 .cact{flex:none;display:flex;gap:6px}
-.ib{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line);color:var(--ink);background:#fff;text-decoration:none}
-.ib:active{transform:scale(.94)}
-.ib.wa{color:#17855B;border-color:color-mix(in srgb,#17855B 35%,#fff)}
+.cib{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line);color:var(--ink);background:#fff;text-decoration:none}
+.cib:active{transform:scale(.94)}
+.cib.wa{color:#17855B;border-color:color-mix(in srgb,#17855B 35%,#fff)}
 .badge{display:inline-block;min-width:18px;margin-inline-start:6px;padding:0 5px;border-radius:9px;background:var(--warn);color:#fff;font-size:.72rem;font-style:normal;line-height:18px;text-align:center}
 .tk{display:flex;flex-direction:column;align-items:flex-start;gap:3px;margin-top:5px;padding-top:5px;border-top:1px dashed var(--line)}
 .tkn{font-size:.72rem;color:var(--warn);font-weight:500}
@@ -258,7 +258,15 @@ button.pill{border:0;cursor:pointer;font:inherit}
 .inst .it{flex:1;min-width:0}
 .inst .it b{display:block}
 .inst .it span{font-size:.88rem;color:var(--muted)}
-.inst .ib{display:flex;flex-direction:column;gap:6px;flex:none}
+.inst .ib{display:flex;flex-direction:row;align-items:center;gap:6px;flex:none;margin-inline-start:auto}
+.inst{flex-wrap:wrap}
+.inst .it{flex:1 1 170px}
+.inst .ib .btn{white-space:nowrap}
+.nrow{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+.nrow input{margin-top:4px}
+.nrow small{display:block;color:var(--muted)}
+.nstat{padding:10px 12px;border-radius:10px;background:#EEF0F5;margin:8px 0 6px;font-size:.92rem}
+.nstat.ok{background:#EEF8F3;color:var(--ok)}
 .inst svg{vertical-align:-3px}
 #toast{position:fixed;left:50%;bottom:92px;transform:translateX(-50%);background:var(--ink);color:#fff;
   padding:10px 16px;border-radius:10px;font-size:.92rem;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90vw;z-index:20}
@@ -422,6 +430,7 @@ function demoBackend(){
   let current = null, cid = null; const ls = []; const emit = () => ls.forEach(f => f(current));
   const C = () => companies[cid];
   const newUid = () => 'u'+Math.random().toString(36).slice(2,8);
+  const demoPrefs = {};
   function createCompany({ restaurant, name, settings }){
     let code; do { code = genCode(); } while (companies[code]);
     const acc = accounts[current.uid];
@@ -470,6 +479,8 @@ function demoBackend(){
     async getNames(){ const M = C().members; return clone(C().names || { names:Object.fromEntries(Object.entries(M).filter(([,m]) => m.role !== 'kiosk').map(([u,m]) => [u, m.name])), clocks:{} }); },
     async setNames(d){ C().names = clone(d); },
     async enablePush(){ throw { code:'push-demo' }; },
+    async getPrefs(){ return clone(((demoPrefs[current.uid] ||= {})[cid]) || null); },
+    async setPrefs(_, d){ (demoPrefs[current.uid] ||= {})[cid] = clone(d); },
     async dropPush(){},
     async getWeek(id){ return clone(C().weeks[id] || {}); },
     async updateWeek(id,data){ C().weeks[id] = { ...(C().weeks[id]||{}), ...clone(data) }; },
@@ -698,6 +709,9 @@ async function firebaseBackend(cfg){
       return token;
     },
     async dropPush(token){ await F.deleteDoc(F.doc(db, 'users', auth.currentUser.uid, 'tokens', token)); },
+    // אילו התראות המשתמש רוצה, בנפרד לכל עסק. השרת בודק את זה לפני כל שליחה
+    async getPrefs(c){ return snap(await F.getDoc(F.doc(db, 'users', auth.currentUser.uid, 'prefs', c))); },
+    async setPrefs(c, d){ await F.setDoc(F.doc(db, 'users', auth.currentUser.uid, 'prefs', c), d); },
     async setNames(d){ await F.setDoc(cdoc('settings','names'), d); },
     async getWeek(id){ return snap(await F.getDoc(cdoc('weeks',id))) || {}; },
     async updateWeek(id,data){ await F.setDoc(cdoc('weeks',id), data, { mergeFields:Object.keys(data) }); },
@@ -1062,7 +1076,7 @@ function render(){
     <header class="top">
       <h1 class="brand"><button class="brandbtn" data-action="openSwitch" aria-label="${esc(ST().business)}: החלפת עסק">
         <span class="bars" aria-hidden="true"><i></i><i></i><i></i></span><span class="bn">${esc(ST().business)}</span><span class="caret" aria-hidden="true">▾</span></button></h1>
-      <div class="who"><span class="me"><b>${esc(S.profile.name)}</b>${myTitle() ? `<small>${esc(myTitle())}</small>` : ''}</span><button class="iconbtn refresh" data-action="refresh" aria-label="רענון" title="רענון"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.34 5.66M20 4v7h-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="link" data-action="logout">יציאה</button></div>
+      <div class="who"><span class="me"><b>${esc(S.profile.name)}</b>${myTitle() ? `<small>${esc(myTitle())}</small>` : ''}</span><button class="iconbtn" data-action="notifOpen" aria-label="התראות" title="התראות"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="iconbtn refresh" data-action="refresh" aria-label="רענון" title="רענון"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.34 5.66M20 4v7h-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="link" data-action="logout">יציאה</button></div>
     </header>
     <nav class="tabs">${tabs.map(([v,l]) => { const n = v === 'mine' && S.week.published ? offersFor().filter(o => !o.why && !o.no && !(o.kind === 'give' ? o.mine : o.r)).length : 0;
       return `<button data-action="tab" data-v="${v}" ${tabOf===v?'aria-current="page"':''}>${l}${n ? `<i class="badge">${n}</i>` : ''}</button>`; }).join('')}</nav>
@@ -1270,9 +1284,9 @@ function viewCrew(){
         ${pos.length ? `<span class="cpos">${pos.map(x => `<i>${esc(x)}</i>`).join('')}</span>` : ''}
         ${u.phone ? `<span class="cph">${ltr(esc(u.phone))}</span>` : ''}</span>
       <span class="cact">
-        ${u.phone ? `<a class="ib" href="tel:${esc(tel(u.phone))}" aria-label="להתקשר ל${esc(u.name)}">${ICON.phone}</a>
-          <a class="ib wa" href="https://wa.me/${esc(wa(u.phone))}" target="_blank" rel="noopener" aria-label="וואטסאפ ל${esc(u.name)}">${ICON.wa}</a>` : ''}
-        ${u.email ? `<a class="ib" href="mailto:${esc(u.email)}" aria-label="אימייל ל${esc(u.name)}">${ICON.mail}</a>` : ''}
+        ${u.phone ? `<a class="cib" href="tel:${esc(tel(u.phone))}" aria-label="להתקשר ל${esc(u.name)}">${ICON.phone}</a>
+          <a class="cib wa" href="https://wa.me/${esc(wa(u.phone))}" target="_blank" rel="noopener" aria-label="וואטסאפ ל${esc(u.name)}">${ICON.wa}</a>` : ''}
+        ${u.email ? `<a class="cib" href="mailto:${esc(u.email)}" aria-label="אימייל ל${esc(u.name)}">${ICON.mail}</a>` : ''}
       </span></li>`;
   };
   return `<div class="crew-head"><h3>הצוות</h3><span>${all.length} עובדים</span></div>
@@ -1846,6 +1860,31 @@ async function reqDo(fn, msg){
   S.reqs = await B.listRequests(wid()).catch(() => S.reqs);
   if (!isMgr()) S.myReqs = await B.listMyRequests(wid(), S.user.uid).catch(() => S.myReqs);
   render();
+}
+
+/* ---------- התראות: מה כל משתמש רוצה לקבל, בכל עסק בנפרד ---------- */
+const NOTIF_TYPES = [
+  ['publish',   'הסידור פורסם',                              'worker'],
+  ['reqResult', 'תשובה לבקשות שלי (אושרה או נדחתה)',         'all'],
+  ['reqNew',    'בקשות חדשות ומתנדבים מעובדים',              'mgr'],
+  ['reminder',  'תזכורת להגיש זמינות לפני המועד האחרון',      'worker'],
+  ['clockOut',  'תזכורת אם שכחתי להחתים יציאה',               'all'],
+];
+const notifTypes = () => NOTIF_TYPES.filter(([,, who]) => who === 'all' || (who === 'mgr' ? isMgr() : isWorker(S.profile)));
+function renderNotifSheet(){
+  const p = S.prefs || {}, perm = typeof Notification === 'undefined' ? 'none' : Notification.permission;
+  const stat = B.demo ? `<div class="nstat">במצב הדגמה אין התראות. אפשר לראות כאן את ההגדרות.</div>`
+    : perm === 'granted' ? `<div class="nstat ok">ההתראות פעילות במכשיר הזה</div>`
+    : perm === 'denied' ? `<div class="nstat">ההתראות חסומות במכשיר הזה. אפשר לאפשר אותן בהגדרות הדפדפן או הטלפון.</div>`
+    : perm === 'none' || (isIOS() && !isStandalone()) ? `<div class="nstat">הדפדפן הזה לא תומך בהתראות. באייפון צריך קודם להתקין את האפליקציה במסך הבית.</div>`
+    : `<div class="nstat">ההתראות כבויות במכשיר הזה.</div><button class="btn primary" data-action="pushOn">הפעלת התראות במכשיר הזה</button>`;
+  $sheet.innerHTML = `<div class="sheet"><header><div><h2>התראות</h2><div class="hint" style="margin:0">${esc(ST().business)}</div></div>
+      <button class="iconbtn" data-action="closeSheet" aria-label="סגירה">✕</button></header>
+    ${stat}
+    <h3 style="margin-top:16px">על מה לקבל התראות</h3>
+    <p class="hint">ההגדרות האלה חלות רק על העסק הזה, ועל כל המכשירים שלך.</p>
+    ${notifTypes().map(([k, label]) => `<label class="nrow"><input type="checkbox" data-pref="${k}" ${p[k] !== false ? 'checked' : ''}><span>${label}</span></label>`).join('')}
+    <div class="toolbar" style="margin-top:14px"><button class="btn primary" data-action="notifSave">שמירה</button></div></div>`;
 }
 
 /* ---------- slot sheet ---------- */
@@ -2484,10 +2523,21 @@ Object.assign(actions, {
       const perm = await Notification.requestPermission();     // חייב לקרות מיד אחרי הלחיצה
       if (perm !== 'granted') throw { code:'push-denied' };
       S.pushToken = await B.enablePush(); toast('ההתראות הופעלו');
+      if ($sheet.open && S.sheetMode === 'notif') renderNotifSheet();
     }catch(e){ toast(errMsg(e)); pushHidden = true; }
     renderInstall();
   },
   pushLater(){ pushHidden = true; renderInstall(); },
+  async notifOpen(){
+    S.prefs = await B.getPrefs(S.cid).catch(() => null) || {};
+    S.sheetMode = 'notif'; renderNotifSheet(); $sheet.showModal();
+  },
+  async notifSave(el){
+    const d = {}; NOTIF_TYPES.forEach(([k]) => { const c = $sheet.querySelector(`[data-pref="${k}"]`); d[k] = c ? c.checked : (S.prefs?.[k] !== false); });
+    el.disabled = true;
+    try{ await B.setPrefs(S.cid, d); S.prefs = d; $sheet.close(); toast('הגדרות ההתראות נשמרו'); }
+    catch(e){ toast(errMsg(e)); el.disabled = false; }
+  },
 });
 
 /* ---------- boot ---------- */
