@@ -2455,7 +2455,18 @@ function renderInstall(){
       <button class="btn sm" data-action="installLater">לא עכשיו</button></div></div>`;
 }
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; renderInstall(); });
-window.addEventListener('push', e => { const n = e.detail?.notification; if (n) toast(`${n.title}: ${n.body}`); });
+/* התראה שמגיעה כשהאפליקציה פתוחה: מציגים אותה כהתראה רגילה של הטלפון. אם אי אפשר, הודעה בתחתית המסך */
+window.addEventListener('push', async e => {
+  const n = e.detail?.notification; if (!n) return;
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (reg && Notification.permission === 'granted') {
+      await reg.showNotification(n.title, { body:n.body, icon:'icon-192.png', dir:'rtl', lang:'he', data:{ local:true } });
+      return;
+    }
+  } catch (err) { console.warn(err); }
+  toast(`${n.title}: ${n.body}`);
+});
 window.addEventListener('appinstalled', () => { installEvt = null; renderInstall(); });
 Object.assign(actions, {
   async installApp(){
