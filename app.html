@@ -228,7 +228,8 @@ dialog::backdrop{background:rgba(30,36,51,.45)}
 .reqb{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:flex-end}
 .list li.wrapli{flex-wrap:wrap}
 .list li.wrapli .reqb{flex-basis:100%}
-.reqs{margin:14px 0}
+.reqs{margin:6px 0 14px}
+button.pill{border:0;cursor:pointer;font:inherit}
 .req{background:#fff;border:1px solid var(--line);border-inline-start:4px solid var(--warn);border-radius:12px;padding:10px 12px;margin-bottom:10px}
 .req>b{display:block}.req>.sub{display:block;color:var(--muted);font-size:.88rem;margin-bottom:4px}
 .vol{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:space-between;padding:6px 0;border-top:1px solid var(--line);flex:1}
@@ -757,7 +758,7 @@ async function firebaseBackend(cfg){
 const S = {
   ready:false, user:null, profile:null, cid:null, companies:[], sheetMode:null, authMode: location.hash === '#signup' ? 'signup' : 'login', freshLogin:false, picking:false, pickNew:false, signingUp:false, users:[], settings:clone(DEFAULT_SETTINGS), view:null,
   weekStart: addDays(sundayOf(new Date()),7),
-  week:{}, reqs:[], myReqs:[], mineMode:'sched', mySub:null, draft:{}, note:'', dirty:false, subs:{}, msgDraft:'',
+  week:{}, reqs:[], myReqs:[], mineMode:'sched', mgrMode:'sched', mySub:null, draft:{}, note:'', dirty:false, subs:{}, msgDraft:'',
   sDraft:null, sDirty:false, uDraft:null, editUid:null, created:null,
   loading:false, openKey:null,
   rep:'month', repUid:null, allWeeks:null, repMode:'plan', actual:null,
@@ -1146,6 +1147,8 @@ function offersHtml(){
       : `<button class="btn sm primary" data-action="reqTake" data-k="${o.k}">אני רוצה</button>`;
     return `<li><span><b>${slotLabel(o.k)}</b><span class="sub" style="display:block">${sub}</span></span><span class="reqb">${btn}</span></li>`; }).join('')}</ul>`;
 }
+/* מספר הבקשות: כל מסירה היא בקשה, וכל משמרת חסרה שמבקשים להיכנס אליה היא בקשה אחת */
+const gives_slots = () => { const o = S.reqs.filter(r => r.status === 'open'); return o.filter(r => r.type === 'give').length + new Set(o.filter(r => r.type === 'take').map(r => r.k)).size; };
 /* מנהל: בקשות ממתינות לשבוע המוצג */
 function requestsHtml(){
   const a = asg(), open = S.reqs.filter(r => r.status === 'open'); if (!open.length) return '';
@@ -1155,7 +1158,7 @@ function requestsHtml(){
     if (!future(k)) return `<div class="vol"><span>${esc(u.name)}</span></div>`;
     return `<div class="vol"><span>${esc(u.name)} <em>${keys().filter(x => a[x].includes(uid)).length} משמרות השבוע</em>${w.map(x => `<span class="tag bad">${x}</span>`).join('')}</span>
       <button class="btn sm primary" data-action="reqApprove" data-id="${id}" data-uid="${uid}">אישור</button></div>`; };
-  return `<div class="reqs"><h3>בקשות ממתינות (${gives.length + slots.length})</h3>
+  return `<div class="reqs">
     ${gives.map(r => { const a2 = { ...a, [r.k]:(a[r.k] || []).filter(x => x !== r.by) };
       return `<div class="req"><b>${slotLabel(r.k)}</b><span class="sub">${esc(nameOf(r.by))} רוצה למסור את המשמרת</span>${future(r.k) ? '' : '<span class="tag bad">המשמרת כבר התחילה. אפשר רק לדחות</span>'}
         ${(r.vols || []).map(v => cand(v, r.k, r.id, a2)).join('') || '<p class="hint" style="margin:6px 0">עוד אין מתנדבים.</p>'}
@@ -1209,15 +1212,18 @@ function viewManage(){
   const submitted = E.filter(u => S.subs[u.uid]).length;
   const short = keys().filter(k => a[k].length < needOf(k)).length;
   const closed = S.week.locked || (dl && Date.now() >= dl);
-  return `
+  const nReq = gives_slots();
+  const seg = `<div class="seg"><button data-action="mgrMode" data-m="sched" aria-pressed="${S.mgrMode !== 'reqs'}">שיבוץ</button>
+    <button data-action="mgrMode" data-m="reqs" aria-pressed="${S.mgrMode === 'reqs'}">בקשות ממתינות${nReq ? `<i class="badge">${nReq}</i>` : ''}</button></div>`;
+  if (S.mgrMode === 'reqs') return seg + (requestsHtml() || `<p class="empty">${S.week.published ? 'אין בקשות ממתינות לשבוע הזה.' : 'הסידור לשבוע הזה עוד לא פורסם, אז עובדים לא יכולים לשלוח בקשות.'}</p>`);
+  return `${seg}
     <div class="status">
       <span class="pill ${submitted===E.length?'ok':''}">${submitted} מתוך ${E.length} הגישו</span>
       <span class="pill ${closed?'warn':''}">${S.week.locked ? 'ההגשה נסגרה ידנית' : (dl && Date.now() >= dl) ? 'מועד ההגשה עבר' : dl ? `הגשה עד ${fmt(dl)} ${ltr(hhmm(dl))}` : 'ההגשה פתוחה'}</span>
       <span class="pill ${S.week.published?'ok':''}">${S.week.published ? 'הסידור פורסם' : 'טיוטה'}</span>
       ${short ? `<span class="pill warn">${short} משמרות חסרות</span>` : ''}
-      ${S.reqs.length ? `<span class="pill warn">${S.reqs.length} בקשות ממתינות</span>` : ''}
+      ${nReq ? `<button class="pill warn" data-action="mgrMode" data-m="reqs">${nReq} בקשות ממתינות</button>` : ''}
     </div>
-    ${requestsHtml()}
     <div class="toolbar">
       <button class="btn" data-action="lock">${S.week.locked ? 'פתיחת ההגשה' : 'סגירת ההגשה'}</button>
       <button class="btn" data-action="auto">שיבוץ אוטומטי</button>
@@ -1803,6 +1809,7 @@ const actions = {
   repMode(el){ S.repMode = el.dataset.m; S.repUid = null; if (S.repMode === 'actual') loadActual(); else render(); },
   csvActual(){ downloadActualCsv(); },
   mineMode(el){ S.mineMode = el.dataset.m; render(); },
+  mgrMode(el){ S.mgrMode = el.dataset.m; render(); window.scrollTo(0,0); },
   async reqGive(el){ await reqDo(() => B.addRequest({ type:'give', week:wid(), k:el.dataset.k, vols:[] }), 'המשמרת הוצעה לעובדים. עד שהמנהל מאשר, אתה עדיין משובץ'); },
   async reqTake(el){ await reqDo(() => B.addRequest({ type:'take', week:wid(), k:el.dataset.k }), 'הבקשה נשלחה למנהל'); },
   async reqVol(el){ await reqDo(() => B.volunteer(el.dataset.id, true), 'הבקשה נשלחה למנהל'); },
