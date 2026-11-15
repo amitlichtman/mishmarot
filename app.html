@@ -1,0 +1,2186 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#1E2433">
+<title>משמרות</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="משמרות">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700&family=Secular+One&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#1E2433; --paper:#F5F6F8; --line:#DCE0E8; --muted:#5F6878;
+  --warn:#B4400E; --ok:#17855B;
+  font-family:'Rubik',system-ui,sans-serif; color:var(--ink); background:var(--paper);
+}
+*{box-sizing:border-box}
+body{margin:0;line-height:1.5}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+.wrap{max-width:780px;margin:0 auto;padding:12px 16px 120px}
+
+/* header */
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0 14px}
+.brand{display:flex;align-items:center;gap:10px;margin:0;font-family:'Secular One',sans-serif;font-weight:400;font-size:clamp(1.2rem,5.2vw,1.6rem);min-width:0;flex:1}
+.bars{display:flex;gap:3px;align-items:flex-end;height:22px}
+.bars i{display:block;width:6px;border-radius:2px}
+.bars i:nth-child(1){height:12px;background:#E9A23B}
+.bars i:nth-child(2){height:17px;background:#D6577A}
+.bars i:nth-child(3){height:22px;background:#34478F}
+.who{display:flex;align-items:center;gap:10px;font-size:.9rem;color:var(--muted)}
+.who .me{display:flex;flex-direction:column;align-items:flex-start;line-height:1.25}
+.who .me b{color:var(--ink);font-weight:500}
+.who{flex:none}
+.who .me{max-width:30vw}
+.who .me b,.who .me small{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.who .me small{font-size:.78rem}
+.link{border:0;background:none;text-decoration:underline;padding:4px;color:var(--ink)}
+.demo{background:#FFF7E6;border:1px solid #F3D9A4;border-radius:10px;padding:8px 12px;font-size:.88rem;margin-bottom:12px}
+
+/* tabs + week */
+.tabs{display:flex;gap:4px;background:#E6E9EF;border-radius:10px;padding:4px}
+.tabs button{flex:1;border:0;background:transparent;padding:9px 6px;border-radius:7px;font-weight:500}
+.tabs button[aria-current="page"]{background:#fff;box-shadow:0 1px 2px rgba(30,36,51,.14)}
+.weeknav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:18px 0 6px}
+.weeknav h2{font-family:'Secular One',sans-serif;font-weight:400;font-size:1.3rem;margin:0;text-align:center}
+.weeknav small{display:block;font-family:'Rubik';font-size:.8rem;color:var(--muted)}
+.iconbtn.refresh{width:36px;height:36px;color:var(--ink)}
+.iconbtn.refresh.busy svg{animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.iconbtn{border:1px solid var(--line);background:#fff;border-radius:8px;width:42px;height:42px;font-size:1.2rem;line-height:1;flex:none;display:inline-grid;place-items:center}
+
+h3{font-family:'Secular One',sans-serif;font-weight:400;font-size:1.15rem;margin:26px 0 6px}
+.hint{color:var(--muted);margin:4px 0 10px;font-size:.92rem}
+.notice{background:#EEF1F6;border-radius:10px;padding:10px 12px;margin:8px 0}
+.notice.msg{background:#fff;border:1.5px solid var(--line);white-space:pre-wrap}
+.empty{text-align:center;color:var(--muted);padding:40px 12px}
+.loading{text-align:center;color:var(--muted);padding:60px 0}
+
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:.82rem;color:var(--muted);margin:0 0 6px}
+.legend span{display:flex;align-items:center;gap:6px}
+.sw{width:16px;height:16px;border-radius:4px;display:inline-block}
+
+/* day grid */
+.grid{overflow-x:auto;padding-bottom:2px}
+.day{display:grid;grid-template-columns:58px repeat(var(--n,3),minmax(76px,1fr));
+  min-width:calc(58px + var(--n,3) * 82px);gap:6px;padding:7px 0;border-bottom:1px solid var(--line)}
+.day:last-child{border-bottom:0}
+.dlabel{display:flex;flex-direction:column;justify-content:center;position:sticky;inset-inline-start:0;z-index:2;background:var(--paper);margin-block:-7px;padding-block:7px;box-shadow:-6px 0 6px -6px rgba(30,36,51,.25)}
+.dlabel b{font-weight:700}
+.dlabel span{color:var(--muted);font-size:.82rem}
+.off{border-radius:10px;background:repeating-linear-gradient(-45deg,#ECEEF2 0 2px,transparent 2px 9px)}
+
+.chip{border-radius:10px;border:1.5px dashed #C5CBD6;background:#fff;padding:7px 4px;min-height:66px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;transition:transform .08s ease}
+.chip:active:not(:disabled){transform:scale(.96)}
+.chip .sn{font-weight:700;font-size:.88rem}
+.chip .st{font-size:.75rem}
+.chip{box-shadow:inset 0 4px 0 var(--c)}
+.chip.unset .st{color:var(--muted)}
+.chip.set{background:color-mix(in srgb,var(--sc) 22%,#fff);border:2px solid var(--sc)}
+.chip.set .st{font-weight:500}
+.chip.never{background:color-mix(in srgb,var(--sc) 12%,#F3F4F7);color:var(--muted)}
+.chip.never .sn{text-decoration:line-through}
+.stpick{display:grid;gap:8px;margin:6px 0 4px}
+.stpick button{display:flex;align-items:center;gap:10px;border:2px solid var(--sc,var(--line));background:color-mix(in srgb,var(--sc,#fff) 18%,#fff);border-radius:10px;padding:12px;font-weight:500;text-align:right}
+.stpick button[aria-pressed="true"]{outline:3px solid var(--ink);outline-offset:1px}
+.stpick .lv{margin-inline-start:auto;font-weight:400;font-size:.8rem;color:var(--muted)}
+.statecard{background:#fff;border:1.5px solid var(--line);border-inline-start:7px solid var(--sc);border-radius:12px;padding:2px 14px 12px;margin:10px 0}
+.chip:disabled{cursor:default}
+
+.slot{border-radius:10px;border:1.5px solid var(--line);border-top:5px solid var(--c);background:#fff;
+  padding:6px;min-height:72px;text-align:right;display:flex;flex-direction:column;gap:2px}
+.slot .sn{display:flex;justify-content:space-between;gap:4px;font-weight:700;font-size:.84rem}
+.slot em{font-style:normal;font-weight:500}
+.slot.short em{color:var(--warn)}
+.slot.short{background:#FFF8F4}
+.slot .names{font-size:.8rem;line-height:1.35}
+.slot .names.none{color:var(--muted)}
+
+/* buttons, status */
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 10px}
+.btn{border:1.5px solid var(--ink);background:#fff;border-radius:9px;padding:9px 14px;font-weight:500}
+.btn.primary{background:var(--ink);color:#fff}
+.btn.sm{padding:6px 10px;font-size:.85rem}
+.btn.danger{border-color:var(--warn);color:var(--warn)}
+.btn:disabled{opacity:.45;cursor:default}
+.status{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:.86rem;margin:4px 0 8px}
+.pill{border-radius:99px;padding:2px 10px;background:#E6E9EF;white-space:nowrap}
+.pill.ok{background:#DDF3E8;color:var(--ok)}
+.pill.warn{background:#FDEDE4;color:var(--warn)}
+
+/* forms */
+.field{display:block;margin-top:12px;font-weight:500;font-size:.92rem}
+.field small{display:block;font-weight:400;color:var(--muted)}
+textarea,select,input[type=email],input[type=password],input[type=text],input[type=tel],input[type=number],input[type=time]{
+  width:100%;margin-top:5px;border:1.5px solid var(--line);border-radius:9px;padding:9px 10px;background:#fff}
+textarea{min-height:70px;resize:vertical}
+input:disabled,select:disabled{background:#F0F2F5;color:var(--muted)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.row .field{flex:1;min-width:110px}
+.row .grow{flex:2;min-width:150px}
+.check{display:flex;gap:10px;align-items:center;margin-top:14px}
+.check input{width:20px;height:20px;accent-color:var(--ink);flex:none}
+.card{background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:4px 14px 14px;margin:12px 0}
+.card pre{white-space:pre-wrap;font:inherit;background:#F5F6F8;border-radius:8px;padding:10px;margin:12px 0}
+
+.shiftcard{background:#fff;border:1.5px solid var(--line);border-inline-start:7px solid var(--c);border-radius:12px;padding:2px 14px 12px;margin:12px 0}
+.swatches{display:flex;gap:8px;margin:14px 0 4px;flex-wrap:wrap}
+.swatch{width:30px;height:30px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 1.5px var(--line)}
+.swatch[aria-pressed="true"]{box-shadow:0 0 0 2.5px var(--ink)}
+.needs{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-top:10px}
+.needs label{display:flex;flex-direction:column;align-items:center;font-size:.8rem;color:var(--muted)}
+.needs input{text-align:center;padding:8px 0}
+
+/* save bar */
+.savebar{position:fixed;inset-inline:0;bottom:0;background:rgba(245,246,248,.95);backdrop-filter:blur(6px);
+  border-top:1px solid var(--line);padding:10px 16px calc(10px + env(safe-area-inset-bottom));z-index:5}
+.savebar .in{max-width:780px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.savebar span{font-size:.88rem;color:var(--muted)}
+.savebar span.dirty{color:var(--warn)}
+
+/* lists */
+.list{list-style:none;margin:0;padding:0}
+.list li{display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
+.list li:last-child{border-bottom:0}
+.list li.btnrow{padding:0}
+.userbtn{width:100%;display:flex;justify-content:space-between;align-items:center;gap:12px;border:0;background:none;text-align:right;padding:11px 2px}
+.sub{color:var(--muted);font-size:.84rem}
+.myshift{display:flex;align-items:center;gap:10px}
+.dot{width:12px;height:12px;border-radius:50%;background:var(--c);flex:none}
+
+/* login */
+.login{max-width:380px;margin:8vh auto 0}
+.login h1{font-family:'Secular One',sans-serif;font-weight:400;font-size:2.3rem;margin:0 0 4px;display:flex;align-items:center;gap:12px}
+.login p{color:var(--muted);margin-top:0}
+.userpick{display:grid;gap:8px;margin-top:16px}
+.userpick button{text-align:right;border:1.5px solid var(--line);background:#fff;border-radius:10px;padding:12px;display:flex;justify-content:space-between}
+.userpick button span{color:var(--muted);font-size:.85rem}
+
+/* sheet */
+dialog{border:0;border-radius:14px;padding:0;width:min(480px,calc(100% - 20px));max-height:85vh}
+dialog::backdrop{background:rgba(30,36,51,.45)}
+.sheet{padding:0 18px 18px}
+.sheet header{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;border-top:6px solid var(--c);margin:0 -18px 6px;padding:14px 18px 0}
+.sheet h2{font-family:'Secular One',sans-serif;font-weight:400;font-size:1.2rem;margin:0}
+.sheet h4{margin:14px 0 4px;font-size:.85rem;color:var(--muted);font-weight:500}
+.opt{display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid #EEF0F3}
+.opt input{width:20px;height:20px;accent-color:var(--ink);flex:none}
+.opt .meta{margin-inline-start:auto;text-align:left;font-size:.78rem;color:var(--muted)}
+.opt .meta .w{color:var(--warn);display:block}
+
+.chip .hr{font-size:.68rem;opacity:.85;direction:ltr}
+.slot .hr{font-size:.7rem;color:var(--muted);direction:ltr;text-align:right}
+.seg{display:flex;flex-wrap:wrap;gap:6px;margin:16px 0 10px}
+.seg button{border:1.5px solid var(--line);background:#fff;border-radius:99px;padding:6px 14px;font-size:.9rem}
+.seg button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin:8px 0 6px}
+.stat{background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px}
+.stat b{display:block;font-family:'Secular One',sans-serif;font-weight:400;font-size:1.7rem;line-height:1.2}
+.stat span{color:var(--muted);font-size:.84rem}
+.tag{font-size:.75rem;border-radius:99px;padding:1px 8px;background:#E6E9EF;color:var(--muted);margin-inline-start:6px}
+.month{font-weight:700;margin:16px 0 0;font-size:.95rem}
+.tot{font-weight:700;border-top:2px solid var(--ink)!important}
+.divider{margin:28px 0 8px;padding-top:18px;border-top:1px solid var(--line);color:var(--muted)}
+.picklist{margin-top:8px;background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:0 14px}
+.picklist .userbtn b{font-size:1.05rem}
+.poscard{background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:2px 14px 12px;margin:10px 0}
+.posgrid{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;font-weight:400}
+.poschip{display:flex;align-items:center;gap:7px;border:1.5px solid var(--line);background:#fff;border-radius:99px;padding:6px 12px 6px 14px;cursor:pointer}
+.poschip:has(input:checked){border-color:var(--ink);background:#EEF1F6}
+.poschip input{width:18px;height:18px;accent-color:var(--ink);margin:0}
+.brandbtn{display:flex;align-items:center;gap:10px;border:0;background:none;padding:2px 0;font:inherit;color:inherit;text-align:right;min-width:0;max-width:100%}
+.brandbtn .bars{flex:none}
+.brandbtn .bn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.brandbtn .caret{font-family:'Rubik';font-size:.9rem;color:var(--muted)}
+.kiosk{padding-top:4px}
+.ktop{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 14px;margin-bottom:6px}
+.kclock{font-family:'Secular One',sans-serif;font-size:clamp(1.1rem,4.5vw,1.6rem);color:var(--ink)}
+.kgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin:12px 0 24px}
+.kperson{display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-height:84px;padding:14px;border:2px solid var(--line);background:#fff;border-radius:14px;text-align:right}
+.kperson b{font-size:1.15rem}
+.kperson span{font-size:.85rem;color:var(--muted)}
+.kperson.on{border-color:var(--ok);background:#EEF8F3}
+.kperson.on span{color:var(--ok);font-weight:500}
+.kwarn{color:var(--warn);font-weight:500;margin:14px 0 0}
+.pe-row{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:6px 8px;margin:12px 0}
+.pe-row .pe-l{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:0 8px;align-items:baseline;font-weight:500}
+.pe-row .pe-l small{font-weight:400;color:var(--muted);font-size:.8rem}
+.pe-row input{width:100%;min-width:0;box-sizing:border-box}
+.kdev{margin:-2px 0 8px;font-weight:500;color:var(--muted)}
+.kfoot{text-align:center;padding-bottom:30px}
+.kbtn{width:100%;padding:14px;font-size:1.1rem}
+.kdone{text-align:center;padding:30px 18px}
+.kdone .kbig{font-family:'Secular One',sans-serif;font-size:2rem;margin:0}
+.kdone p{font-size:1.2rem;margin:6px 0}
+.tag.bad{background:#FDEDE4;color:var(--warn)}
+#install{padding-top:10px;padding-bottom:0}
+.inst{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.inst img{width:42px;height:42px;border-radius:10px;flex:none}
+.inst .it{flex:1;min-width:0}
+.inst .it b{display:block}
+.inst .it span{font-size:.88rem;color:var(--muted)}
+.inst .ib{display:flex;flex-direction:column;gap:6px;flex:none}
+.inst svg{vertical-align:-3px}
+#toast{position:fixed;left:50%;bottom:92px;transform:translateX(-50%);background:var(--ink);color:#fff;
+  padding:10px 16px;border-radius:10px;font-size:.92rem;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90vw;z-index:20}
+#toast.show{opacity:1}
+
+@media (prefers-reduced-motion:reduce){ *{transition:none!important} }
+@media print{
+  body{background:#fff}
+  .tabs,.toolbar,.weeknav .iconbtn,.savebar,.who,.demo,.hint,.noprint{display:none!important}
+  .grid{overflow:visible}
+}
+</style>
+</head>
+<body>
+<div class="wrap" id="install" hidden></div>
+<div class="wrap" id="app"></div>
+<dialog id="sheet"></dialog>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script type="module">
+/* ===== פרטי Firebase. אם apiKey ריק, האפליקציה רצה במצב הדגמה ===== */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCoNfZ33l3LxFApgRq0sTQt3gU-YDMlYRM",
+  authDomain: "mishmarot-83976.firebaseapp.com",
+  projectId: "mishmarot-83976",
+  storageBucket: "mishmarot-83976.firebasestorage.app",
+  messagingSenderId: "802595753105",
+  appId: "1:802595753105:web:87a979f151f647cb6f0330"
+};
+
+/* ===== ברירות מחדל. המנהל משנה הכול במסך ההגדרות ===== */
+const PALETTE = ['#E9A23B','#D6577A','#34478F','#2E8B7A','#7A5AC8','#C2662D','#4A90C2','#8A94A6'];
+/* מצבי זמינות: המנהל מגדיר אותם בהגדרות. המזהים של ברירת המחדל זהים לגרסאות הקודמות, כך שהגשות ישנות ממשיכות לעבוד */
+const LEVELS = [['high','עדיפות גבוהה'],['normal','רגיל'],['low','עדיפות נמוכה'],['never','לא לשבץ']];
+const LEVEL_RANK = { high:0, normal:1, low:2 };
+const STATE_PALETTE = ['#17855B','#2E8B7A','#4A90C2','#7A5AC8','#E9A23B','#C2662D','#D6577A','#8A94A6'];
+const DEFAULT_STATES = [
+  { id:'yes', name:'יכול', color:'#17855B', level:'normal' },
+  { id:'maybe', name:'מעדיף שלא', color:'#E9A23B', level:'low' },
+  { id:'no', name:'לא יכול', color:'#8A94A6', level:'never' },
+];
+const UNSET_LABEL = 'לא סומן';
+const DEFAULT_SETTINGS = {
+  business: 'משמרות',
+  availStates: DEFAULT_STATES,
+  positions: [ { id:'waiter', name:'מלצר' }, { id:'cook', name:'טבח' } ],
+  shifts: [
+    { id:'morning', name:'בוקר', start:'07:00', end:'15:00', color:'#E9A23B', need:[2,2,2,2,2,2,2] },
+    { id:'evening', name:'ערב',  start:'15:00', end:'23:00', color:'#D6577A', need:[2,2,2,2,2,2,2] },
+    { id:'night',   name:'לילה', start:'23:00', end:'07:00', color:'#34478F', need:[1,1,1,1,1,1,1] },
+  ],
+  deadlineHours: 0,   // כמה שעות לפני תחילת השבוע נסגרת ההגשה. 0 = ללא
+  tzMin: 180,
+  minRest: 8,
+  onePerDay: true,
+  maxPerWeek: 6,
+};
+/* חשבונות של מכשירי שעון נוכחות מקבלים כתובת מומצאת בדומיין הזה. אף מייל לא נשלח אליה */
+const CLOCK_DOMAIN = 'clock.example.com';
+const DAYS = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+const DAYS_SHORT = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳'];
+
+/* ---------- utils ---------- */
+const randStr = n => Array.from(crypto.getRandomValues(new Uint8Array(n)), b => 'abcdefghijkmnpqrstuvwxyz23456789'[b % 32]).join('');
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const addDays = (d,n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
+const sundayOf = d => { const x = new Date(d); x.setHours(0,0,0,0); x.setDate(x.getDate()-x.getDay()); return x; };
+const weekId = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const fmt = d => `${d.getDate()}.${d.getMonth()+1}`;
+const hhmm = d => `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+const K = (d,id) => `${d}_${id}`;
+const toMin = t => { const [h,m] = String(t||'0:0').split(':').map(Number); return h*60+(m||0); };
+const onColor = hex => { const n = parseInt(hex.slice(1),16); const l = (0.299*(n>>16&255)+0.587*(n>>8&255)+0.114*(n&255))/255; return l > .6 ? '#1E2433' : '#fff'; };
+const byName = (a,b) => (a.name||'').localeCompare(b.name||'','he');
+const clone = o => JSON.parse(JSON.stringify(o));
+const val = id => document.getElementById(id)?.value.trim() || '';
+const newSettings = business => ({ ...clone(DEFAULT_SETTINGS), positions:[], viewsVersion:1, business, tzMin:-new Date().getTimezoneOffset(), appUrl:location.origin + location.pathname });
+const genCode = () => String(100000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 900000));
+const store = { get(k){ try{ return localStorage.getItem(k) || ''; }catch{ return ''; } }, set(k,v){ try{ localStorage.setItem(k,v); }catch{} } };
+const genPw = () => Array.from({length:8}, () => 'abcdefghjkmnpqrstuvwxyz23456789'[Math.floor(Math.random()*31)]).join('');
+const waPhone = p => { let d = String(p||'').replace(/\D/g,''); if (d.startsWith('0')) d = '972'+d.slice(1); return d; };
+
+let toastT;
+function toast(msg){ const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2800); }
+function errMsg(e){
+  const c = e?.code || '';
+  if (/invalid-credential|wrong-password|user-not-found/.test(c)) return 'האימייל או הסיסמה שגויים';
+  if (c.includes('email-already-in-use')) return 'כבר קיים משתמש עם האימייל הזה';
+  if (c.includes('weak-password')) return 'הסיסמה צריכה לכלול לפחות 6 תווים';
+  if (c.includes('invalid-email')) return 'כתובת האימייל לא תקינה';
+  if (c.includes('too-many-requests')) return 'יותר מדי ניסיונות. נסה שוב בעוד כמה דקות';
+  if (c === 'no-company') return 'החשבון הזה לא משויך לאף עסק. אפשר לפתוח חשבון עסק, או לבקש ממנהל להוסיף אותך';
+  if (c === 'inactive') return 'החשבון שלך לא פעיל באף עסק. פנה למנהל';
+  if (c === 'not-manager') return 'רק מנהל של העסק הזה יכול להוציא את המכשיר ממצב שעון נוכחות';
+  if (c === 'clock-off') return 'המכשיר הזה כבר לא שעון נוכחות. אפשר להיכנס עם החשבון שלך';
+  if (c === 'inactive-here') return 'החשבון שלך לא פעיל בעסק הזה. פנה למנהל';
+  if (c === 'legacy-wait') return 'המערכת עודכנה. בקש מבעל העסק להיכנס פעם אחת, ואז נסה שוב';
+  if (c === 'exists-wrong-pw') return 'האימייל הזה כבר רשום. כדי לפתוח איתו עסק, הקלד את הסיסמה שלו';
+  if (c === 'already-member') return 'העובד הזה כבר נמצא ברשימת העובדים של העסק';
+  if (c === 'needs-login') return 'האימייל הזה רשום, אבל העובד צריך להיכנס למערכת פעם אחת לפני שאפשר לצרף אותו';
+  if (c.includes('permission-denied')) return 'אין הרשאה לפעולה הזו';
+  return e?.message || 'משהו השתבש, נסה שוב';
+}
+async function copyText(t){
+  try { await navigator.clipboard.writeText(t); toast('הועתק'); }
+  catch { prompt('העתק את הטקסט:', t); }
+}
+
+/* ---------- backend: demo ---------- */
+function demoBackend(){
+  const accounts = {
+    m1:{ name:'דנה', email:'dana@demo' }, m2:{ name:'אורי', email:'ori@demo' },
+    e1:{ name:'יוסי', email:'yossi@demo' }, e2:{ name:'מיכל', email:'michal@demo' },
+    e3:{ name:'אבי', email:'avi@demo' }, e4:{ name:'נועה', email:'noa@demo' },
+    e5:{ name:'רון', email:'ron@demo' }, e6:{ name:'שירה', email:'shira@demo' },
+    g1:{ name:'גלעד', email:'gilad@demo' },
+  };
+  const mem = (uid, role, positions, extra = {}) => ({ name:accounts[uid].name, email:accounts[uid].email, role, positions, active:true, ...extra });
+  const A_ = '123456', B_ = '654321';
+  const s1 = { ...clone(DEFAULT_SETTINGS), business:'מסעדת הדגמה' };
+  s1.shifts.push({ id:'prep', name:'הכנות', start:'10:00', end:'16:00', color:'#2E8B7A', need:[1,1,1,1,1,0,0], positions:['cook'] });
+  const s2 = { ...clone(DEFAULT_SETTINGS), business:'בית קפה הנמל' };
+  s2.shifts = [
+    { id:'open', name:'פתיחה', start:'06:30', end:'14:00', color:'#C2662D', need:[1,1,1,1,1,2,2], positions:[] },
+    { id:'close', name:'סגירה', start:'14:00', end:'21:00', color:'#7A5AC8', need:[1,1,1,1,1,2,0], positions:[] },
+  ];
+  const companies = {
+    [A_]: { ownerUid:'m1', settings:s1, weeks:{}, subs:{}, members:{
+      m1:mem('m1','owner',[]), m2:mem('m2','manager',['cook']),
+      e1:mem('e1','employee',['waiter'],{ phone:'0501234567' }), e2:mem('e2','employee',['waiter','cook']),
+      e3:mem('e3','employee',['cook'],{ maxShifts:3 }), e4:mem('e4','employee',['waiter']),
+      e5:mem('e5','employee',['cook']), e6:mem('e6','employee',['waiter']) } },
+    [B_]: { ownerUid:'g1', settings:s2, weeks:{}, subs:{}, members:{
+      g1:mem('g1','owner',[]), e1:mem('e1','employee',['waiter']), e4:mem('e4','manager',['waiter']) } },
+  };
+  let seed = 7; const rnd = () => (seed = (seed*16807) % 2147483647) / 2147483647;
+  const D = companies[A_], next = weekId(addDays(sundayOf(new Date()),7));
+  D.subs[next] = {};
+  ['e2','e3','e4','e5','e6'].forEach(uid => {
+    const avail = {};
+    DAYS.forEach((_,d) => s1.shifts.forEach(s => {
+      const r = rnd(), k = K(d,s.id);
+      if (r<.55) avail[k]='yes'; else if (r<.68) avail[k]='maybe'; else if (r<.9) avail[k]='no';
+    }));
+    D.subs[next][uid] = { avail, note: uid==='e3' ? 'בחמישי יש לי מבחן' : '' };
+  });
+  const ppl = ['e1','e2','e3','e4','e5','e6'];
+  for (let back = 0; back < 6; back++) {
+    const ws = addDays(sundayOf(new Date()), -7*back), a = {};
+    DAYS.forEach((_,d) => DEFAULT_SETTINGS.shifts.forEach(s => { a[K(d,s.id)] = [...ppl].sort(() => rnd()-.5).slice(0, s.need[d]); }));
+    D.weeks[weekId(ws)] = { published:true, assignments:a };
+  }
+  let current = null, cid = null; const ls = []; const emit = () => ls.forEach(f => f(current));
+  const C = () => companies[cid];
+  const newUid = () => 'u'+Math.random().toString(36).slice(2,8);
+  function createCompany({ restaurant, name, settings }){
+    let code; do { code = genCode(); } while (companies[code]);
+    const acc = accounts[current.uid];
+    companies[code] = { ownerUid:current.uid, settings:clone(settings), weeks:{}, subs:{},
+      members:{ [current.uid]:{ name, email:acc.email, role:'owner', positions:[], active:true } } };
+    return code;
+  }
+  return {
+    demo:true, accounts, companies,
+    companiesOf(uid){ return Object.entries(companies).filter(([,c]) => c.members[uid]).map(([c,x]) => x.settings.business); },
+    onAuth(cb){ ls.push(cb); cb(current); },
+    setCompany(c){ cid = c; },
+    async signIn(uid){ current = { uid, email:accounts[uid].email }; emit(); },
+    async signOut(){ current = null; cid = null; emit(); },
+    async sendReset(){ },
+    async ensureEmailIndex(){ },
+    async migrateLegacy(){ return { list:[] }; },
+    async signUp({ restaurant, name, email, settings }){
+      let uid = Object.keys(accounts).find(u => accounts[u].email === email);
+      if (!uid) { uid = newUid(); accounts[uid] = { name, email }; }
+      current = { uid, email };
+      return { uid, code:createCompany({ restaurant, name, settings }) };
+    },
+    async createCompany(args){ return createCompany(args); },
+    async myCompanies(){ return Object.entries(companies).filter(([,c]) => c.members[current.uid]).map(([c,x]) => ({ cid:c, name:x.settings.business, active:x.members[current.uid].active !== false, role:x.members[current.uid].role })); },
+    async companyName(c){ return companies[c]?.settings.business || null; },
+    async getMember(uid){ return C().members[uid] ? clone(C().members[uid]) : null; },
+    async getCompany(){ return { ownerUid:C().ownerUid, name:C().name }; },
+    async setCompanyName(n){ C().name = n; },
+    async renameInLists(){ },
+    async fixMyListName(){ },
+    async listUsers(){ return Object.entries(C().members).map(([uid,u]) => ({ uid, ...clone(u) })); },
+    async addUser(data){
+      const { password, ...doc } = data;
+      let uid = Object.keys(accounts).find(u => accounts[u].email === doc.email), existing = !!uid;
+      if (uid && C().members[uid]) throw { code:'already-member' };
+      if (!uid) { uid = newUid(); accounts[uid] = { name:doc.name, email:doc.email }; }
+      C().members[uid] = { ...clone(doc), active:true };
+      return { uid, existing };
+    },
+    async updateUser(uid,data){ C().members[uid] = { ...C().members[uid], ...clone(data) }; },
+    async transferOwnership(nu){ const me = current.uid; C().ownerUid = nu; C().members[nu].role = 'owner'; C().members[me].role = 'manager'; },
+    async getSettings(){ return C().settings ? clone(C().settings) : null; },
+    async saveSettings(s){ C().settings = clone(s); },
+    async getWeek(id){ return clone(C().weeks[id] || {}); },
+    async updateWeek(id,data){ C().weeks[id] = { ...(C().weeks[id]||{}), ...clone(data) }; },
+    async getSubmission(w,uid){ return C().subs[w]?.[uid] ? clone(C().subs[w][uid]) : null; },
+    async saveSubmission(w,uid,data){ (C().subs[w] ??= {})[uid] = clone(data); },
+    async listSubmissions(w){ return clone(C().subs[w] || {}); },
+    async listWeeks(){ return Object.entries(C().weeks).map(([id,w]) => ({ id, ...clone(w) })); },
+    async getWeekStatus(w){ return clone((C().status ??= {})[w] || {}); },
+    async setWeekStatus(w,data){ (C().status ??= {})[w] = { ...((C().status)[w] || {}), ...clone(data) }; },
+    async getMyView(w,uid){ return clone((C().views ??= {})[uid]?.[w] || null); },
+    async listMySchedule(uid){ return Object.entries((C().views ??= {})[uid] || {}).map(([id,v]) => ({ id, ...clone(v) })); },
+    async writeViews(w, map){ const V = (C().views ??= {}); for (const [uid,v] of Object.entries(map)) (V[uid] ??= {})[w] = clone(v); },
+    // שעון נוכחות (בהדגמה כל סיסמה שאינה ריקה נחשבת נכונה)
+    async verifyEmployee(email, pw){ if (!pw) throw { code:'auth/invalid-credential' }; const u = Object.keys(accounts).find(x => accounts[x].email === email); if (!u) throw { code:'auth/invalid-credential' }; return u; },
+    async createClock(name){
+      const uid = newUid(), email = `clock-${uid}@${CLOCK_DOMAIN}`;
+      accounts[uid] = { name:'שעון: ' + name, email };
+      C().members[uid] = { name, role:'kiosk', active:true, joinedAt:new Date() };
+      return { uid, email, pw:'' };
+    },
+    async getClockList(){ return clone(C().clock || null); },
+    async exitClock(email, pw){
+      const uid = Object.keys(accounts).find(u => accounts[u].email === email), m = uid && C().members[uid];
+      if (!pw || !uid) throw { code:'auth/invalid-credential' };
+      if (!m || m.active === false || !['manager','owner'].includes(m.role)) throw { code:'not-manager' };
+      C().members[current.uid].active = false;
+      return uid;
+    },
+    async setClockList(d){ C().clock = clone(d); },
+    async addPunch(uid, type){ (C().punches ??= []).push({ id:newUid(), uid, type, at:new Date(), by:current.uid }); },
+    async listPunches(from, to){ return (C().punches || []).filter(p => !p.void && p.at >= from && (!to || p.at < to)).map(p => ({ ...p })).sort((a,b) => a.at - b.at); },
+    async addManualPunch(uid, type, at){ (C().punches ??= []).push({ id:newUid(), uid, type, at, by:current.uid, manual:true, createdAt:new Date() }); },
+    async editPunch(p, at){ const x = C().punches.find(q => q.id === p.id); x.origAt ??= x.at; Object.assign(x, { at, editedBy:current.uid, editedAt:new Date() }); },
+    async voidPunch(p){ const x = C().punches.find(q => q.id === p.id); x.origAt ??= x.at; Object.assign(x, { void:true, editedBy:current.uid, editedAt:new Date() }); },
+  };
+}
+
+/* ---------- backend: Firebase ---------- */
+/* מבנה הנתונים:
+   companies/{מזהה}                  העסק (ownerUid = הבעלים)
+   companies/{מזהה}/members/{uid}    העובד בעסק הזה: שם, הרשאה, תפקידים, פעיל
+   companies/{מזהה}/settings, weeks  ההגדרות והסידורים של העסק
+   users/{uid}/companies/{מזהה}      רשימת העסקים של כל חשבון
+   emails/{אימייל}                   מאיזה אימייל לאיזה חשבון, כדי לצרף עובד קיים */
+async function firebaseBackend(cfg){
+  const base = 'https://www.gstatic.com/firebasejs/10.12.2/';
+  const AppM = await import(base+'firebase-app.js');
+  const A = await import(base+'firebase-auth.js');
+  const F = await import(base+'firebase-firestore.js');
+  const app = AppM.initializeApp(cfg), auth = A.getAuth(app), db = F.getFirestore(app);
+  auth.languageCode = 'he';
+  const snap = s => s.exists() ? s.data() : null;
+  const now = () => F.serverTimestamp();
+  let cid = null;
+  const cdoc = (...p) => F.doc(db, 'companies', cid, ...p);
+  const ccol = (...p) => F.collection(db, 'companies', cid, ...p);
+  const memberRef = (c, u) => F.doc(db, 'companies', c, 'members', u);
+  const indexRef = (u, c) => F.doc(db, 'users', u, 'companies', c);
+  // אפליקציה משנית ליצירת חשבונות, כדי שהמנהל לא יתנתק. היא מחוברת לרגע כעובד החדש
+  let creator = null;
+  async function getCreator(){
+    if (creator) return creator;
+    const sec = AppM.initializeApp(cfg, 'creator');
+    const ca = A.getAuth(sec);
+    await A.setPersistence(ca, A.inMemoryPersistence);
+    return creator = { auth:ca, db:F.getFirestore(sec) };
+  }
+  async function ensureEmailIndex(){
+    const u = auth.currentUser; if (!u?.email) return;
+    if (u.email.toLowerCase().endsWith('@' + CLOCK_DOMAIN)) return;   // חשבון של שעון נוכחות לא נרשם ברשימת האימיילים
+    const e = u.email.toLowerCase(), r = F.doc(db, 'emails', e);
+    const s = snap(await F.getDoc(r));
+    if (s?.uid !== u.uid) await F.setDoc(r, { uid:u.uid });
+  }
+  async function createCompany({ restaurant, name, settings }){
+    const u = auth.currentUser;
+    let code = null;
+    for (let i = 0; i < 10 && !code; i++) {
+      const c = genCode();
+      try { await F.setDoc(F.doc(db,'companies',c), { name:restaurant, ownerUid:u.uid, createdAt:now() }); code = c; }
+      catch(e){ if (!String(e?.code).includes('permission-denied')) throw e; }  // המספר תפוס, מגרילים שוב
+    }
+    if (!code) throw new Error('לא הצלחנו לפתוח את העסק, נסה שוב');
+    await F.setDoc(memberRef(code, u.uid), { name, email:(u.email||'').toLowerCase(), role:'owner', positions:[], active:true, joinedAt:now() });
+    await F.setDoc(indexRef(u.uid, code), { name:restaurant, joinedAt:now() });
+    await F.setDoc(F.doc(db,'companies',code,'settings','main'), settings);
+    return code;
+  }
+  return {
+    demo:false,
+    onAuth(cb){ A.onAuthStateChanged(auth, u => cb(u ? { uid:u.uid, email:u.email } : null)); },
+    setCompany(c){ cid = c; },
+    async signIn(email,pw){ await A.signInWithEmailAndPassword(auth,email,pw); },
+    async signOut(){ cid = null; await A.signOut(auth); },
+    async sendReset(email){ await A.sendPasswordResetEmail(auth,email); },
+    ensureEmailIndex,
+    async signUp({ restaurant, name, email, password, settings }){
+      let cred, isNew = true;
+      try { cred = await A.createUserWithEmailAndPassword(auth, email, password); }
+      catch(e){
+        if (!String(e?.code).includes('email-already-in-use')) throw e;
+        // כבר יש חשבון (למשל עובד בעסק אחר): פותחים לו עסק נוסף
+        try { cred = await A.signInWithEmailAndPassword(auth, email, password); } catch { throw { code:'exists-wrong-pw' }; }
+        isNew = false;
+      }
+      try{
+        await ensureEmailIndex().catch(() => {});
+        return { uid:cred.user.uid, code:await createCompany({ restaurant, name, settings }) };
+      }catch(e){
+        if (isNew) await A.deleteUser(cred.user).catch(() => {}); else await A.signOut(auth);
+        throw e;
+      }
+    },
+    createCompany,
+    // כל העסקים של החשבון, ולכל אחד אם המשתמש עדיין פעיל בו (כל משתמש יכול לקרוא את הכרטיס של עצמו)
+    async myCompanies(){
+      const me = auth.currentUser.uid;
+      const q = await F.getDocs(F.collection(db, 'users', me, 'companies'));
+      return Promise.all(q.docs.map(async d => {
+        let m = null; try { m = snap(await F.getDoc(memberRef(d.id, me))); } catch {}
+        return { cid:d.id, name:d.data().name || '', active:!!m && m.active !== false, role:m?.role };
+      }));
+    },
+    async companyName(c){ try { return snap(await F.getDoc(F.doc(db,'companies',c,'settings','main')))?.business || null; } catch { return null; } },
+    async getMember(uid){ return snap(await F.getDoc(memberRef(cid, uid))); },
+    async getCompany(){ return snap(await F.getDoc(F.doc(db,'companies',cid))); },
+    // שם העסק בפרטי החברה, כדי שיתאים לשם בהגדרות
+    async setCompanyName(n){ await F.setDoc(F.doc(db,'companies',cid), { name:n }, { merge:true }); },
+    // השם החדש גם ברשימת העסקים של כל עובד בעסק (users/{uid}/companies/{עסק})
+    async renameInLists(uids, n){
+      for (let i = 0; i < uids.length; i += 400) {
+        const b = F.writeBatch(db);
+        uids.slice(i, i + 400).forEach(u => b.set(indexRef(u, cid), { name:n }, { merge:true }));
+        await b.commit();
+      }
+    },
+    // תיקון של השם ברשימה שלי, אם השתנה לפני העדכון הזה
+    async fixMyListName(c, n){ await F.updateDoc(indexRef(auth.currentUser.uid, c), { name:n }); },
+    async listUsers(){ const q = await F.getDocs(ccol('members')); return q.docs.map(d => ({ uid:d.id, ...d.data() })); },
+    async addUser(data, companyName){
+      const { password, ...doc } = data;
+      let uid, existing = false;
+      const cr = await getCreator();
+      try {
+        const cred = await A.createUserWithEmailAndPassword(cr.auth, doc.email, password);
+        uid = cred.user.uid;
+        await F.setDoc(F.doc(cr.db, 'emails', doc.email), { uid }).catch(e => console.warn(e));
+        await A.signOut(cr.auth);
+      } catch(e){
+        if (!String(e?.code).includes('email-already-in-use')) throw e;
+        // החשבון כבר קיים: מצרפים אותו לעסק, והסיסמה שלו לא משתנה
+        const m = snap(await F.getDoc(F.doc(db, 'emails', doc.email)));
+        if (!m?.uid) throw { code:'needs-login' };
+        uid = m.uid; existing = true;
+      }
+      if (snap(await F.getDoc(memberRef(cid, uid)))) throw { code:'already-member' };
+      const b = F.writeBatch(db);
+      b.set(memberRef(cid, uid), { ...doc, active:true, joinedAt:now() });
+      b.set(indexRef(uid, cid), { name:companyName || '', joinedAt:now() });
+      await b.commit();
+      return { uid, existing };
+    },
+    async updateUser(uid,data){ await F.setDoc(memberRef(cid, uid), data, { merge:true }); },
+    // שלושת השינויים נשמרים יחד או לא נשמרים בכלל, כך שתמיד יש בעלים אחד
+    async transferOwnership(newUid){
+      const b = F.writeBatch(db);
+      b.update(F.doc(db,'companies',cid), { ownerUid:newUid });
+      b.update(memberRef(cid, newUid), { role:'owner' });
+      b.update(memberRef(cid, auth.currentUser.uid), { role:'manager' });
+      await b.commit();
+    },
+    // העברה חד-פעמית מהגרסה הקודמת, שבה כל משתמש היה שייך לעסק אחד (users/{uid}.companyId)
+    async migrateLegacy(){
+      const me = auth.currentUser;
+      let p = null; try { p = snap(await F.getDoc(F.doc(db,'users',me.uid))); } catch {}
+      if (!p?.companyId) return { list:[] };
+      const c = p.companyId;
+      try {
+        await F.setDoc(memberRef(c, me.uid), { name:p.name || '', email:(p.email || me.email || '').toLowerCase(), phone:p.phone || '',
+          role:'owner', positions:p.positions || [], maxShifts:p.maxShifts ?? null, active:true, joinedAt:now() });
+      } catch { return { list:[], legacy:true }; }   // רק הבעלים מעביר את העסק
+      const name = snap(await F.getDoc(F.doc(db,'companies',c,'settings','main')))?.business || '';
+      await F.setDoc(indexRef(me.uid, c), { name, joinedAt:now() });
+      const q = await F.getDocs(F.query(F.collection(db,'users'), F.where('companyId','==',c)));
+      const b = F.writeBatch(db); let n = 0;
+      q.docs.forEach(d => {
+        if (d.id === me.uid) return;
+        const u = d.data();
+        b.set(memberRef(c, d.id), { name:u.name || '', email:(u.email || '').toLowerCase(), phone:u.phone || '',
+          role:u.role === 'manager' ? 'manager' : 'employee', positions:u.positions || [], maxShifts:u.maxShifts ?? null,
+          active:u.active !== false, joinedAt:now() });
+        b.set(indexRef(d.id, c), { name, joinedAt:now() });
+        n++;
+      });
+      if (n) await b.commit();
+      return { list:[{ cid:c, name }] };
+    },
+    async getSettings(){ return snap(await F.getDoc(cdoc('settings','main'))); },
+    async saveSettings(s){ await F.setDoc(cdoc('settings','main'), s); },
+    async getWeek(id){ return snap(await F.getDoc(cdoc('weeks',id))) || {}; },
+    async updateWeek(id,data){ await F.setDoc(cdoc('weeks',id), data, { mergeFields:Object.keys(data) }); },
+    async getSubmission(w,uid){ return snap(await F.getDoc(cdoc('weeks',w,'submissions',uid))); },
+    async saveSubmission(w,uid,data){ await F.setDoc(cdoc('weeks',w,'submissions',uid), { ...data, updatedAt:now() }); },
+    async listSubmissions(w){
+      const q = await F.getDocs(ccol('weeks',w,'submissions'));
+      const o = {}; q.docs.forEach(d => o[d.id] = d.data()); return o;
+    },
+    async listWeeks(){ const q = await F.getDocs(ccol('weeks')); return q.docs.map(d => ({ id:d.id, ...d.data() })); },
+    // מה שעובדים רואים: סטטוס השבוע (סגור להגשה או לא), ועותק אישי של הסידור עם המשמרות שמותר להם לראות
+    async getWeekStatus(w){ return snap(await F.getDoc(cdoc('weeks',w,'status','main'))) || {}; },
+    async setWeekStatus(w,data){ await F.setDoc(cdoc('weeks',w,'status','main'), data, { merge:true }); },
+    async getMyView(w,uid){ return snap(await F.getDoc(cdoc('members',uid,'schedule',w))); },
+    async listMySchedule(uid){ const q = await F.getDocs(ccol('members',uid,'schedule')); return q.docs.map(d => ({ id:d.id, ...d.data() })); },
+    // ===== שעון נוכחות =====
+    // בדיקת הסיסמה של העובד באפליקציה המשנית, בלי לנתק את המנהל שמחובר במכשיר
+    async verifyEmployee(email, pw){
+      const cr = await getCreator();
+      const cred = await A.signInWithEmailAndPassword(cr.auth, email, pw);
+      const uid = cred.user.uid;
+      await A.signOut(cr.auth);
+      return uid;
+    },
+    // חשבון חדש למכשיר שעון: כתובת וסיסמה אקראיות שאף אחד לא צריך לדעת.
+    // נוצר באפליקציה המשנית, כך שהמנהל עוד מחובר כשהוא רושם את המכשיר בעסק
+    async createClock(name, business){
+      const cr = await getCreator();
+      const email = `clock-${randStr(20)}@${CLOCK_DOMAIN}`, pw = randStr(32);
+      const cred = await A.createUserWithEmailAndPassword(cr.auth, email, pw);
+      const uid = cred.user.uid;
+      await A.signOut(cr.auth);
+      const b = F.writeBatch(db);
+      b.set(memberRef(cid, uid), { name, role:'kiosk', active:true, joinedAt:now(), createdBy:auth.currentUser.uid });
+      b.set(indexRef(uid, cid), { name:business || '', joinedAt:now() });
+      await b.commit();
+      return { uid, email, pw };
+    },
+    // הרשימה שמכשיר השעון רואה: שם העסק, ולכל עובד פעיל שם ואימייל בלבד
+    async getClockList(){ return snap(await F.getDoc(cdoc('clock','list'))); },
+    // יציאה ממצב שעון: מנהל של העסק מתחבר באפליקציה המשנית, והוא (לא המכשיר) משבית את המכשיר
+    async exitClock(email, pw){
+      const clockUid = auth.currentUser.uid, cr = await getCreator();
+      const cred = await A.signInWithEmailAndPassword(cr.auth, email, pw);
+      try {
+        const m = snap(await F.getDoc(F.doc(cr.db, 'companies', cid, 'members', cred.user.uid)));
+        if (!m || m.active === false || !['manager','owner'].includes(m.role)) throw { code:'not-manager' };
+        await F.updateDoc(F.doc(cr.db, 'companies', cid, 'members', clockUid), { active:false });
+        return cred.user.uid;
+      } finally { await A.signOut(cr.auth); }
+    },
+    async setClockList(d){ await F.setDoc(cdoc('clock','list'), d); },
+    // השעה נקבעת בשרת, לא בשעון של המכשיר
+    async addPunch(uid, type){ await F.addDoc(ccol('attendance'), { uid, type, at:F.serverTimestamp(), by:auth.currentUser.uid }); },
+    async listPunches(from, to){
+      const parts = [F.where('at', '>=', F.Timestamp.fromDate(from))];
+      if (to) parts.push(F.where('at', '<', F.Timestamp.fromDate(to)));
+      const q = await F.getDocs(F.query(ccol('attendance'), ...parts, F.orderBy('at')));
+      // _ts ו-_ots: חותמות הזמן המקוריות בדיוק מלא, כדי שהשרת יוכל לוודא שהשעה המקורית נשמרה כמו שהיא
+      return q.docs.map(d => { const x = d.data(); return { id:d.id, ...x, at:x.at?.toDate?.() || new Date(), origAt:x.origAt?.toDate?.(), _ts:x.at, _ots:x.origAt }; })
+        .filter(p => !p.void);   // החתמה שהמנהל ביטל לא נספרת בשום מקום
+    },
+    // תיקונים של מנהל: החתמה ידנית מסומנת manual, ובעריכה או ביטול השעה המקורית נשמרת ב-origAt
+    async addManualPunch(uid, type, at){
+      await F.addDoc(ccol('attendance'), { uid, type, at:F.Timestamp.fromDate(at), by:auth.currentUser.uid, manual:true, createdAt:now() });
+    },
+    async editPunch(p, at){
+      await F.updateDoc(cdoc('attendance', p.id), { at:F.Timestamp.fromDate(at), origAt:p._ots || p._ts, editedBy:auth.currentUser.uid, editedAt:now() });
+    },
+    async voidPunch(p){
+      await F.updateDoc(cdoc('attendance', p.id), { void:true, origAt:p._ots || p._ts, editedBy:auth.currentUser.uid, editedAt:now() });
+    },
+    async writeViews(w, map){
+      const entries = Object.entries(map);
+      for (let i = 0; i < entries.length; i += 400) {
+        const b = F.writeBatch(db);
+        entries.slice(i, i + 400).forEach(([uid,v]) => b.set(cdoc('members',uid,'schedule',w), v));
+        await b.commit();
+      }
+    },
+  };
+}
+
+/* ---------- state ---------- */
+const S = {
+  ready:false, user:null, profile:null, cid:null, companies:[], sheetMode:null, authMode: location.hash === '#signup' ? 'signup' : 'login', freshLogin:false, picking:false, pickNew:false, signingUp:false, users:[], settings:clone(DEFAULT_SETTINGS), view:null,
+  weekStart: addDays(sundayOf(new Date()),7),
+  week:{}, mySub:null, draft:{}, note:'', dirty:false, subs:{}, msgDraft:'',
+  sDraft:null, sDirty:false, uDraft:null, editUid:null, created:null,
+  loading:false, openKey:null,
+  rep:'month', repUid:null, allWeeks:null, repMode:'plan', actual:null,
+  kiosk:{ punches:[], q:'', sel:null, busy:false, done:null, off:null }, clocks:[], clockSig:null,
+};
+const ST = () => S.settings;
+const states = () => ST().availStates;
+const stateOf = v => states().find(x => x.id === v) || null;           // מצב שנמחק או לא מוכר = לא סומן
+const stateName = v => stateOf(v)?.name || UNSET_LABEL;
+const assignable = v => { const st = stateOf(v); return !!st && st.level !== 'never'; };
+const rankOf = v => LEVEL_RANK[stateOf(v)?.level] ?? 9;
+const MGR_ROLES = ['manager','owner'];
+const ROLE_LABEL = { owner:'בעלים', manager:'מנהל', employee:'עובד', kiosk:'שעון נוכחות' };
+const isMgrRole = r => MGR_ROLES.includes(r);
+const isMgr = () => isMgrRole(S.profile?.role);
+const positions = () => ST().positions || [];
+const posName = id => positions().find(p => p.id === id)?.name;
+const userPos = u => (u?.positions || []).filter(posName);
+const myTitle = () => [S.profile?.role !== 'employee' ? ROLE_LABEL[S.profile?.role] : null, ...userPos(S.profile).map(posName)].filter(Boolean).join(', ');
+/* מי משתבץ: עובד רגיל תמיד, מנהל או בעלים רק אם יש לו תפקיד */
+const isWorker = u => !!u && u.active !== false && (u.role === 'employee' || userPos(u).length > 0 || !!u.works);
+/* האם המשמרת מתאימה לעובד: משמרת בלי תפקידים מתאימה לכולם */
+/* בסידור שפורסם: מנהלים רואים הכול. עובד רואה משמרות כלליות, משמרות של התפקידים שלו,
+   משמרות של תפקידים שהמנהל התיר לתפקיד שלו לראות, ומשמרות שהוא משובץ בהן */
+function canSee(u, s){
+  if (isMgrRole(u?.role)) return true;
+  const need = (s?.positions || []).filter(posName);
+  if (!need.length) return true;
+  const allowed = new Set();
+  userPos(u).forEach(id => { allowed.add(id); (positions().find(p => p.id === id)?.sees || []).forEach(x => allowed.add(x)); });
+  return need.some(id => allowed.has(id));
+}
+const canWork = (u, s) => { const need = (s?.positions || []).filter(posName); return !need.length || userPos(u).some(p => need.includes(p)); };
+const members = () => S.users.filter(u => u.active !== false);
+const workers = () => members().filter(isWorker).sort(byName);
+const nameOf = uid => S.users.find(u => u.uid===uid)?.name || 'לא ידוע';
+const shiftById = id => ST().shifts.find(s => s.id === id);
+const needAt = (s,d) => Math.max(0, parseInt(s?.need?.[d]) || 0);
+const shiftsOn = d => ST().shifts.filter(s => needAt(s,d) > 0);
+const keys = () => DAYS.flatMap((_,d) => shiftsOn(d).map(s => K(d,s.id)));
+const needOf = k => { const [d,id] = k.split('_'); return needAt(shiftById(id), +d); };
+const hrs = s => `${s.start}–${s.end}`;
+const ltr = t => `<bdi dir="ltr">${t}</bdi>`;
+const wid = () => weekId(S.weekStart);
+const asg = () => {
+  const src = S.week.assignments || {}, a = {};
+  keys().forEach(k => a[k] = (src[k] || []).filter(uid => S.users.some(u => u.uid === uid)));
+  return a;
+};
+const emptyAsg = () => Object.fromEntries(keys().map(k => [k, []]));
+function normSettings(x){
+  const s = { ...clone(DEFAULT_SETTINGS), ...(x || {}) };
+  s.positions = (s.positions || []).filter(p => p && p.id);
+  s.availStates = (Array.isArray(s.availStates) ? s.availStates : []).filter(x => x && x.id && x.name && LEVELS.some(([l]) => l === x.level));
+  if (s.availStates.length < 2) s.availStates = clone(DEFAULT_STATES);
+  s.shifts = (s.shifts || []).map(sh => ({ ...sh, positions:(sh.positions || []).filter(id => s.positions.some(p => p.id === id)), need: Array.from({length:7}, (_,d) => needAt(sh,d)) }));
+  return s;
+}
+function deadline(){
+  const H = parseInt(ST().deadlineHours) || 0; if (!H) return null;
+  const w = S.weekStart;
+  return new Date(Date.UTC(w.getFullYear(), w.getMonth(), w.getDate()) - (parseInt(ST().tzMin)||0)*60e3 - H*3600e3);
+}
+const fmtDl = d => `יום ${DAYS[d.getDay()]} ${fmt(d)} בשעה ${hhmm(d)}`;
+const submissionOpen = () => { const dl = deadline(); return !S.week.locked && (!dl || Date.now() < dl); };
+
+/* שיבוץ: מה מונע מעובד לקחת משמרת */
+function span(k){
+  const [d,id] = k.split('_'), s = shiftById(id);
+  const st = +d*1440 + toMin(s.start); let en = +d*1440 + toMin(s.end); if (en <= st) en += 1440;
+  return [st,en];
+}
+function conflicts(u,k,a){
+  const st = ST(), out = [], d = k.split('_')[0];
+  const mine = Object.keys(a).filter(x => x !== k && a[x].includes(u.uid));
+  if (st.onePerDay && mine.some(x => x.split('_')[0] === d)) out.push('day');
+  const rest = parseInt(st.minRest) || 0;
+  if (rest > 0) { const sp = span(k); if (mine.some(x => { const o = span(x); return Math.max(sp[0]-o[1], o[0]-sp[1]) < rest*60; })) out.push('rest'); }
+  const max = (u.maxShifts ?? '') !== '' ? +u.maxShifts : (parseInt(st.maxPerWeek) || 0);
+  if (max > 0 && mine.length >= max) out.push('max');
+  return out;
+}
+const WARN = { day:'כבר משובץ ביום הזה', rest:'לא מספיק מנוחה', max:'הגיע למקסימום' };
+
+function autoAssign(){
+  const E = workers(), ks = keys(), a = Object.fromEntries(ks.map(k => [k, []]));
+  const av = (uid,k) => S.subs[uid]?.avail?.[k];
+  const ok = assignable;
+  const supply = k => E.filter(u => canWork(u, shiftById(k.split('_')[1])) && ok(av(u.uid,k))).length / needOf(k);
+  const load = u => ks.filter(k => a[k].includes(u.uid)).length;
+  for (const k of [...ks].sort((x,y) => supply(x) - supply(y))) {          // קודם המשמרות שהכי קשה לאייש
+    E.filter(u => canWork(u, shiftById(k.split('_')[1])) && ok(av(u.uid,k)) && !conflicts(u,k,a).length)
+     .sort((x,y) => rankOf(av(x.uid,k)) - rankOf(av(y.uid,k)) || load(x) - load(y))
+     .slice(0, needOf(k)).forEach(u => a[k].push(u.uid));
+  }
+  return a;
+}
+function scheduleText(){
+  const a = asg();
+  let t = `*${ST().business}: סידור עבודה ${fmt(S.weekStart)}–${fmt(addDays(S.weekStart,6))}*\n`;
+  DAYS.forEach((dn,d) => {
+    const sh = shiftsOn(d); if (!sh.length) return;
+    t += `\n*${dn} ${fmt(addDays(S.weekStart,d))}*\n`;
+    sh.forEach(s => { const n = a[K(d,s.id)]; t += `${s.name} (${hrs(s)}): ${n.length ? n.map(nameOf).join(', ') : '—'}\n`; });
+  });
+  if (S.week.message) t += `\n${S.week.message}\n`;
+  return t;
+}
+
+let B;
+const $app = document.getElementById('app');
+const $sheet = document.getElementById('sheet');
+
+/* ---------- loading ---------- */
+async function loadWeek(){
+  S.loading = true; render();
+  try{
+    if (isMgr()) S.week = await B.getWeek(wid());
+    else {
+      const [st, v] = await Promise.all([B.getWeekStatus(wid()), B.getMyView(wid(), S.user.uid)]);
+      S.week = { ...st, ...(v?.published ? v : {}) };
+    }
+    S.msgDraft = S.week.message || '';
+    if (isMgr()) { S.subs = await B.listSubmissions(wid()); if (S.view === 'user') loadDraftFor(S.editUid); }
+    else {
+      S.mySub = await B.getSubmission(wid(), S.user.uid);
+      S.draft = { ...(S.mySub?.avail || {}) }; S.note = S.mySub?.note || ''; S.dirty = false;
+    }
+  }catch(e){ toast(errMsg(e)); }
+  S.loading = false; render();
+}
+function loadDraftFor(uid){ const s = S.subs[uid]; S.draft = { ...(s?.avail || {}) }; S.note = s?.note || ''; S.dirty = false; }
+async function afterLogin(){
+  const fresh = S.freshLogin; S.freshLogin = false;
+  B.ensureEmailIndex().catch(() => {});
+  let all = await B.myCompanies();
+  if (!all.length) {
+    const m = await B.migrateLegacy().catch(() => ({ list:[] }));
+    all = m.list.map(c => ({ ...c, active:true }));
+    if (!all.length) { toast(errMsg({ code: m.legacy ? 'legacy-wait' : 'no-company' })); await B.signOut(); return; }
+  }
+  // עסקים שבהם סימנו את המשתמש כלא פעיל לא מופיעים בכלל
+  const list = all.filter(c => c.active);
+  if (!list.length) { toast(errMsg({ code: all.some(c => c.role === 'kiosk') ? 'clock-off' : 'inactive' })); await B.signOut(); return; }
+  S.companies = list;
+  // אחרי כניסה עם סיסמה: מי שפעיל בכמה עסקים בוחר מהרשימה
+  if (fresh && list.length > 1) { S.picking = true; S.pickNew = false; render(); refreshNames(); return; }
+  // פתיחה רגילה: העסק האחרון במכשיר הזה, ואם הוא לא זמין, הבא בתור
+  const last = store.get('lastCompany:' + S.user.uid);
+  const order = [...list].sort((a,b) => (b.cid === last) - (a.cid === last));
+  for (const c of order) if (await enterCompany(c.cid)) return;
+  toast(errMsg({ code:'inactive' })); await B.signOut();
+}
+async function refreshNames(){
+  const listed = {};
+  try {
+    const fresh = await B.myCompanies(); fresh.forEach(c => listed[c.cid] = c.name);
+    S.companies = fresh.filter(c => c.active || c.cid === S.cid).map(c => ({ ...c, name:S.companies.find(x => x.cid === c.cid)?.name || c.name }));
+  } catch {}
+  await Promise.all(S.companies.map(async c => {
+    const n = await B.companyName(c.cid); if (!n) return;
+    c.name = n;
+    // השם ברשימה שלי ישן? מתקנים, כדי שבפעם הבאה יופיע נכון מההתחלה
+    if (c.cid in listed && listed[c.cid] !== n) B.fixMyListName(c.cid, n).catch(() => {});
+  }));
+  if (S.picking) render(); else if (S.sheetMode === 'switch') renderSwitch();
+}
+async function enterCompany(cid){
+  B.setCompany(cid);
+  let p = null; try { p = await B.getMember(S.user.uid); } catch {}
+  if (!p || p.active === false) { if (S.cid) B.setCompany(S.cid); return false; }
+  S.cid = cid; S.profile = { ...p, uid:S.user.uid };
+  if (p.role === 'kiosk') { await enterClock(); return true; }
+  store.set('lastCompany:' + S.user.uid, cid);
+  S.settings = normSettings(await B.getSettings());
+  const everyone = await B.listUsers();
+  S.users = everyone.filter(u => u.role !== 'kiosk');      // מכשירי שעון הם לא עובדים
+  S.clocks = everyone.filter(u => u.role === 'kiosk'); S.clockSig = null;
+  Object.assign(S, { subs:{}, week:{}, allWeeks:null, repUid:null, editUid:null, draft:{}, note:'', dirty:false, sDirty:false, mySub:null });
+  const c = S.companies.find(x => x.cid === cid); if (c) c.name = ST().business;
+  S.view = isMgr() ? 'manage' : 'submit';
+  if (isMgr()) syncClockList().catch(e => console.warn(e));
+  if (isMgr()) B.getCompany().then(c => { if (c && c.name !== ST().business) return B.setCompanyName(ST().business); }).catch(e => console.warn(e));
+  if (isMgr() && !ST().viewsVersion) {
+    resyncPublished(true).then(async () => {
+      const st = { ...clone(S.settings), viewsVersion:1 };
+      const status = (await B.listWeeks()).filter(w => w.locked);
+      for (const w of status) await B.setWeekStatus(w.id, { locked:true });
+      await B.saveSettings(st); S.settings = normSettings(st);
+    }).catch(e => console.warn(e));
+  }
+  await loadWeek();
+  return true;
+}
+
+/* מכשיר שעון: רואה רק את רשימת העובדים שהמנהל הכין לו ואת ההחתמות */
+async function enterClock(){
+  const cl = await B.getClockList().catch(() => null);
+  S.settings = normSettings({ business: cl?.business || '' });
+  S.users = (cl?.people || []).map(u => ({ ...u, active:true }));
+  S.view = 'kiosk'; S.kiosk.q = '';
+  await loadPunches();
+}
+/* המנהל מעדכן את הרשימה של מכשירי השעון אחרי כל שינוי בעובדים או בשם העסק */
+async function syncClockList(force = false){
+  if (!isMgr() || (!force && !S.clocks.some(c => c.active !== false))) return;
+  const people = members().filter(u => u.email).map(u => ({ uid:u.uid, name:u.name || '', email:(u.email || '').toLowerCase() }))
+    .sort((a,b) => a.uid < b.uid ? -1 : 1);
+  const data = { business:ST().business, people }, sig = JSON.stringify(data);
+  if (sig === S.clockSig) return;
+  await B.setClockList(data); S.clockSig = sig;
+}
+const isClock = () => S.profile?.role === 'kiosk';
+
+/* ---------- render ---------- */
+function render(){
+  renderInstall();
+  if (!S.ready) { $app.innerHTML = `<p class="loading">טוען…</p>`; return; }
+  if (S.user && S.picking) { $app.innerHTML = viewPicker(); return; }
+  if (S.user && S.profile && isClock()) { $app.innerHTML = viewKiosk(); return; }
+  if (!S.user || !S.profile) { $app.innerHTML = viewLogin(); return; }
+  const tabs = isMgr()
+    ? [['manage','שיבוץ'],['team','עובדים'],['reports','דוחות'],['settings','הגדרות']]
+    : [['submit','זמינות'],['mine','הסידור שלי'],['hours','שעות']];
+  const tabOf = { user:'team', newUser:'team' }[S.view] || S.view;  // newCompany: אף לשונית
+  const showWeek = !['settings','newUser','reports','hours','newCompany'].includes(S.view);
+  const views = { submit:viewSubmit, mine:viewMine, manage:viewManage, team:viewTeam, user:viewUser, newUser:viewNewUser, settings:viewSettings, hours:viewHours, reports:viewReports, newCompany:viewNewCompany };
+  const end = addDays(S.weekStart,6);
+  $app.innerHTML = `
+    ${B.demo ? `<div class="demo">מצב הדגמה: הנתונים נשמרים רק עד רענון הדף.</div>` : ''}
+    <header class="top">
+      <h1 class="brand"><button class="brandbtn" data-action="openSwitch" aria-label="${esc(ST().business)}: החלפת עסק">
+        <span class="bars" aria-hidden="true"><i></i><i></i><i></i></span><span class="bn">${esc(ST().business)}</span><span class="caret" aria-hidden="true">▾</span></button></h1>
+      <div class="who"><span class="me"><b>${esc(S.profile.name)}</b>${myTitle() ? `<small>${esc(myTitle())}</small>` : ''}</span><button class="iconbtn refresh" data-action="refresh" aria-label="רענון" title="רענון"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.34 5.66M20 4v7h-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="link" data-action="logout">יציאה</button></div>
+    </header>
+    <nav class="tabs">${tabs.map(([v,l]) => `<button data-action="tab" data-v="${v}" ${tabOf===v?'aria-current="page"':''}>${l}</button>`).join('')}</nav>
+    ${showWeek ? `<div class="weeknav">
+      <button class="iconbtn" data-action="week" data-d="-7" aria-label="השבוע הקודם"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <h2>${fmt(S.weekStart)}–${fmt(end)}<small>${weekLabel()}</small></h2>
+      <button class="iconbtn" data-action="week" data-d="7" aria-label="השבוע הבא"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    </div>` : ''}
+    ${S.loading && showWeek ? `<p class="loading">טוען…</p>` : views[S.view]()}`;
+}
+function weekLabel(){
+  const diff = Math.round((S.weekStart - sundayOf(new Date())) / 864e5 / 7);
+  return diff===0 ? 'השבוע' : diff===1 ? 'שבוע הבא' : diff===-1 ? 'שבוע שעבר' : diff>0 ? `בעוד ${diff} שבועות` : `לפני ${-diff} שבועות`;
+}
+function dayGrid(cell, sh = ST().shifts){
+  return `<div class="grid"><div style="--n:${sh.length}">${DAYS.map((dn,d) => `<div class="day">
+    <div class="dlabel"><b>${dn}</b><span>${fmt(addDays(S.weekStart,d))}</span></div>
+    ${sh.map(s => needAt(s,d) > 0 ? cell(d,s,K(d,s.id)) : `<div class="off" aria-hidden="true"></div>`).join('')}
+  </div>`).join('')}</div></div>`;
+}
+
+const BRAND = `<h1><span class="bars" aria-hidden="true"><i></i><i></i><i></i></span>משמרות</h1>`;
+function viewLogin(){
+  if (S.authMode === 'signup') return viewSignup();
+  const toSignup = `<p class="divider">מנהלים עסק ועוד אין לכם חשבון?</p>
+    <button class="btn" data-action="authMode" data-m="signup">פתיחת חשבון עסק</button>`;
+  if (B.demo) {
+    return `<div class="login">${BRAND}<p>מצב הדגמה. בוחרים משתמש כדי לראות את המערכת מהצד שלו. יוסי ונועה עובדים בשני עסקים.</p>
+      <div class="userpick">${Object.entries(B.accounts).map(([uid,u]) =>
+        `<button data-action="demoLogin" data-uid="${uid}"><b>${esc(u.name)}</b><span>${esc(B.companiesOf(uid).join(', ') || 'בלי עסק')}</span></button>`).join('')}</div>
+      ${toSignup}</div>`;
+  }
+  return `<div class="login">${BRAND}<p>כניסה עם הפרטים שקיבלת מהמנהל</p>
+    <label class="field">אימייל<input type="email" id="f-email" autocomplete="email" dir="ltr"></label>
+    <label class="field">סיסמה<input type="password" id="f-pw" autocomplete="current-password" dir="ltr"></label>
+    <div class="toolbar" style="margin-top:16px">
+      <button class="btn primary" data-action="login">כניסה</button>
+      <button class="link" data-action="forgot">שכחתי סיסמה</button>
+    </div>
+    ${toSignup}</div>`;
+}
+function viewSignup(){
+  return `<div class="login">${BRAND}<p>פתיחת חשבון עסק. אתה תהיה הבעלים שלו, ואת העובדים מוסיפים אחר כך מלשונית "עובדים". כבר יש לך חשבון בעסק אחר? ממלאים את אותו אימייל וסיסמה.</p>
+    <label class="field">שם העסק<input type="text" id="f-rest" autocomplete="organization"></label>
+    <label class="field">השם שלך<input type="text" id="f-name" autocomplete="name"></label>
+    <label class="field">אימייל<input type="email" id="f-email" autocomplete="email" dir="ltr"></label>
+    <label class="field">סיסמה<small>לפחות 6 תווים</small><input type="password" id="f-pw" autocomplete="new-password" dir="ltr"></label>
+    <div class="toolbar" style="margin-top:16px">
+      <button class="btn primary" data-action="signup">פתיחת חשבון עסק</button>
+      <button class="link" data-action="authMode" data-m="login">כבר יש לי חשבון</button>
+    </div></div>`;
+}
+function viewPicker(){
+  if (S.pickNew) return `<div class="login">${BRAND}<p>פתיחת עסק חדש בחשבון שלך. אתה תהיה הבעלים שלו.</p>
+    <label class="field">שם העסק<input type="text" id="f-rest" autocomplete="organization"></label>
+    <label class="field">השם שלך<small>כך תופיע לעובדים בעסק הזה</small><input type="text" id="f-name" autocomplete="name"></label>
+    <div class="toolbar" style="margin-top:16px"><button class="btn primary" data-action="pickCreate">פתיחת העסק</button>
+      <button class="link" data-action="pickNew" data-on="">חזרה לרשימה</button></div></div>`;
+  return `<div class="login">${BRAND}<p>לאיזה עסק להיכנס?</p>
+    <ul class="list picklist">${S.companies.map(c => `<li class="btnrow"><button class="userbtn" data-action="pickCompany" data-cid="${c.cid}">
+      <b>${esc(c.name || 'עסק')}</b><span class="sub" aria-hidden="true">כניסה</span></button></li>`).join('')}</ul>
+    <div class="toolbar" style="margin-top:16px"><button class="btn" data-action="pickNew" data-on="1">פתיחת עסק חדש</button>
+      <button class="link" data-action="logout">יציאה</button></div></div>`;
+}
+function viewNewCompany(){
+  return `<div class="toolbar"><button class="btn sm" data-action="tab" data-v="${isMgr() ? 'manage' : 'submit'}">ביטול</button></div>
+    <div class="card"><h3>פתיחת עסק חדש</h3>
+      <p class="hint">העסק החדש נפתח בחשבון שלך, ואתה הבעלים שלו. העסקים האחרים שלך לא משתנים, ועוברים ביניהם בלחיצה על שם העסק למעלה.</p>
+      <label class="field">שם העסק<input type="text" id="f-rest" autocomplete="organization"></label>
+      <div class="toolbar" style="margin-top:16px"><button class="btn primary" data-action="createCompany">פתיחת העסק</button></div></div>`;
+}
+function renderAvailPicker(){
+  const k = S.pickKey; if (!k) return;
+  const [d,id] = k.split('_'), s = shiftById(id), cur = S.draft[k];
+  const lv = Object.fromEntries(LEVELS);
+  $sheet.innerHTML = `<div class="sheet" style="--c:${s.color}">
+    <header><div><h2>${esc(s.name)}, יום ${DAYS[d]} ${fmt(addDays(S.weekStart,+d))}</h2><div class="hint" style="margin:0">${ltr(hrs(s))}</div></div>
+      <button class="iconbtn" data-action="closeSheet" aria-label="סגירה">✕</button></header>
+    <div class="stpick">${states().map(st => `<button style="--sc:${st.color}" data-action="pickState" data-id="${st.id}" aria-pressed="${cur === st.id}">${esc(st.name)}</button>`).join('')}
+      <button data-action="pickState" data-id="" aria-pressed="${!stateOf(cur)}">${UNSET_LABEL}</button></div></div>`;
+}
+function renderSwitch(){
+  $sheet.innerHTML = `<div class="sheet" style="--c:var(--ink)">
+    <header><div><h2>העסקים שלך</h2></div><button class="iconbtn" data-action="closeSheet" aria-label="סגירה">✕</button></header>
+    <ul class="list">${S.companies.map(c => `<li class="btnrow"><button class="userbtn" data-action="switchTo" data-cid="${c.cid}">
+      <b>${esc(c.name || 'עסק')}</b>
+      ${c.cid === S.cid ? '<span class="pill ok">כאן עכשיו</span>' : ''}</button></li>`).join('')}</ul>
+    <div class="toolbar" style="margin-top:12px"><button class="btn" data-action="newCompany">פתיחת עסק חדש</button></div></div>`;
+}
+
+const legend = () => `<div class="legend">${states().map(st =>
+  `<span><i class="sw" style="--sc:${st.color};background:color-mix(in srgb,${st.color} 22%,#fff);border:2px solid ${st.color}"></i>${esc(st.name)}</span>`).join('')}</div>`;
+/* מה מסמנים בלחיצה על "סימון הכל": המצב הרגיל הראשון, ואם אין, הראשון שאפשר לשבץ */
+const fillState = () => states().find(x => x.level === 'normal') || states().find(x => x.level !== 'never');
+
+const availSubject = () => S.view === 'user' ? S.users.find(u => u.uid === S.editUid) : S.profile;
+const availKeys = () => { const u = availSubject(); return keys().filter(k => canWork(u, shiftById(k.split('_')[1]))); };
+function availEditor(asManager){
+  const dl = deadline(), editable = asManager || submissionOpen(), who = availSubject();
+  if (!availKeys().length) return `<p class="empty">${asManager ? 'אין לעובד הזה משמרות שמתאימות לתפקידים שלו.' : 'אין לך משמרות שמתאימות לתפקיד שלך. פנה למנהל.'}</p>`;
+  let msg;
+  if (asManager) msg = `<p class="hint">עריכה בשם העובד. אפשר לערוך גם אחרי שההגשה נסגרה.</p>`;
+  else if (S.week.locked) msg = `<p class="notice">ההגשה לשבוע הזה נסגרה. לשינויים פונים למנהל.</p>`;
+  else if (dl && Date.now() >= dl) msg = `<p class="notice">מועד ההגשה לשבוע הזה עבר. לשינויים פונים למנהל.</p>`;
+  else msg = `<p class="hint">${states().length <= 3 ? `לוחצים על משמרת כדי להחליף מצב: ${states().map(x => esc(x.name)).join(', ')}.` : 'לוחצים על משמרת ובוחרים מצב.'}${dl ? `<br><b>אפשר להגיש עד ${fmtDl(dl)}.</b>` : ''}</p>`;
+  const cell = (d,s,k) => { const st = stateOf(S.draft[k]);
+    if (!canWork(who, s)) return `<div class="off" aria-hidden="true"></div>`;
+    const cls = !st ? 'unset' : st.level === 'never' ? 'set never' : 'set';
+    return `<button class="chip ${cls}" style="--c:${s.color};${st ? `--sc:${st.color}` : ''}" data-action="cycle" data-k="${k}" ${editable?'':'disabled'}
+      aria-label="משמרת ${esc(s.name)} ביום ${DAYS[d]}: ${esc(st?.name || UNSET_LABEL)}" title="${hrs(s)}">
+      <span class="sn">${esc(s.name)}</span><span class="hr">${hrs(s)}</span><span class="st">${esc(st?.name || UNSET_LABEL)}</span></button>`; };
+  const fs = fillState();
+  const saved = asManager ? !!S.subs[S.editUid] : !!S.mySub;
+  const state = S.dirty ? `<span class="dirty">יש שינויים שלא נשמרו</span>`
+    : saved ? `<span>הזמינות לשבוע הזה שמורה</span>` : `<span>${asManager ? 'העובד עוד לא הגיש' : 'עוד לא הגשת לשבוע הזה'}</span>`;
+  return `${msg}${legend()}
+    ${editable ? `<div class="toolbar">${fs ? `<button class="btn sm" data-action="allYes">סימון הכל כ"${esc(fs.name)}"</button>` : ''}<button class="btn sm" data-action="allClear">ניקוי</button></div>` : ''}
+    ${dayGrid(cell, ST().shifts.filter(s => canWork(who, s)))}
+    ${asManager ? (S.note ? `<p class="notice msg">הערת העובד: ${esc(S.note)}</p>` : '')
+      : `<label class="field">הערה למנהל<textarea id="note" ${editable?'':'disabled'} placeholder="למשל: ביום שלישי יכול רק עד 20:00">${esc(S.note)}</textarea></label>`}
+    ${editable ? `<div class="savebar"><div class="in">${state}<button class="btn primary" data-action="save">שמירת זמינות</button></div></div>` : ''}`;
+}
+const viewSubmit = () => availEditor(false);
+
+function viewMine(){
+  if (!S.week.published) return `<p class="empty">הסידור לשבוע הזה עוד לא פורסם.<br>אפשר בינתיים להגיש זמינות בלשונית "זמינות".</p>`;
+  const a = asg(), uid = S.user.uid;
+  const mine = keys().filter(k => a[k].includes(uid));
+  return `
+    ${S.week.message ? `<p class="notice msg">${esc(S.week.message)}</p>` : ''}
+    <h3>המשמרות שלך</h3>
+    ${mine.length ? `<ul class="list">${mine.map(k => { const [d,id] = k.split('_'), s = shiftById(id);
+      return `<li><span class="myshift"><i class="dot" style="--c:${s.color}"></i><b>יום ${DAYS[d]} ${fmt(addDays(S.weekStart,+d))}</b></span><span>${esc(s.name)}, ${ltr(hrs(s))}</span></li>`; }).join('')}</ul>`
+      : `<p class="hint">לא שובצת למשמרות השבוע.</p>`}
+    <h3>הסידור</h3>
+    ${dayGrid((d,s,k) => { const n = a[k];
+      return `<div class="slot" style="--c:${s.color}"><span class="sn">${esc(s.name)}</span><span class="hr">${hrs(s)}</span>
+        <span class="names ${n.length?'':'none'}">${n.length ? n.map(u => u===uid ? `<b>${esc(nameOf(u))}</b>` : esc(nameOf(u))).join('<br>') : 'אין שיבוץ'}</span></div>`; },
+      ST().shifts.filter(s => canSee(S.profile, s) || mine.some(k => k.endsWith('_' + s.id))))}`;
+}
+
+function viewManage(){
+  const a = asg(), E = workers(), dl = deadline();
+  const submitted = E.filter(u => S.subs[u.uid]).length;
+  const short = keys().filter(k => a[k].length < needOf(k)).length;
+  const closed = S.week.locked || (dl && Date.now() >= dl);
+  return `
+    <div class="status">
+      <span class="pill ${submitted===E.length?'ok':''}">${submitted} מתוך ${E.length} הגישו</span>
+      <span class="pill ${closed?'warn':''}">${S.week.locked ? 'ההגשה נסגרה ידנית' : (dl && Date.now() >= dl) ? 'מועד ההגשה עבר' : dl ? `הגשה עד ${fmt(dl)} ${ltr(hhmm(dl))}` : 'ההגשה פתוחה'}</span>
+      <span class="pill ${S.week.published?'ok':''}">${S.week.published ? 'הסידור פורסם' : 'טיוטה'}</span>
+      ${short ? `<span class="pill warn">${short} משמרות חסרות</span>` : ''}
+    </div>
+    <div class="toolbar">
+      <button class="btn" data-action="lock">${S.week.locked ? 'פתיחת ההגשה' : 'סגירת ההגשה'}</button>
+      <button class="btn" data-action="auto">שיבוץ אוטומטי</button>
+      <button class="btn primary" data-action="publish">${S.week.published ? 'ביטול פרסום' : 'פרסום הסידור'}</button>
+    </div>
+    <p class="hint">לוחצים על משמרת כדי לראות מי זמין ולשבץ.</p>
+    ${dayGrid((d,s,k) => { const n = a[k], need = needOf(k);
+      return `<button class="slot ${n.length<need?'short':''}" style="--c:${s.color}" data-action="openSlot" data-k="${k}"
+        aria-label="משמרת ${esc(s.name)} ביום ${DAYS[d]}, ${n.length} מתוך ${need} משובצים">
+        <span class="sn">${esc(s.name)}<em>${n.length}/${need}</em></span>
+        <span class="names ${n.length?'':'none'}">${n.length ? n.map(u => esc(nameOf(u))).join('<br>') : 'אין שיבוץ'}</span></button>`; })}
+    <div class="noprint">
+      <h3>הודעה לעובדים</h3>
+      <p class="hint">מופיעה לעובדים מעל הסידור, ובטקסט לוואטסאפ.</p>
+      <textarea id="weekMsg" placeholder="למשל: ביום שישי סוגרים מוקדם">${esc(S.msgDraft)}</textarea>
+      <div class="toolbar"><button class="btn sm" data-action="saveMsg">שמירת הודעה</button></div>
+      <h3>עוד פעולות</h3>
+      <div class="toolbar">
+        <button class="btn sm" data-action="shareWa">שליחה בוואטסאפ</button>
+        <button class="btn sm" data-action="copySched">העתקת הסידור כטקסט</button>
+        <button class="btn sm" data-action="print">הדפסה</button>
+        <button class="btn sm" data-action="copyPrev">העתקת השיבוץ מהשבוע הקודם</button>
+        <button class="btn sm danger" data-action="clearAsg">ניקוי השיבוץ</button>
+        <button class="btn sm" data-action="kioskOn">שעון נוכחות</button>
+      </div>
+    </div>`;
+}
+
+function viewTeam(){
+  const a = asg(), all = [...S.users].sort(byName);
+  const active = all.filter(u => u.active !== false), inactive = all.filter(u => u.active === false);
+  const W = workers(), submitted = W.filter(u => S.subs[u.uid]).length;
+  const row = u => {
+    const sub = S.subs[u.uid], n = keys().filter(k => a[k].includes(u.uid)).length;
+    const isW = isWorker(u);
+    const pos = userPos(u).map(posName);
+    const info = [u.role !== 'employee' ? ROLE_LABEL[u.role] : null, pos.length ? pos.join(' ו') : null,
+      isW ? (sub ? `הגיש, משובץ ל-${n}` : 'עוד לא הגיש') : null].filter(Boolean).join(', ');
+    return `<li class="btnrow"><button class="userbtn" data-action="openUser" data-uid="${u.uid}">
+      <span><b>${esc(u.name)}</b><span class="sub" style="display:block">${info || 'לא משתבץ'}</span>${sub?.note ? `<span class="sub" style="display:block">"${esc(sub.note)}"</span>` : ''}</span>
+      ${isW ? `<span class="pill ${sub?'ok':'warn'}">${sub?'הגיש':'חסר'}</span>` : ''}</button></li>`;
+  };
+  return `
+    <div class="status"><span class="pill ${submitted===W.length?'ok':''}">${submitted} מתוך ${W.length} הגישו לשבוע הזה</span></div>
+    <div class="toolbar"><button class="btn primary" data-action="newUser">הוספת עובד</button><button class="btn" data-action="kioskOn">שעון נוכחות</button></div>
+    <ul class="list">${active.map(row).join('')}</ul>
+    ${inactive.length ? `<h3>לא פעילים</h3><ul class="list">${inactive.map(row).join('')}</ul>` : ''}
+    ${S.clocks.length ? `<h3>מכשירי שעון נוכחות</h3><ul class="list">${[...S.clocks].sort((a,b) => (b.active !== false) - (a.active !== false)).map(c => `<li>
+      <span><b>${esc(c.name)}</b><span class="sub" style="display:block">${c.active !== false ? 'פעיל' : 'הושבת'}</span></span>
+      ${c.active !== false ? `<button class="btn sm danger" data-action="clockOff" data-uid="${c.uid}">השבתה</button>` : ''}</li>`).join('')}</ul>
+      <p class="hint">אפשר להוציא מכשיר ממצב שעון במכשיר עצמו (עם אימייל וסיסמה של מנהל), או להשבית אותו כאן. ההשבתה סופית: המכשיר מתנתק תוך שעה לכל היותר, או מיד כשמרעננים בו את הדף או כשמישהו מנסה להחתים בו.</p>` : ''}`;
+}
+
+function userFields(isNew){
+  const u = S.uDraft;
+  return `
+    <label class="field">שם<input type="text" data-u="name" value="${esc(u.name)}"></label>
+    <label class="field">אימייל${isNew ? '' : '<small>אי אפשר לשנות אימייל של משתמש קיים</small>'}
+      <input type="email" dir="ltr" data-u="email" value="${esc(u.email)}" ${isNew?'':'disabled'}></label>
+    ${isNew ? `<div class="row"><label class="field grow">סיסמה ראשונית<small>אם העובד כבר רשום במערכת, הוא ממשיך עם הסיסמה שלו</small><input type="text" dir="ltr" data-u="password" value="${esc(u.password)}"></label>
+      <button class="btn sm" data-action="genPw" style="margin-bottom:2px">סיסמה חדשה</button></div>` : ''}
+    <label class="field">טלפון<small>לשליחת פרטים בוואטסאפ</small><input type="tel" dir="ltr" data-u="phone" value="${esc(u.phone)}"></label>
+    <div class="row">
+      ${accessField(u, isNew)}
+      <label class="field">מקסימום משמרות בשבוע<small>ריק = לפי ההגדרות (${ST().maxPerWeek || 'ללא'})</small>
+        <input type="number" min="0" inputmode="numeric" data-u="maxShifts" value="${esc(u.maxShifts ?? '')}"></label>
+    </div>
+    <div class="field">תפקידים בעסק<small>${isMgrRole(u.role) ? 'מנהל עם תפקיד משתבץ למשמרות. בלי תפקיד הוא רק מנהל.' : 'משמרות שמוגדרות לתפקיד מסוים יופיעו רק למי שיש לו אותו.'}</small>
+      <div class="posgrid">${positions().map(p => `<label class="poschip"><input type="checkbox" data-action="userPos" data-id="${p.id}" ${(u.positions||[]).includes(p.id)?'checked':''}>${esc(p.name)}</label>`).join('')
+        || '<span class="sub">עוד אין תפקידים. מוסיפים אותם בהגדרות.</span>'}</div></div>
+    ${isNew ? '' : lockedSelf(u) ? '' : `<label class="check"><input type="checkbox" data-u="active" ${u.active!==false?'checked':''}>פעיל (משתמש לא פעיל לא יכול להיכנס)</label>`}`;
+}
+/* בעלים ואתה עצמך: אי אפשר לשנות הרשאה או להשבית */
+const lockedSelf = u => u.role === 'owner' || u.uid === S.user?.uid;
+function accessField(u, isNew){
+  if (!isNew && lockedSelf(u)) {
+    const why = u.role === 'owner' ? (u.uid === S.user?.uid ? 'אתה הבעלים. אפשר להעביר את הבעלות מהכרטיס של משתמש אחר' : 'אי אפשר לשנות את ההרשאה של הבעלים') : 'אי אפשר לשנות את ההרשאה של עצמך';
+    return `<div class="field">הרשאה<small>${why}</small><input type="text" value="${ROLE_LABEL[u.role]}" disabled></div>`;
+  }
+  return `<label class="field">הרשאה<select data-u="role">
+        <option value="employee" ${u.role!=='manager'?'selected':''}>עובד</option>
+        <option value="manager" ${u.role==='manager'?'selected':''}>מנהל</option></select></label>`;
+}
+
+function viewUser(){
+  const u = S.users.find(x => x.uid === S.editUid); if (!u) return `<p class="empty">העובד לא נמצא.</p>`;
+  const a = asg(), mine = keys().filter(k => a[k].includes(u.uid));
+  const isW = isWorker(u);
+  return `
+    <div class="toolbar"><button class="btn sm" data-action="tab" data-v="team">חזרה לעובדים</button></div>
+    <div class="card"><h3>${esc(u.name)}</h3>
+      ${userFields(false)}
+      <div class="toolbar" style="margin-top:16px">
+        <button class="btn primary" data-action="saveUser">שמירת פרטים</button>
+        <button class="btn" data-action="resetPw">שליחת מייל לאיפוס סיסמה</button>
+        ${u.phone ? `<button class="btn" data-action="waUser">וואטסאפ</button>` : ''}
+      </div></div>
+    ${S.profile.role === 'owner' && u.uid !== S.user.uid && u.active !== false ? `<div class="card">
+      <h3>העברת הבעלות</h3>
+      <p class="hint">${esc(u.name)} יהפוך לבעלים של העסק, ואתה תרד לדרגת מנהל. לעסק תמיד יש בעלים אחד, ורק הבעלים יכול להעביר את הבעלות.</p>
+      <button class="btn danger" data-action="transferOwner">העברת הבעלות ל${esc(u.name)}</button></div>` : ''}
+    ${isW ? `<h3>משובץ השבוע</h3>
+      ${mine.length ? `<ul class="list">${mine.map(k => { const [d,id] = k.split('_'), s = shiftById(id);
+        return `<li><span class="myshift"><i class="dot" style="--c:${s.color}"></i>יום ${DAYS[d]} ${fmt(addDays(S.weekStart,+d))}</span><span>${esc(s.name)}</span></li>`; }).join('')}</ul>`
+        : `<p class="hint">לא משובץ השבוע.</p>`}
+      <h3>זמינות לשבוע הזה</h3>${availEditor(true)}` : ''}`;
+}
+
+function viewNewUser(){
+  if (S.created) {
+    const c = S.created;
+    return `<div class="card"><h3>${esc(c.name)} ${c.existing ? 'צורף לעסק' : 'נוסף למערכת'}</h3>
+      <p class="hint">${c.existing ? `${esc(c.name)} כבר רשום במערכת ולכן צורף לעסק. הוא נכנס עם הסיסמה שכבר יש לו, והסיסמה שהקלדת לא נשמרה.`
+        : 'שלח לעובד את פרטי הכניסה. הסיסמה לא תוצג שוב.'}</p>
+      <pre>${esc(loginText(c))}</pre>
+      <div class="toolbar">
+        <button class="btn primary" data-action="copyCreated">העתקת פרטי הכניסה</button>
+        <button class="btn" data-action="waCreated">שליחה בוואטסאפ</button>
+        <button class="btn" data-action="newUser">הוספת עובד נוסף</button>
+        <button class="btn" data-action="tab" data-v="team">חזרה לעובדים</button>
+      </div></div>`;
+  }
+  return `
+    <div class="toolbar"><button class="btn sm" data-action="tab" data-v="team">חזרה לעובדים</button></div>
+    <div class="card"><h3>עובד חדש</h3>${userFields(true)}
+      <div class="toolbar" style="margin-top:16px"><button class="btn primary" data-action="createUser">הוספת העובד</button></div></div>`;
+}
+const loginText = c => c.existing
+  ? `שלום ${c.name}, צורפת למערכת המשמרות של ${ST().business}.\nכניסה: ${location.origin + location.pathname}\nאימייל: ${c.email}\nהסיסמה שלך לא השתנתה. אם שכחת אותה, יש "שכחתי סיסמה" במסך הכניסה.`
+  : `שלום ${c.name}, נפתח לך חשבון במערכת המשמרות של ${ST().business}.\nכניסה: ${location.origin + location.pathname}\nאימייל: ${c.email}\nסיסמה: ${c.password}`;
+
+function viewSettings(){
+  const st = S.sDraft;
+  const H = parseInt(st.deadlineHours) || 0, from = 168 - H;
+  const dlDay = H ? Math.floor(from/24) : -1, dlHour = H ? from % 24 : 20;
+  return `
+    <h3>כללי</h3>
+    <label class="field">שם העסק<input type="text" data-s="business" value="${esc(st.business)}"></label>
+
+    <h3>מצבי זמינות</h3>
+    <p class="hint">המצבים שעובדים בוחרים בהגשת זמינות. לכל מצב קובעים איך השיבוץ מתייחס אליו. עם עד 3 מצבים עובדים מחליפים מצב בלחיצות חוזרות, ומעל 3 נפתח חלון בחירה.</p>
+    ${(st.availStates || []).map((x,i) => `<div class="statecard" style="--sc:${x.color}">
+      <div class="row">
+        <label class="field grow">שם המצב<input type="text" maxlength="30" data-s="availStates.${i}.name" value="${esc(x.name)}"></label>
+        <label class="field">בשיבוץ<select data-s="availStates.${i}.level">${LEVELS.map(([l,t]) => `<option value="${l}" ${x.level===l?'selected':''}>${t}</option>`).join('')}</select></label>
+      </div>
+      <div class="swatches">${STATE_PALETTE.map(c => `<button class="swatch" style="background:${c}" data-action="stateColor" data-i="${i}" data-c="${c}" aria-label="בחירת צבע" aria-pressed="${c===x.color}"></button>`).join('')}</div>
+      <div class="toolbar">
+        <button class="btn sm" data-action="moveState" data-i="${i}" data-d="-1" ${i===0?'disabled':''}>למעלה</button>
+        <button class="btn sm" data-action="moveState" data-i="${i}" data-d="1" ${i===st.availStates.length-1?'disabled':''}>למטה</button>
+        <button class="btn sm danger" data-action="delState" data-i="${i}" ${st.availStates.length<=2?'disabled':''}>מחיקה</button>
+      </div></div>`).join('')}
+    <div class="toolbar"><button class="btn" data-action="addState" ${(st.availStates || []).length>=6?'disabled':''}>הוספת מצב</button>
+      <button class="btn" data-action="resetStates">חזרה לברירת המחדל</button></div>
+
+    <h3>תפקידים</h3>
+    <p class="hint">למשל מלצר, קופאי, מחסנאי או נהג. לכל עובד אפשר לתת כמה תפקידים, ולכל משמרת לקבוע לאילו תפקידים היא מתאימה.</p>
+    ${(st.positions || []).map((p,i) => { const others = st.positions.filter(o => o.id !== p.id);
+      return `<div class="poscard">
+      <div class="row">
+        <label class="field grow">שם התפקיד<input type="text" data-s="positions.${i}.name" value="${esc(p.name)}"></label>
+        <button class="btn sm danger" data-action="delPos" data-i="${i}" style="margin-bottom:2px">מחיקה</button></div>
+      ${others.length ? `<div class="field">רואים בסידור גם את המשמרות של<small>${esc(p.name || 'התפקיד הזה')} תמיד רואה את המשמרות שלו ואת המשמרות הכלליות</small>
+        <div class="posgrid">${others.map(o => `<label class="poschip"><input type="checkbox" data-action="posSees" data-i="${i}" data-id="${o.id}" ${(p.sees||[]).includes(o.id)?'checked':''}>${esc(o.name || 'ללא שם')}</label>`).join('')}</div></div>` : ''}
+      </div>`; }).join('')}
+    <div class="toolbar"><button class="btn" data-action="addPos">הוספת תפקיד</button></div>
+
+    <h3>משמרות</h3>
+    <p class="hint">המספרים הם כמה עובדים צריך בכל יום. 0 אומר שהמשמרת לא קיימת באותו יום.</p>
+    ${st.shifts.map((s,i) => `<div class="shiftcard" style="--c:${s.color}">
+      <div class="row">
+        <label class="field grow">שם המשמרת<input type="text" data-s="shifts.${i}.name" value="${esc(s.name)}"></label>
+        <label class="field">התחלה<input type="time" data-s="shifts.${i}.start" value="${esc(s.start)}"></label>
+        <label class="field">סיום<input type="time" data-s="shifts.${i}.end" value="${esc(s.end)}"></label>
+      </div>
+      <div class="swatches">${PALETTE.map(c => `<button class="swatch" style="background:${c}" data-action="color" data-i="${i}" data-c="${c}" aria-label="בחירת צבע" aria-pressed="${c===s.color}"></button>`).join('')}</div>
+      <div class="needs">${DAYS_SHORT.map((dn,d) => `<label>${dn}<input type="number" min="0" max="50" inputmode="numeric" data-s="shifts.${i}.need.${d}" value="${needAt(s,d)}"></label>`).join('')}</div>
+      ${(st.positions || []).length ? `<div class="field">מתאימה לתפקידים<small>${(s.positions||[]).length ? 'רק עובדים עם התפקידים המסומנים יראו את המשמרת' : 'לא סומן תפקיד: המשמרת מתאימה לכולם'}</small>
+        <div class="posgrid">${st.positions.map(p => `<label class="poschip"><input type="checkbox" data-action="shiftPos" data-i="${i}" data-id="${p.id}" ${(s.positions||[]).includes(p.id)?'checked':''}>${esc(p.name || 'ללא שם')}</label>`).join('')}</div></div>` : ''}
+      <div class="toolbar">
+        <button class="btn sm" data-action="moveShift" data-i="${i}" data-d="-1" ${i===0?'disabled':''}>הזזה ימינה</button>
+        <button class="btn sm" data-action="moveShift" data-i="${i}" data-d="1" ${i===st.shifts.length-1?'disabled':''}>הזזה שמאלה</button>
+        <button class="btn sm danger" data-action="delShift" data-i="${i}">מחיקת המשמרת</button>
+      </div></div>`).join('')}
+    <button class="btn" data-action="addShift">הוספת משמרת</button>
+
+    <h3>מועד אחרון להגשה</h3>
+    <p class="hint">אחרי המועד עובדים לא יכולים לשנות זמינות. אתה תמיד יכול.</p>
+    <div class="row">
+      <label class="field grow">יום, בשבוע שלפני<select data-dl="day">
+        <option value="-1" ${dlDay<0?'selected':''}>ללא מועד אחרון</option>
+        ${DAYS.map((dn,d) => `<option value="${d}" ${d===dlDay?'selected':''}>${dn}</option>`).join('')}</select></label>
+      <label class="field">שעה<select data-dl="hour" ${dlDay<0?'disabled':''}>
+        ${Array.from({length:24}, (_,h) => `<option value="${h}" ${h===dlHour?'selected':''}>${String(h).padStart(2,'0')}:00</option>`).join('')}</select></label>
+    </div>
+
+    <h3>כללי שיבוץ</h3>
+    <p class="hint">השיבוץ האוטומטי שומר עליהם, ובשיבוץ ידני מופיעה אזהרה.</p>
+    <div class="row">
+      <label class="field">שעות מנוחה בין משמרות<input type="number" min="0" max="48" inputmode="numeric" data-s="minRest" value="${esc(st.minRest)}"></label>
+      <label class="field">מקסימום משמרות לעובד בשבוע<small>0 = ללא הגבלה</small><input type="number" min="0" inputmode="numeric" data-s="maxPerWeek" value="${esc(st.maxPerWeek)}"></label>
+    </div>
+    <label class="check"><input type="checkbox" data-s="onePerDay" ${st.onePerDay?'checked':''}>עד משמרת אחת ביום לכל עובד</label>
+
+    <div class="savebar"><div class="in">${S.sDirty ? '<span class="dirty">יש שינויים שלא נשמרו</span>' : '<span>ההגדרות שמורות</span>'}
+      <button class="btn primary" data-action="saveSettings">שמירת הגדרות</button></div></div>`;
+}
+
+/* ---------- hours reports ---------- */
+const PERIODS = [['month','החודש'],['prev','החודש הקודם'],['year','השנה'],['all','כל הזמן']];
+const monthName = d => new Intl.DateTimeFormat('he', { month:'long', year:'numeric' }).format(d);
+const fmtH = h => String(Math.round(h*100)/100);
+function periodRange(p){
+  const n = new Date(), y = n.getFullYear(), m = n.getMonth();
+  if (p === 'month') return [new Date(y,m,1), new Date(y,m+1,1)];
+  if (p === 'prev')  return [new Date(y,m-1,1), new Date(y,m,1)];
+  if (p === 'year')  return [new Date(y,0,1), new Date(y+1,0,1)];
+  return [new Date(0), new Date(8.64e15)];
+}
+function periodTitle(p){
+  const n = new Date();
+  if (p === 'month') return monthName(n);
+  if (p === 'prev') return monthName(new Date(n.getFullYear(), n.getMonth()-1, 1));
+  if (p === 'year') return `שנת ${n.getFullYear()}`;
+  return 'כל הזמן';
+}
+async function loadReports(){
+  S.allWeeks = null; render();
+  try{ S.allWeeks = isMgr() ? await B.listWeeks() : await B.listMySchedule(S.user.uid); }catch(e){ toast(errMsg(e)); S.allWeeks = []; }
+  render();
+}
+/* כל משמרת שובצה בסידור שפורסם = רשומה. שעות לפי הגדרות המשמרת ביום הפרסום */
+function entries(){
+  const out = [];
+  for (const w of S.allWeeks || []) {
+    if (!w.published) continue;
+    const [y,m,d0] = w.id.split('-').map(Number);
+    for (const [k,uids] of Object.entries(w.assignments || {})) {
+      const [d,id] = k.split('_'), s = w.shiftsSnap?.[id] || shiftById(id);
+      if (!s || !uids?.length) continue;
+      const st = toMin(s.start); let en = toMin(s.end); if (en <= st) en += 1440;
+      const start = new Date(y, m-1, d0 + +d, 0, st), end = new Date(y, m-1, d0 + +d, 0, en);
+      for (const uid of uids) out.push({ uid, start, end, hours:(en-st)/60, name:s.name, color:s.color || '#8A94A6' });
+    }
+  }
+  return out.sort((a,b) => a.start - b.start);
+}
+function inPeriod(list){ const [a,b] = periodRange(S.rep); return list.filter(e => e.start >= a && e.start < b); }
+function sums(list){
+  const now = Date.now(), done = list.filter(e => e.end <= now), next = list.filter(e => e.end > now);
+  return { n:done.length, h:done.reduce((t,e) => t+e.hours, 0), fn:next.length, fh:next.reduce((t,e) => t+e.hours, 0) };
+}
+const periodPicker = () => `<div class="seg">${PERIODS.map(([p,l]) => `<button data-action="period" data-p="${p}" aria-pressed="${S.rep===p}">${l}</button>`).join('')}</div>`;
+function statCards(list){
+  const t = sums(list);
+  return `<div class="cards">
+    <div class="stat"><b>${fmtH(t.h)}</b><span>${isMgr() ? 'שעות שבוצעו' : 'שעות שעבדת'}</span></div>
+    <div class="stat"><b>${t.n}</b><span>משמרות</span></div>
+    ${t.fn ? `<div class="stat"><b>${fmtH(t.fh)}</b><span>שעות מתוכננות (${t.fn} משמרות)</span></div>` : ''}
+  </div>`;
+}
+function entryList(list){
+  if (!list.length) return `<p class="empty">אין משמרות בתקופה הזו.</p>`;
+  const now = Date.now(); let lastM = '', html = '';
+  const multi = S.rep === 'year' || S.rep === 'all';
+  for (const e of [...list].reverse()) {
+    const mn = monthName(e.start);
+    if (multi && mn !== lastM) { if (lastM) html += '</ul>'; html += `<p class="month">${mn}</p><ul class="list">`; lastM = mn; }
+    else if (!html) html = '<ul class="list">';
+    html += `<li><span class="myshift"><i class="dot" style="--c:${e.color}"></i><span>יום ${DAYS[e.start.getDay()]} ${fmt(e.start)}<span class="sub" style="display:block">${esc(e.name)}, ${ltr(`${hhmm(e.start)}–${hhmm(e.end)}`)}</span></span></span>
+      <span>${fmtH(e.hours)} ש׳${e.end > now ? '<span class="tag">מתוכנן</span>' : ''}</span></li>`;
+  }
+  return html + '</ul>';
+}
+const repNote = `<p class="hint">הדוח מחושב לפי הסידורים שפורסמו, לא לפי שעון נוכחות.</p>`;
+function viewHours(){
+  if (!S.allWeeks) return `<p class="loading">טוען…</p>`;
+  const list = inPeriod(entries()).filter(e => e.uid === S.user.uid);
+  return `${periodPicker()}<h3 style="margin-top:6px">${periodTitle(S.rep)}</h3>${statCards(list)}
+    <div class="toolbar"><button class="btn sm" data-action="csv">הורדה כקובץ אקסל (CSV)</button></div>${entryList(list)}${repNote}`;
+}
+function viewReports(){
+  if (S.repMode === 'actual') return viewActual();
+  if (!S.allWeeks) return `<p class="loading">טוען…</p>`;
+  const all = inPeriod(entries());
+  if (S.repUid) {
+    const list = all.filter(e => e.uid === S.repUid);
+    return `${repModePicker()}${periodPicker()}<div class="toolbar"><button class="btn sm" data-action="repBack">חזרה לכל העובדים</button></div>
+      <h3 style="margin-top:6px">${esc(nameOf(S.repUid))}, ${periodTitle(S.rep)}</h3>${statCards(list)}
+      <div class="toolbar"><button class="btn sm" data-action="csv">הורדה כקובץ אקסל (CSV)</button></div>${entryList(list)}${repNote}`;
+  }
+  const ids = new Set([...workers().map(u => u.uid), ...all.map(e => e.uid)]);
+  const rows = [...ids].map(uid => ({ uid, ...sums(all.filter(e => e.uid === uid)) })).sort((a,b) => b.h - a.h || nameOf(a.uid).localeCompare(nameOf(b.uid),'he'));
+  const tot = sums(all);
+  return `${repModePicker()}${periodPicker()}<h3 style="margin-top:6px">${periodTitle(S.rep)}</h3>
+    <div class="cards"><div class="stat"><b>${fmtH(tot.h)}</b><span>שעות בסך הכול</span></div><div class="stat"><b>${tot.n}</b><span>משמרות שבוצעו</span></div>
+      ${tot.fn ? `<div class="stat"><b>${fmtH(tot.fh)}</b><span>שעות מתוכננות</span></div>` : ''}</div>
+    <div class="toolbar"><button class="btn sm" data-action="csv">הורדת דוח מפורט (CSV)</button><button class="btn sm" data-action="refreshRep">רענון</button></div>
+    <ul class="list">${rows.map(r => `<li class="btnrow"><button class="userbtn" data-action="repUser" data-uid="${r.uid}">
+      <span><b>${esc(nameOf(r.uid))}</b><span class="sub" style="display:block">${r.n} משמרות${r.fn ? `, עוד ${r.fn} מתוכננות` : ''}</span></span>
+      <span><b>${fmtH(r.h)}</b> שעות</span></button></li>`).join('')}</ul>${repNote}`;
+}
+function downloadCsv(){
+  let list = inPeriod(entries());
+  const uid = isMgr() ? S.repUid : S.user.uid;
+  if (uid) list = list.filter(e => e.uid === uid);
+  const rows = [['עובד','תאריך','יום','משמרת','התחלה','סיום','שעות','סטטוס']];
+  const now = Date.now();
+  list.forEach(e => rows.push([nameOf(e.uid), `${e.start.getDate()}/${e.start.getMonth()+1}/${e.start.getFullYear()}`, DAYS[e.start.getDay()],
+    e.name, hhmm(e.start), hhmm(e.end), fmtH(e.hours), e.end > now ? 'מתוכנן' : 'בוצע']));
+  const csv = '\uFEFF' + rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type:'text/csv;charset=utf-8' }));
+  a.download = `דוח-שעות-${uid ? nameOf(uid) + '-' : ''}${periodTitle(S.rep)}.csv`.replace(/\s+/g,'-');
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+/* ---------- שעון נוכחות ---------- */
+const clockText = () => new Intl.DateTimeFormat('he', { weekday:'long', day:'numeric', month:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit' }).format(new Date());
+async function loadPunches(){
+  if (await clockDisabled()) return;
+  try {
+    const [pl, cl] = await Promise.all([B.listPunches(new Date(Date.now() - 20*3600e3)), B.getClockList()]);
+    S.kiosk.punches = pl;
+    if (cl) { S.settings.business = cl.business || ''; S.users = (cl.people || []).map(u => ({ ...u, active:true })); }
+  } catch(e){ if (await clockDisabled()) return; toast(errMsg(e)); }
+  if (isClock() && !$sheet.open) render();
+}
+/* המנהל השבית את המכשיר? מתנתקים וחוזרים למסך הכניסה */
+async function clockDisabled(){
+  if (!isClock()) return false;
+  let m = null; try { m = await B.getMember(S.user.uid); } catch {}
+  if (m && m.active !== false) return false;
+  if ($sheet.open) $sheet.close();
+  S.profile = null; S.cid = null; S.companies = [];
+  await B.signOut(); toast(errMsg({ code:'clock-off' }));
+  return true;
+}
+/* ההחתמה האחרונה של כל עובד ב-20 השעות האחרונות: אם היא "כניסה", הוא בעבודה */
+function lastPunch(){ const l = {}; for (const p of S.kiosk.punches) l[p.uid] = p; return l; }
+function viewKiosk(){
+  const last = lastPunch(), q = S.kiosk.q.trim(), all = members().sort(byName);
+  const people = all.filter(u => !q || (u.name || '').includes(q));
+  return `<div class="kiosk">
+    <div class="ktop"><h1 class="brand"><span class="bars" aria-hidden="true"><i></i><i></i><i></i></span>${esc(ST().business)}</h1>
+      <div class="kclock" id="kclock">${clockText()}</div></div>
+    <p class="kdev">${esc(S.profile.name)}</p>
+    <p class="hint">שעון נוכחות. בוחרים את השם שלך ומקלידים את הסיסמה שלך כדי להחתים כניסה או יציאה.</p>
+    ${all.length > 12 ? `<input type="search" id="kq" placeholder="חיפוש לפי שם" value="${esc(S.kiosk.q)}" autocomplete="off">` : ''}
+    <div class="kgrid">${people.map(u => { const l = last[u.uid], on = l?.type === 'in';
+      return `<button class="kperson ${on ? 'on' : ''}" data-action="kPick" data-uid="${u.uid}"><b>${esc(u.name)}</b>
+        <span>${on ? `בעבודה מ-${ltr(hhmm(l.at))}` : 'לא בעבודה'}</span></button>`; }).join('') || '<p class="empty">אין עובדים בשם הזה.</p>'}</div>
+    <div class="kfoot"><button class="link" data-action="kExit">יציאה ממצב שעון נוכחות (למנהלים)</button>
+      ${B.demo ? `<br><button class="link" data-action="logout" style="margin-top:10px">הדגמה בלבד: חזרה לבחירת משתמש</button>` : ''}</div>
+  </div>`;
+}
+let kioskIdle;
+function renderKioskSheet(){
+  const k = S.kiosk; clearTimeout(kioskIdle);
+  kioskIdle = setTimeout(() => { if ($sheet.open && S.sheetMode === 'kiosk') $sheet.close(); }, 60e3);   // חלון שנשכח פתוח נסגר לבד
+  if (k.done) {
+    $sheet.innerHTML = `<div class="sheet kdone"><p class="kbig">${esc(k.done.name)}</p><p>${k.done.type === 'in' ? 'נכנסת' : 'יצאת'} ב-${ltr(hhmm(k.done.at))}</p>
+      ${k.done.type === 'out' && k.done.dur ? `<p class="hint">משך המשמרת: ${k.done.dur}</p>` : ''}</div>`;
+    return;
+  }
+  if (k.sel === '__on') {
+    $sheet.innerHTML = `<div class="sheet"><header><div><h2>שעון נוכחות</h2></div>
+      <button class="iconbtn" data-action="closeSheet" aria-label="סגירה">✕</button></header>
+      <p>להפוך את המכשיר הזה לשעון נוכחות?</p>
+      <p class="hint">המסך יציג את רשימת העובדים, וכל עובד יחתים כניסה ויציאה עם הסיסמה שלו.</p>
+      <p class="hint">המכשיר יתנתק מהחשבון שלך ויעבור לחשבון של שעון, שיכול רק להחתים. כדי להוציא אותו ממצב שעון, כל מנהל של העסק לוחץ במכשיר על "יציאה ממצב שעון נוכחות" ומקליד את האימייל והסיסמה שלו. אפשר גם להשבית אותו מרשימת המכשירים בלשונית "עובדים".</p>
+      <label class="field">שם המכשיר<small>כדי לזהות אותו ברשימה, למשל "טאבלט בכניסה"</small><input type="text" id="k-name" maxlength="40" autocomplete="off"></label>
+      <div class="toolbar" style="margin-top:14px"><button class="btn primary" data-action="kioskOnConfirm" ${k.busy?'disabled':''}>הפעלה במכשיר הזה</button><button class="btn" data-action="closeSheet">ביטול</button></div></div>`;
+    return;
+  }
+  if (k.sel === '__off') {
+    const c = S.clocks.find(x => x.uid === k.off); if (!c) return;
+    $sheet.innerHTML = `<div class="sheet"><header><div><h2>השבתת ${esc(c.name)}</h2></div>
+      <button class="iconbtn" data-action="closeSheet" aria-label="סגירה">✕</button></header>
+      <p>המכשיר יפסיק לשמש כשעון נוכחות ויתנתק.</p>
+      <p class="hint">ההשבתה סופית. כדי שהמכשיר יחזור להיות שעון, נכנסים בו עם חשבון של מנהל ומפעילים שעון נוכחות מחדש. ההחתמות שכבר נעשו בו נשמרות.</p>
+      <div class="toolbar" style="margin-top:14px"><button class="btn danger" data-action="clockOffConfirm">השבתה</button><button class="btn" data-action="closeSheet">ביטול</button></div></div>`;
+    return;
+  }
+  if (k.sel === '__exit') {
+    $sheet.innerHTML = `<div class="sheet"><header><div><h2>יציאה ממצב שעון נוכחות</h2><div class="hint" style="margin:0">לכל מנהל של העסק</div></div>
+      <button class="iconbtn" data-action="closeSheet" aria-label="סגירה">✕</button></header>
+      <label class="field">האימייל של המנהל<input type="email" id="kx-email" autocomplete="off" dir="ltr"></label>
+      <label class="field">הסיסמה<input type="password" id="kx-pw" autocomplete="off" dir="ltr"></label>
+      <p class="hint">המכשיר יפסיק לשמש כשעון נוכחות (זה סופי), ויתחבר לחשבון של המנהל.</p>
+      <div class="toolbar" style="margin-top:14px"><button class="btn primary" data-action="kExitConfirm">יציאה</button><button class="btn" data-action="closeSheet">ביטול</button></div></div>`;
+    setTimeout(() => document.getElementById('kx-email')?.focus(), 50);
+    return;
+  }
+  const u = S.users.find(x => x.uid === k.sel); if (!u) return;
+  const l = lastPunch()[u.uid], on = l?.type === 'in';
+  $sheet.innerHTML = `<div class="sheet"><header><div><h2>${esc(u.name)}</h2><div class="hint" style="margin:0">${on ? `בעבודה מ-${ltr(hhmm(l.at))}` : 'לא בעבודה'}</div></div>
+      <button class="iconbtn" data-action="closeSheet" aria-label="סגירה">✕</button></header>
+    <label class="field">הסיסמה שלך<input type="password" id="k-pw" autocomplete="off" dir="ltr"></label>
+    <div class="toolbar" style="margin-top:14px"><button class="btn primary kbtn" data-action="kPunch" data-type="${on ? 'out' : 'in'}" ${k.busy?'disabled':''}>${on ? 'יציאה מהעבודה' : 'כניסה לעבודה'}</button></div></div>`;
+  setTimeout(() => document.getElementById('k-pw')?.focus(), 50);
+}
+const durText = ms => { const m = Math.round(ms / 60000); return `${Math.floor(m/60)}:${String(m % 60).padStart(2,'0')} שעות`; };
+
+/* נוכחות בפועל: מזווגים כל כניסה ליציאה שאחריה */
+function sessionsOf(punches){
+  const by = {};
+  for (const p of punches) {
+    const arr = by[p.uid] ??= [];
+    const open = arr.length && arr[arr.length-1].in && !arr[arr.length-1].out ? arr[arr.length-1] : null;
+    if (p.type === 'in') { if (open) open.noOut = true; arr.push({ in:p.at, out:null, inP:p, outP:null, by:[p.by] }); }
+    else if (open) { open.out = p.at; open.outP = p; open.by.push(p.by); }
+    else arr.push({ in:null, out:p.at, inP:null, outP:p, by:[p.by] });
+  }
+  const now = Date.now();
+  Object.values(by).forEach(arr => arr.forEach(x => {
+    x.hours = x.in && x.out ? (x.out - x.in) / 3600e3 : 0;
+    x.issue = !x.in ? 'חסרה כניסה' : !x.out ? (x.noOut || now - x.in > 16*3600e3 ? 'חסרה יציאה' : 'בעבודה עכשיו') : '';
+    const ps = [x.inP, x.outP].filter(Boolean);
+    x.mark = ps.some(p => p.manual) ? 'ידני' : ps.some(p => p.origAt) ? 'נערך' : '';
+  }));
+  return by;
+}
+async function loadActual(){
+  S.actual = null; render();
+  const [a,b] = periodRange(S.rep);
+  try { S.actual = sessionsOf(await B.listPunches(S.rep === 'all' ? new Date(2020,0,1) : a, S.rep === 'all' ? null : b)); }
+  catch(e){ toast(errMsg(e)); S.actual = {}; }
+  render();
+}
+const deviceOf = x => [...new Set((x.by || []).map(id => S.clocks.find(c => c.uid === id)?.name).filter(Boolean))].join(', ');
+const repModePicker = () => `<div class="seg"><button data-action="repMode" data-m="plan" aria-pressed="${S.repMode==='plan'}">לפי הסידור</button>
+  <button data-action="repMode" data-m="actual" aria-pressed="${S.repMode==='actual'}">נוכחות בפועל</button></div>`;
+function viewActual(){
+  if (!S.actual) return `<p class="loading">טוען…</p>`;
+  const sum = arr => arr.reduce((t,x) => t + x.hours, 0);
+  if (S.repUid) {
+    const arr = [...(S.actual[S.repUid] || [])].reverse();
+    return `${repModePicker()}${periodPicker()}<div class="toolbar"><button class="btn sm" data-action="repBack">חזרה לכל העובדים</button></div>
+      <h3 style="margin-top:6px">${esc(nameOf(S.repUid))}, ${periodTitle(S.rep)}</h3>
+      <div class="cards"><div class="stat"><b>${fmtH(sum(arr))}</b><span>שעות נוכחות</span></div><div class="stat"><b>${arr.filter(x => x.in && x.out).length}</b><span>משמרות שהושלמו</span></div></div>
+      <div class="toolbar"><button class="btn sm" data-action="peOpen" data-i="-1">הוספת משמרת</button><button class="btn sm" data-action="csvActual">הורדה כקובץ אקסל (CSV)</button></div>
+      ${arr.length ? `<ul class="list">${arr.map(x => { const d = x.in || x.out, i = S.actual[S.repUid].indexOf(x);
+        return `<li class="btnrow"><button class="userbtn" data-action="peOpen" data-i="${i}"><span><b>יום ${DAYS[d.getDay()]} ${fmt(d)}</b><span class="sub" style="display:block">${ltr(`${x.in ? hhmm(x.in) : '?'}–${x.out ? hhmm(x.out) : '?'}`)}${deviceOf(x) ? ` · ${esc(deviceOf(x))}` : ''}</span></span>
+          <span>${x.hours ? `${fmtH(x.hours)} ש׳` : ''}${x.mark ? `<span class="tag">${x.mark}</span>` : ''}${x.issue ? `<span class="tag ${x.issue === 'בעבודה עכשיו' ? '' : 'bad'}">${x.issue}</span>` : ''}</span></button></li>`; }).join('')}</ul>`
+        : '<p class="empty">אין החתמות בתקופה הזו.</p>'}
+      <p class="hint">השעות מחושבות מהחתמות בשעון הנוכחות. משמרת בלי כניסה או בלי יציאה לא נספרת. לוחצים על משמרת כדי לתקן אותה. השעה המקורית נשמרת תמיד.</p>`;
+  }
+  const ids = new Set([...workers().map(u => u.uid), ...Object.keys(S.actual)]);
+  const rows = [...ids].map(uid => { const arr = S.actual[uid] || []; return { uid, h:sum(arr), n:arr.filter(x => x.in && x.out).length, bad:arr.filter(x => x.issue && x.issue !== 'בעבודה עכשיו').length, now:arr.some(x => x.issue === 'בעבודה עכשיו') }; })
+    .sort((a,b) => b.h - a.h || nameOf(a.uid).localeCompare(nameOf(b.uid),'he'));
+  const tot = rows.reduce((t,r) => t + r.h, 0);
+  return `${repModePicker()}${periodPicker()}<h3 style="margin-top:6px">${periodTitle(S.rep)}</h3>
+    <div class="cards"><div class="stat"><b>${fmtH(tot)}</b><span>שעות נוכחות בסך הכול</span></div><div class="stat"><b>${rows.filter(r => r.now).length}</b><span>בעבודה עכשיו</span></div></div>
+    <div class="toolbar"><button class="btn sm" data-action="csvActual">הורדת דוח מפורט (CSV)</button><button class="btn sm" data-action="refreshRep">רענון</button></div>
+    <ul class="list">${rows.map(r => `<li class="btnrow"><button class="userbtn" data-action="repUser" data-uid="${r.uid}">
+      <span><b>${esc(nameOf(r.uid))}</b><span class="sub" style="display:block">${r.n} משמרות${r.now ? ', בעבודה עכשיו' : ''}${r.bad ? `, <span style="color:var(--warn)">${r.bad} החתמות חסרות</span>` : ''}</span></span>
+      <span><b>${fmtH(r.h)}</b> שעות</span></button></li>`).join('')}</ul>
+    <p class="hint">השעות מחושבות מהחתמות בשעון הנוכחות.</p>`;
+}
+function downloadActualCsv(){
+  const rows = [['עובד','תאריך','יום','כניסה','יציאה','שעות','הערה','מכשיר','תיקון']];
+  Object.entries(S.actual || {}).filter(([uid]) => !S.repUid || uid === S.repUid).forEach(([uid,arr]) => arr.forEach(x => {
+    const d = x.in || x.out;
+    rows.push([nameOf(uid), `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`, DAYS[d.getDay()], x.in ? hhmm(x.in) : '', x.out ? hhmm(x.out) : '', x.hours ? fmtH(x.hours) : '', x.issue, deviceOf(x), x.mark]);
+  }));
+  const csv = '﻿' + rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type:'text/csv;charset=utf-8' }));
+  a.download = `נוכחות-${S.repUid ? nameOf(S.repUid) + '-' : ''}${periodTitle(S.rep)}.csv`.replace(/\s+/g,'-');
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+/* ---------- תיקון נוכחות (מנהל) ---------- */
+const dIn = d => d ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` : '';
+const fromIn = (d, t) => d && t ? new Date(`${d}T${t}`) : null;
+function renderPunchSheet(){
+  const pe = S.pe, x = pe.i >= 0 ? S.actual[pe.uid]?.[pe.i] : null, today = new Date();
+  const orig = P => P?.origAt ? `<small>במקור ${ltr(hhmm(P.origAt))}${P.editedBy ? `, תוקן על ידי ${esc(nameOf(P.editedBy))}` : ''}</small>`
+                  : P?.manual ? `<small>נוספה ידנית על ידי ${esc(nameOf(P.by))}</small>` : '';
+  const side = (key, label, at, P) => `<div class="pe-row"><span class="pe-l">${label}${orig(P)}</span>
+    <input type="date" id="pe-${key}d" value="${dIn(at || x?.in || x?.out || today)}"><input type="time" id="pe-${key}t" value="${at ? hhmm(at) : ''}"></div>`;
+  $sheet.innerHTML = `<div class="sheet"><header><div><h2>${x ? 'תיקון משמרת' : 'הוספת משמרת'}</h2><div class="hint" style="margin:0">${esc(nameOf(pe.uid))}</div></div>
+      <button class="iconbtn" data-action="closeSheet" aria-label="סגירה">✕</button></header>
+    ${side('in', 'כניסה', x?.in, x?.inP)}
+    ${side('out', 'יציאה', x?.out, x?.outP)}
+    <p class="hint">שעה שמשאירים ריקה לא נרשמת. אם היציאה הייתה אחרי חצות, משנים את תאריך היציאה ליום שאחרי.</p>
+    <div class="toolbar" style="margin-top:14px"><button class="btn primary" data-action="peSave">שמירה</button>
+      ${x ? '<button class="btn danger" data-action="peVoid">מחיקת המשמרת</button>' : ''}</div></div>`;
+}
+
+/* ---------- slot sheet ---------- */
+function renderSheet(){
+  const k = S.openKey; if (!k) return;
+  const [d,id] = k.split('_'), s = shiftById(id), a = asg(), on = new Set(a[k]);
+  const count = uid => keys().filter(x => a[x].includes(uid)).length;
+  // קבוצות לפי המצבים שהמנהל הגדיר: קודם עדיפות גבוהה, רגיל, נמוכה, אחר כך מי שלא סימן, ובסוף "לא לשבץ"
+  const ordered = [...states()].sort((x,y) => (LEVEL_RANK[x.level] ?? 9) - (LEVEL_RANK[y.level] ?? 9));
+  const groups = [...ordered.filter(x => x.level !== 'never').map(x => [x.id, x.name]), ['unset', UNSET_LABEL], ...ordered.filter(x => x.level === 'never').map(x => [x.id, x.name])];
+  const rows = workers().filter(u => on.has(u.uid) || canWork(u,s)).map(u => { const v = S.subs[u.uid]?.avail?.[k]; return { u, v: stateOf(v) ? v : 'unset', w: on.has(u.uid) ? [] : conflicts(u,k,a) }; });
+  const sp = (s.positions || []).map(posName).filter(Boolean);
+  $sheet.innerHTML = `<div class="sheet" style="--c:${s.color}">
+    <header><div><h2>${esc(s.name)}, יום ${DAYS[d]} ${fmt(addDays(S.weekStart,+d))}</h2>
+      <div class="hint" style="margin:0">${ltr(hrs(s))}. משובצים ${on.size} מתוך ${needOf(k)}${sp.length ? `. מתאימה ל${sp.join(' ול')}` : ''}</div></div>
+      <button class="iconbtn" data-action="closeSheet" aria-label="סגירה">✕</button></header>
+    ${groups.map(([g,title]) => { const list = rows.filter(r => r.v === g); if (!list.length) return '';
+      return `<h4>${title}</h4>${list.map(({u,w}) => `<label class="opt">
+        <input type="checkbox" data-assign="${u.uid}" ${on.has(u.uid)?'checked':''}>
+        <span>${esc(u.name)}<span class="sub" style="display:block">${userPos(u).map(posName).join(', ')}</span></span>
+        <span class="meta">${count(u.uid)} משמרות${w.map(x => `<span class="w">${WARN[x]}</span>`).join('')}</span></label>`).join('')}`; }).join('')}
+    ${!rows.length ? `<p class="hint">${sp.length ? 'אין עובדים עם התפקיד שמתאים למשמרת הזו.' : 'אין עובדים פעילים. מוסיפים עובדים בלשונית "עובדים".'}</p>` : ''}
+  </div>`;
+}
+
+/* ---------- actions ---------- */
+function confirmLeave(){
+  if ((S.dirty || S.sDirty) && !confirm('יש שינויים שלא נשמרו. להמשיך בלי לשמור?')) return false;
+  S.dirty = false; S.sDirty = false; return true;
+}
+/* העותק של כל עובד: רק משמרות שהוא רשאי לראות (לפי ההגדרות), ותמיד משמרות שהוא משובץ בהן */
+function viewFor(u, w){
+  if (!w.published) return { published:false };
+  const ids = new Set(), all = w.assignments || {};
+  Object.keys(all).forEach(k => {
+    const id = k.split('_')[1], s = shiftById(id) || { id, positions:[] };
+    if (canSee(u, s) || (all[k] || []).includes(u.uid)) ids.add(id);
+  });
+  const assignments = {}, shiftsSnap = {};
+  Object.entries(all).forEach(([k,v]) => { if (ids.has(k.split('_')[1])) assignments[k] = v; });
+  ids.forEach(id => { const sn = w.shiftsSnap?.[id]; if (sn) shiftsSnap[id] = sn; });
+  return { published:true, message:w.message || '', assignments, shiftsSnap };
+}
+async function syncViews(weekIdv, w){
+  const map = {};
+  S.users.forEach(u => { map[u.uid] = viewFor(u, w); });
+  await B.writeViews(weekIdv, map);
+}
+/* אחרי שינוי בהגדרות או בעובדים: מעדכנים את העותקים של הסידורים שפורסמו (מהשבוע הנוכחי והלאה, או את כולם) */
+async function resyncPublished(all = false){
+  syncClockList().catch(e => console.warn(e));
+  const from = weekId(sundayOf(new Date()));
+  const weeks = (await B.listWeeks()).filter(w => w.published && (all || w.id >= from));
+  for (const w of weeks) await syncViews(w.id, w);
+}
+async function saveWeek(patch, msg){
+  try{
+    await B.updateWeek(wid(), patch); S.week = { ...S.week, ...patch }; S.allWeeks = null;
+    if ('locked' in patch) await B.setWeekStatus(wid(), { locked:!!patch.locked });
+    if (S.week.published || patch.published === false) await syncViews(wid(), S.week);
+    if (msg) toast(msg);
+  }
+  catch(e){ toast(errMsg(e)); }
+  render();
+}
+const actions = {
+  async demoLogin(el){ S.freshLogin = true; await B.signIn(el.dataset.uid); },
+  period(el){ S.rep = el.dataset.p; if (S.view === 'reports' && S.repMode === 'actual') loadActual(); else render(); },
+  repMode(el){ S.repMode = el.dataset.m; S.repUid = null; if (S.repMode === 'actual') loadActual(); else render(); },
+  csvActual(){ downloadActualCsv(); },
+  peOpen(el){ S.pe = { uid:S.repUid, i:+el.dataset.i }; S.sheetMode = 'punch'; renderPunchSheet(); $sheet.showModal(); },
+  async peSave(el){
+    const pe = S.pe, x = pe.i >= 0 ? S.actual[pe.uid]?.[pe.i] : null, v = id => document.getElementById(id)?.value || '';
+    const at = { in:fromIn(v('pe-ind'), v('pe-int')), out:fromIn(v('pe-outd'), v('pe-outt')) };
+    if (!at.in && !at.out) return toast('צריך למלא לפחות שעת כניסה או שעת יציאה');
+    if (at.in && at.out && at.out <= at.in) return toast('שעת היציאה צריכה להיות אחרי שעת הכניסה. יציאה אחרי חצות? שנה את תאריך היציאה');
+    if ([at.in, at.out].some(d => d && d > new Date())) return toast('אי אפשר לרשום שעה שעוד לא הגיעה');
+    el.disabled = true;
+    try{
+      for (const k of ['in','out']) {
+        const P = x?.[k + 'P'];
+        if (P && at[k] && hhmm(P.at) + dIn(P.at) !== hhmm(at[k]) + dIn(at[k])) await B.editPunch(P, at[k]);
+        else if (P && !at[k]) await B.voidPunch(P);
+        else if (!P && at[k]) await B.addManualPunch(pe.uid, k, at[k]);
+      }
+      $sheet.close(); toast('הנוכחות עודכנה'); await loadActual();
+    }catch(e){ toast(errMsg(e)); el.disabled = false; }
+  },
+  async peVoid(el){
+    const x = S.actual[S.pe.uid]?.[S.pe.i]; if (!x) return;
+    if (!el.dataset.sure) { el.dataset.sure = '1'; el.textContent = 'בטוח? ללחוץ שוב כדי למחוק'; return; }
+    el.disabled = true;
+    try{ for (const P of [x.inP, x.outP]) if (P) await B.voidPunch(P); $sheet.close(); toast('המשמרת נמחקה מהדוח'); await loadActual(); }
+    catch(e){ toast(errMsg(e)); el.disabled = false; }
+  },
+  repUser(el){ S.repUid = el.dataset.uid; render(); window.scrollTo(0,0); },
+  repBack(){ S.repUid = null; render(); },
+  refreshRep(){ if (S.repMode === 'actual') loadActual(); else loadReports(); },
+  csv(){ downloadCsv(); },
+  async login(){
+    if (!val('f-email') || !val('f-pw')) return toast('צריך למלא אימייל וסיסמה');
+    S.freshLogin = true;
+    try{ await B.signIn(val('f-email'), val('f-pw')); }
+    catch(e){ S.freshLogin = false; toast(errMsg(e)); }
+  },
+  async pickCompany(el){
+    S.picking = false; S.loading = true; render();
+    try{
+      if (!await enterCompany(el.dataset.cid)) { toast(errMsg({ code:'inactive-here' })); S.companies = S.companies.filter(c => c.cid !== el.dataset.cid); S.picking = true; S.loading = false; render(); }
+    }catch(e){ toast(errMsg(e)); S.picking = true; S.loading = false; render(); }
+  },
+  pickNew(el){ S.pickNew = !!el.dataset.on; render(); },
+  async pickCreate(el){
+    const restaurant = val('f-rest'), name = val('f-name');
+    if (!restaurant) return toast('צריך למלא את שם העסק');
+    if (!name) return toast('צריך למלא את השם שלך');
+    el.disabled = true;
+    try{
+      const code = await B.createCompany({ restaurant, name, settings:newSettings(restaurant) });
+      S.companies.push({ cid:code, name:restaurant });
+      S.picking = false; S.pickNew = false;
+      await enterCompany(code); toast(`${restaurant} נפתח`);
+    }catch(e){ toast(errMsg(e)); el.disabled = false; }
+    render();
+  },
+  authMode(el){ S.authMode = el.dataset.m; render(); window.scrollTo(0,0); },
+  async signup(el){
+    const restaurant = val('f-rest'), name = val('f-name'), email = val('f-email').toLowerCase(), password = document.getElementById('f-pw')?.value || '';
+    if (!restaurant) return toast('צריך למלא את שם העסק');
+    if (!name) return toast('צריך למלא את השם שלך');
+    if (!email) return toast('צריך למלא אימייל');
+    if (password.length < 6) return toast('הסיסמה צריכה לכלול לפחות 6 תווים');
+    el.disabled = true; S.signingUp = true;
+    const settings = newSettings(restaurant);
+    try{
+      const { uid, code } = await B.signUp({ restaurant, name, email, password, settings });
+      store.set('lastCompany:' + uid, code);
+      if (B.demo) await B.signIn(uid);
+      S.user = S.user || { uid, email }; S.ready = true;
+      await afterLogin();
+      S.authMode = 'login';
+      toast(`${restaurant} נפתח`);
+    }catch(e){ toast(errMsg(e)); el.disabled = false; }
+    S.signingUp = false; render();
+  },
+  async forgot(){
+    const email = val('f-email'); if (!email) return toast('קודם כותבים את האימייל בשדה');
+    try{ await B.sendReset(email); toast('אם האימייל רשום במערכת, נשלח אליו קישור לאיפוס'); }catch(e){ toast(errMsg(e)); }
+  },
+  /* רענון: כמו ריענון בדפדפן. טוען את כל האתר מחדש, כולל גרסה חדשה של הקוד אם הועלתה */
+  refresh(el){
+    if (!confirmLeave()) return;
+    el.classList.add('busy');
+    location.reload();
+  },
+  async logout(){ if (!confirmLeave()) return; S.profile = null; S.cid = null; S.companies = []; S.picking = false; S.pickNew = false; await B.signOut(); },
+  // חלון אישור בתוך האפליקציה (חלון confirm של הדפדפן חסום בחלק מהתצוגות)
+  kioskOn(){ Object.assign(S.kiosk, { sel:'__on', busy:false, done:null }); S.sheetMode = 'kiosk'; renderKioskSheet(); $sheet.showModal(); },
+  async kioskOnConfirm(el){
+    const name = (document.getElementById('k-name')?.value || '').trim() || 'שעון נוכחות';
+    S.kiosk.busy = true; el.disabled = true;
+    try{
+      const r = await B.createClock(name, ST().business);
+      S.clocks.push({ uid:r.uid, name, role:'kiosk', active:true });
+      await syncClockList(true);
+      $sheet.close();
+      // המכשיר עובר לחשבון השעון. המנהל כבר לא מחובר בו
+      S.profile = null; S.cid = null; S.companies = []; render();
+      await (B.demo ? B.signIn(r.uid) : B.signIn(r.email, r.pw));
+      window.scrollTo(0,0);
+    }catch(e){ toast(errMsg(e)); S.kiosk.busy = false; el.disabled = false; }
+  },
+  clockOff(el){ Object.assign(S.kiosk, { sel:'__off', off:el.dataset.uid, busy:false, done:null }); S.sheetMode = 'kiosk'; renderKioskSheet(); $sheet.showModal(); },
+  async clockOffConfirm(el){
+    const c = S.clocks.find(x => x.uid === S.kiosk.off); if (!c) return;
+    el.disabled = true;
+    try{ await B.updateUser(c.uid, { active:false }); c.active = false; $sheet.close(); toast(`${c.name} הושבת`); render(); }
+    catch(e){ toast(errMsg(e)); el.disabled = false; }
+  },
+  // לפני ההחתמה מרעננים, כדי לדעת אם העובד כבר נכנס בשעון אחר
+  kExit(){ Object.assign(S.kiosk, { sel:'__exit', busy:false, done:null }); S.sheetMode = 'kiosk'; renderKioskSheet(); $sheet.showModal(); },
+  async kExitConfirm(el){
+    const email = (document.getElementById('kx-email')?.value || '').trim().toLowerCase(), pw = document.getElementById('kx-pw')?.value || '';
+    if (!email || !pw) return toast('צריך למלא אימייל וסיסמה של מנהל');
+    el.disabled = true;
+    try{
+      const cid = S.cid, uid = await B.exitClock(email, pw);
+      store.set('lastCompany:' + uid, cid);           // המנהל ייכנס ישר לעסק הזה
+      $sheet.close(); S.profile = null; S.cid = null; S.companies = []; render();
+      await (B.demo ? B.signIn(uid) : B.signIn(email, pw));
+      toast('המכשיר יצא ממצב שעון נוכחות');
+    }catch(e){
+      toast(e?.code === 'not-manager' ? errMsg(e) : /invalid-credential|wrong-password|user-not-found|invalid-email/.test(e?.code || '') ? 'האימייל או הסיסמה שגויים' : errMsg(e));
+      el.disabled = false;
+    }
+  },
+  async kPick(el){
+    const uid = el.dataset.uid;
+    Object.assign(S.kiosk, { sel:uid, busy:false, done:null }); S.sheetMode = 'kiosk'; renderKioskSheet(); $sheet.showModal();
+    await loadPunches();
+    if ($sheet.open && S.kiosk.sel === uid && !S.kiosk.done) { const pw = document.getElementById('k-pw')?.value || ''; renderKioskSheet(); const f = document.getElementById('k-pw'); if (f) f.value = pw; }
+  },
+  async kPunch(el){
+    const k = S.kiosk, u = S.users.find(x => x.uid === k.sel), type = el.dataset.type;
+    const pw = document.getElementById('k-pw')?.value || '';
+    if (!u) return;
+    if (!pw) return toast('צריך להקליד סיסמה');
+    if (!u.email) return toast('לעובד הזה אין אימייל במערכת. פנה למנהל');
+    // יציאה פחות מ-15 דקות אחרי הכניסה: כנראה לחיצה בטעות, אז שואלים קודם
+    const pin = lastPunch()[u.uid];
+    if (type === 'out' && !el.dataset.sure && pin?.type === 'in' && Date.now() - pin.at < 15*60e3) {
+      const m = Math.floor((Date.now() - pin.at) / 60e3);
+      el.dataset.sure = '1'; el.textContent = 'כן, לצאת בכל זאת';
+      el.closest('.toolbar').insertAdjacentHTML('beforebegin', `<p class="kwarn">נכנסת ${m < 1 ? 'לפני פחות מדקה' : m === 1 ? 'רק לפני דקה' : `רק לפני ${m} דקות`}. לצאת בכל זאת?</p>`);
+      el.insertAdjacentHTML('afterend', '<button class="btn" data-action="closeSheet">ביטול</button>');
+      return;
+    }
+    k.busy = true; el.disabled = true;
+    try{
+      const uid = await B.verifyEmployee(u.email, pw);
+      if (uid !== u.uid) throw { code:'auth/invalid-credential' };
+      const prev = lastPunch()[u.uid];
+      await B.addPunch(u.uid, type);
+      await loadPunches();
+      const mine = lastPunch()[u.uid];
+      k.done = { name:u.name, type, at:mine?.at || new Date(), dur: type === 'out' && prev?.type === 'in' ? durText((mine?.at || new Date()) - prev.at) : '' };
+      renderKioskSheet();
+      setTimeout(() => { if (S.kiosk.done && $sheet.open) $sheet.close(); }, 3500);
+    }catch(e){
+      if (String(e?.code).includes('permission-denied') && await clockDisabled()) return;
+      toast(/invalid-credential|wrong-password|user-not-found/.test(e?.code || '') ? 'הסיסמה שגויה' : errMsg(e));
+      k.busy = false; el.disabled = false;
+      const f = document.getElementById('k-pw'); if (f) { f.value = ''; f.focus(); }
+    }
+  },
+  async openSwitch(){
+    S.sheetMode = 'switch'; renderSwitch(); $sheet.showModal();
+    refreshNames();  // שמות עדכניים, אם שונו בהגדרות של עסק אחר
+  },
+  async switchTo(el){
+    const cid = el.dataset.cid;
+    if (cid === S.cid) return $sheet.close();
+    if (!confirmLeave()) return;
+    $sheet.close();
+    S.loading = true; render();
+    try{
+      if (await enterCompany(cid)) toast(`עברת ל${ST().business}`);
+      else { toast(errMsg({ code:'inactive-here' })); S.companies = S.companies.filter(c => c.cid !== cid); S.loading = false; render(); }
+    }catch(e){ toast(errMsg(e)); S.loading = false; render(); }
+  },
+  newCompany(){ $sheet.close(); if (!confirmLeave()) return; S.view = 'newCompany'; render(); window.scrollTo(0,0); },
+  async createCompany(el){
+    const restaurant = val('f-rest'); if (!restaurant) return toast('צריך למלא את שם העסק');
+    el.disabled = true;
+    const settings = newSettings(restaurant);
+    try{
+      const code = await B.createCompany({ restaurant, name:S.profile.name, settings });
+      S.companies.push({ cid:code, name:restaurant });
+      await enterCompany(code); toast(`${restaurant} נפתח`);
+    }catch(e){ toast(errMsg(e)); el.disabled = false; }
+    render();
+  },
+  tab(el){
+    if (!confirmLeave()) return;
+    const v = el.dataset.v;
+    if (v === 'settings') { S.sDraft = clone(S.settings); S.sDirty = false; }
+    if (S.view === 'user' && isMgr()) S.draft = {};
+    if (v === 'reports') S.repUid = null;
+    S.view = v; render(); window.scrollTo(0,0);
+    if ((v === 'reports' || v === 'hours') && !S.allWeeks) loadReports();
+  },
+  async week(el){ if (!confirmLeave()) return; S.weekStart = addDays(S.weekStart, +el.dataset.d); await loadWeek(); },
+
+  /* זמינות */
+  cycle(el){
+    const k = el.dataset.k, list = states();
+    if (list.length > 3) { S.sheetMode = 'avail'; S.pickKey = k; renderAvailPicker(); $sheet.showModal(); return; }
+    const i = list.findIndex(x => x.id === S.draft[k]);             // לא סומן -> מצב ראשון -> ... -> לא סומן
+    const nx = list[i + 1];
+    if (nx) S.draft[k] = nx.id; else delete S.draft[k];
+    S.dirty = true; render();
+  },
+  pickState(el){
+    const k = S.pickKey; if (!k) return;
+    if (el.dataset.id) S.draft[k] = el.dataset.id; else delete S.draft[k];
+    S.dirty = true; $sheet.close(); render();
+  },
+  allYes(){ const fs = fillState(); if (!fs) return; availKeys().forEach(k => S.draft[k] = fs.id); S.dirty = true; render(); },
+  allClear(){ S.draft = {}; S.dirty = true; render(); },
+  async save(el){
+    el.disabled = true;
+    const target = S.view === 'user' ? S.editUid : S.user.uid;
+    const data = { avail:S.draft, note:S.note.trim() };
+    try{
+      await B.saveSubmission(wid(), target, data);
+      if (isMgr()) S.subs[target] = clone(data); else S.mySub = clone(data);
+      S.dirty = false; toast('הזמינות נשמרה');
+    }catch(e){ toast(errMsg(e)); }
+    render();
+  },
+
+  /* שיבוץ */
+  async lock(){ await saveWeek({ locked: !S.week.locked }, S.week.locked ? 'ההגשה נפתחה' : 'ההגשה נסגרה'); },
+  async publish(){
+    if (!S.week.published && !confirm('לפרסם את הסידור? העובדים יראו אותו מיד.')) return;
+    const snap = Object.fromEntries(ST().shifts.map(s => [s.id, { name:s.name, start:s.start, end:s.end, color:s.color }]));
+    await saveWeek(S.week.published ? { published:false } : { published:true, shiftsSnap:snap, appUrl:location.origin + location.pathname },
+      S.week.published ? 'הפרסום בוטל' : 'הסידור פורסם');
+  },
+  async auto(){
+    if (Object.values(asg()).some(x => x.length) && !confirm('השיבוץ האוטומטי יחליף את השיבוץ הנוכחי. להמשיך?')) return;
+    const a = autoAssign(); const short = keys().filter(k => a[k].length < needOf(k)).length;
+    await saveWeek({ assignments:a }, short ? `השיבוץ הושלם. ${short} משמרות נשארו חסרות` : 'השיבוץ הושלם, כל המשמרות מאוישות');
+  },
+  openSlot(el){ S.sheetMode = 'slot'; S.openKey = el.dataset.k; renderSheet(); $sheet.showModal(); },
+  closeSheet(){ $sheet.close(); },
+  async saveMsg(){ await saveWeek({ message:S.msgDraft.trim() }, 'ההודעה נשמרה'); },
+  shareWa(){ window.open('https://wa.me/?text=' + encodeURIComponent(scheduleText()), '_blank'); },
+  copySched(){ copyText(scheduleText()); },
+  print(){ window.print(); },
+  async copyPrev(){
+    if (Object.values(asg()).some(x => x.length) && !confirm('להחליף את השיבוץ הנוכחי בשיבוץ מהשבוע הקודם?')) return;
+    try{
+      const prev = await B.getWeek(weekId(addDays(S.weekStart,-7)));
+      const ids = new Set(workers().map(u => u.uid)), a = {};
+      keys().forEach(k => a[k] = (prev.assignments?.[k] || []).filter(uid => ids.has(uid)));
+      await saveWeek({ assignments:a }, 'השיבוץ הועתק מהשבוע הקודם');
+    }catch(e){ toast(errMsg(e)); }
+  },
+  async clearAsg(){ if (!confirm('למחוק את כל השיבוץ של השבוע הזה?')) return; await saveWeek({ assignments:emptyAsg() }, 'השיבוץ נוקה'); },
+
+  /* עובדים */
+  newUser(){ S.uDraft = { name:'', email:'', phone:'', password:genPw(), role:'employee', positions:[], maxShifts:'' }; S.created = null; S.view = 'newUser'; render(); },
+  genPw(){ S.uDraft.password = genPw(); render(); },
+  async createUser(el){
+    const u = S.uDraft, email = (u.email||'').trim().toLowerCase();
+    if (!u.name?.trim()) return toast('צריך למלא שם');
+    if (!email) return toast('צריך למלא אימייל');
+    if ((u.password||'').length < 6) return toast('הסיסמה צריכה לכלול לפחות 6 תווים');
+    if (S.users.some(x => (x.email||'').toLowerCase() === email)) return toast(errMsg({ code:'already-member' }));
+    el.disabled = true;
+    const doc = { name:u.name.trim(), email, phone:(u.phone||'').trim(), role:u.role === 'manager' ? 'manager' : 'employee', positions:userPos(u),
+      maxShifts: u.maxShifts === '' || u.maxShifts == null ? null : Math.max(0, parseInt(u.maxShifts) || 0) };
+    try{
+      const { uid, existing } = await B.addUser({ ...doc, password:u.password }, ST().business);
+      S.users.push({ uid, ...doc, active:true });
+      S.created = { ...doc, password: existing ? null : u.password, existing };
+      resyncPublished().catch(e => console.warn(e));
+    }catch(e){ toast(errMsg(e)); }
+    render();
+  },
+  copyCreated(){ copyText(loginText(S.created)); },
+  userPos(el){
+    const set = new Set(S.uDraft.positions || []);
+    el.checked ? set.add(el.dataset.id) : set.delete(el.dataset.id);
+    S.uDraft.positions = [...set];
+  },
+  shiftPos(el){
+    const sh = S.sDraft.shifts[+el.dataset.i], set = new Set(sh.positions || []);
+    el.checked ? set.add(el.dataset.id) : set.delete(el.dataset.id);
+    sh.positions = [...set]; S.sDirty = true; render();
+  },
+  stateColor(el){ S.sDraft.availStates[+el.dataset.i].color = el.dataset.c; S.sDirty = true; render(); },
+  moveState(el){
+    const i = +el.dataset.i, j = i + +el.dataset.d, a = S.sDraft.availStates;
+    [a[i], a[j]] = [a[j], a[i]]; S.sDirty = true; render();
+  },
+  addState(){
+    const a = S.sDraft.availStates; if (a.length >= 6) return;
+    const used = new Set(a.map(x => x.color)), color = STATE_PALETTE.find(c => !used.has(c)) || STATE_PALETTE[0];
+    a.push({ id:'s' + Math.random().toString(36).slice(2,8), name:'', color, level:'normal' });
+    S.sDirty = true; render();
+  },
+  delState(el){
+    const a = S.sDraft.availStates, x = a[+el.dataset.i];
+    if (a.length <= 2) return toast('צריך לפחות שני מצבים');
+    const n = Object.values(S.subs || {}).filter(sub => Object.values(sub.avail || {}).includes(x.id)).length;
+    const warn = n ? `\n${n} עובדים בחרו במצב הזה בשבוע המוצג. אחרי המחיקה ההגשות שלהם במשמרות האלה ייחשבו "${UNSET_LABEL}".` : '';
+    if (!confirm(`למחוק את המצב "${x.name || 'ללא שם'}"?${warn}`)) return;
+    a.splice(+el.dataset.i, 1); S.sDirty = true; render();
+  },
+  resetStates(){
+    if (!confirm('לחזור לשלושת המצבים של ברירת המחדל (יכול, מעדיף שלא, לא יכול)?')) return;
+    S.sDraft.availStates = clone(DEFAULT_STATES); S.sDirty = true; render();
+  },
+  addPos(){ (S.sDraft.positions ??= []).push({ id:'p'+Math.random().toString(36).slice(2,8), name:'' }); S.sDirty = true; render(); },
+  posSees(el){
+    const p = S.sDraft.positions[+el.dataset.i], set = new Set(p.sees || []);
+    el.checked ? set.add(el.dataset.id) : set.delete(el.dataset.id);
+    p.sees = [...set]; S.sDirty = true;
+  },
+  delPos(el){
+    const p = S.sDraft.positions[+el.dataset.i];
+    if (!confirm(`למחוק את התפקיד "${p.name || 'ללא שם'}"? הוא יוסר מכל העובדים ומכל המשמרות.`)) return;
+    S.sDraft.positions.splice(+el.dataset.i, 1);
+    S.sDraft.shifts.forEach(sh => sh.positions = (sh.positions || []).filter(id => id !== p.id));
+    S.sDraft.positions.forEach(o => o.sees = (o.sees || []).filter(id => id !== p.id));
+    S.sDirty = true; render();
+  },
+  waCreated(){ const c = S.created; window.open(`https://wa.me/${waPhone(c.phone)}?text=` + encodeURIComponent(loginText(c)), '_blank'); },
+  openUser(el){
+    S.editUid = el.dataset.uid;
+    S.uDraft = clone(S.users.find(u => u.uid === S.editUid));
+    loadDraftFor(S.editUid); S.view = 'user'; render(); window.scrollTo(0,0);
+  },
+  async saveUser(){
+    const u = S.uDraft;
+    if (!u.name?.trim()) return toast('צריך למלא שם');
+    const orig = S.users.find(x => x.uid === u.uid);
+    const locked = lockedSelf(orig);
+    const data = { name:u.name.trim(), phone:(u.phone||'').trim(), positions:userPos(u),
+      role: locked ? orig.role : (u.role === 'manager' ? 'manager' : 'employee'),
+      active: locked ? orig.active !== false : u.active !== false,
+      maxShifts: u.maxShifts === '' || u.maxShifts == null ? null : Math.max(0, parseInt(u.maxShifts) || 0) };
+    try{
+      await B.updateUser(u.uid, data);
+      Object.assign(S.users.find(x => x.uid === u.uid), data);
+      if (u.uid === S.user.uid) Object.assign(S.profile, data);
+      resyncPublished().catch(e => console.warn(e));
+      toast('הפרטים נשמרו');
+    }catch(e){ toast(errMsg(e)); }
+    render();
+  },
+  async resetPw(){
+    const u = S.users.find(x => x.uid === S.editUid);
+    if (!u?.email) return toast('לעובד הזה אין אימייל במערכת');
+    if (B.demo) return toast('במצב הדגמה לא נשלחים מיילים');
+    try{ await B.sendReset(u.email); toast(`נשלח מייל לאיפוס סיסמה ל-${u.email}`); }catch(e){ toast(errMsg(e)); }
+  },
+  waUser(){ const u = S.users.find(x => x.uid === S.editUid); window.open(`https://wa.me/${waPhone(u.phone)}`, '_blank'); },
+  async transferOwner(el){
+    const u = S.users.find(x => x.uid === S.editUid);
+    if (!u || S.profile.role !== 'owner' || u.uid === S.user.uid || u.active === false) return;
+    if (!confirm(`להעביר את הבעלות על ${ST().business} ל${u.name}?\n\n${u.name} יהיה הבעלים, ואתה תהיה מנהל. אי אפשר לבטל את זה בעצמך: רק ${u.name} יוכל להחזיר לך את הבעלות.`)) return;
+    el.disabled = true;
+    try{
+      await B.transferOwnership(u.uid);
+      u.role = 'owner';
+      S.profile.role = 'manager';
+      const me = S.users.find(x => x.uid === S.user.uid); if (me) me.role = 'manager';
+      S.uDraft = clone(u);
+      toast(`${u.name} הוא עכשיו הבעלים`);
+    }catch(e){ toast(errMsg(e)); el.disabled = false; }
+    render();
+  },
+
+  /* הגדרות */
+  color(el){ S.sDraft.shifts[+el.dataset.i].color = el.dataset.c; S.sDirty = true; render(); },
+  addShift(){
+    const n = S.sDraft.shifts.length;
+    S.sDraft.shifts.push({ id:'s'+Math.random().toString(36).slice(2,8), name:'משמרת חדשה', start:'09:00', end:'17:00', color:PALETTE[n % PALETTE.length], need:[1,1,1,1,1,1,1] });
+    S.sDirty = true; render();
+  },
+  moveShift(el){
+    const i = +el.dataset.i, j = i + +el.dataset.d, sh = S.sDraft.shifts;
+    [sh[i], sh[j]] = [sh[j], sh[i]]; S.sDirty = true; render();
+  },
+  delShift(el){
+    const s = S.sDraft.shifts[+el.dataset.i];
+    if (!confirm(`למחוק את משמרת "${s.name}"? השיבוצים שלה יוסתרו בכל השבועות.`)) return;
+    S.sDraft.shifts.splice(+el.dataset.i, 1); S.sDirty = true; render();
+  },
+  async saveSettings(el){
+    const st = clone(S.sDraft);
+    if (!st.shifts.length) return toast('צריך לפחות משמרת אחת');
+    st.availStates = (st.availStates || []).map(x => ({ id:x.id, name:(x.name || '').trim(), color:x.color, level:x.level }));
+    if (st.availStates.length < 2 || st.availStates.length > 6) return toast('צריך בין 2 ל-6 מצבי זמינות');
+    if (st.availStates.some(x => !x.name)) return toast('לכל מצב זמינות צריך שם');
+    if (new Set(st.availStates.map(x => x.name)).size !== st.availStates.length) return toast('יש שני מצבי זמינות עם אותו שם');
+    if (!st.availStates.some(x => x.level !== 'never')) return toast('צריך לפחות מצב אחד שאפשר לשבץ בו');
+    st.positions = (st.positions || []).map(p => ({ id:p.id, name:(p.name||'').trim(), sees:(p.sees || []).filter(x => x !== p.id && (st.positions || []).some(o => o.id === x)) }));
+    if (st.positions.some(p => !p.name)) return toast('לכל תפקיד צריך שם');
+    if (new Set(st.positions.map(p => p.name)).size !== st.positions.length) return toast('יש שני תפקידים עם אותו שם');
+    for (const s of st.shifts) {
+      s.positions = (s.positions || []).filter(id => st.positions.some(p => p.id === id));
+      s.name = (s.name||'').trim();
+      if (!s.name) return toast('לכל משמרת צריך שם');
+      if (!s.start || !s.end) return toast(`צריך שעת התחלה וסיום למשמרת "${s.name}"`);
+      s.need = Array.from({length:7}, (_,d) => needAt(s,d));
+    }
+    st.business = (st.business||'').trim() || 'משמרות';
+    st.minRest = Math.max(0, parseInt(st.minRest) || 0);
+    st.maxPerWeek = Math.max(0, parseInt(st.maxPerWeek) || 0);
+    st.deadlineHours = Math.max(0, parseInt(st.deadlineHours) || 0);
+    st.tzMin = -new Date().getTimezoneOffset();
+    st.appUrl = location.origin + location.pathname;
+    el.disabled = true;
+    const renamed = st.business !== S.settings.business;
+    try{ await B.saveSettings(st); await B.setCompanyName(st.business);
+      if (renamed) {
+        B.renameInLists([...S.users, ...S.clocks].map(u => u.uid), st.business).catch(e => console.warn(e));
+        const c = S.companies.find(x => x.cid === S.cid); if (c) c.name = st.business;
+      }
+      S.settings = normSettings(st); S.sDraft = clone(S.settings); S.sDirty = false; toast('ההגדרות נשמרו'); resyncPublished().catch(e => console.warn(e)); }
+    catch(e){ toast(errMsg(e)); }
+    render();
+  },
+};
+
+/* ---------- events ---------- */
+function setPath(obj, path, v){ const p = path.split('.'); let o = obj; for (let i = 0; i < p.length-1; i++) o = o[p[i]]; o[p.at(-1)] = v; }
+const readInput = t => t.type === 'checkbox' ? t.checked : t.value;
+
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-action]');
+  if (el && actions[el.dataset.action]) actions[el.dataset.action](el);
+});
+document.addEventListener('input', e => {
+  const t = e.target;
+  if (t.dataset.s != null) {
+    setPath(S.sDraft, t.dataset.s, readInput(t));
+    if (!S.sDirty) { S.sDirty = true; const sp = document.querySelector('.savebar span'); if (sp) { sp.className = 'dirty'; sp.textContent = 'יש שינויים שלא נשמרו'; } }
+    if (t.type === 'checkbox') render();
+  }
+  else if (t.dataset.u != null) S.uDraft[t.dataset.u] = readInput(t);
+  else if (t.id === 'weekMsg') S.msgDraft = t.value;
+  else if (t.id === 'kq') { S.kiosk.q = t.value; render(); const f = document.getElementById('kq'); if (f) { f.focus(); f.setSelectionRange(f.value.length, f.value.length); } }
+  else if (t.id === 'note') {
+    S.note = t.value;
+    if (!S.dirty) { S.dirty = true; const sp = document.querySelector('.savebar span'); if (sp) { sp.className = 'dirty'; sp.textContent = 'יש שינויים שלא נשמרו'; } }
+  }
+});
+document.addEventListener('change', e => {
+  if (e.target.dataset.s?.startsWith('positions.')) { render(); return; }  // שם תפקיד חדש מופיע מיד גם במשמרות
+  if (!e.target.dataset.dl) return;
+  const day = +document.querySelector('[data-dl="day"]').value, hour = +document.querySelector('[data-dl="hour"]').value;
+  S.sDraft.deadlineHours = day < 0 ? 0 : 168 - (day*24 + hour);
+  S.sDirty = true; render();
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.id === 'kx-pw') { e.preventDefault(); document.querySelector('#sheet [data-action=kExitConfirm]')?.click(); return; }
+  if (e.key === 'Enter' && e.target.id === 'k-pw') { e.preventDefault(); document.querySelector('#sheet [data-action=kPunch]')?.click(); return; } if (e.key === 'Enter' && e.target.matches('.login input')) document.querySelector('.login .btn.primary')?.click(); });
+$sheet.addEventListener('change', async e => {
+  const uid = e.target.dataset.assign; if (!uid) return;
+  const a = asg(), k = S.openKey;
+  a[k] = e.target.checked ? [...a[k], uid] : a[k].filter(x => x !== uid);
+  await saveWeek({ assignments:a });
+  renderSheet();
+});
+$sheet.addEventListener('close', () => {
+  const wasKiosk = S.sheetMode === 'kiosk';
+  S.openKey = null; S.sheetMode = null;
+  if (wasKiosk) { clearTimeout(kioskIdle); Object.assign(S.kiosk, { sel:null, busy:false, done:null }); if (isClock()) render(); }
+});
+$sheet.addEventListener('click', e => { if (e.target === $sheet) $sheet.close(); });
+
+/* שעון חי במסך הנוכחות (בלי פנייה לשרת), ורענון הרשימה וההחתמות פעם בשעה */
+setInterval(() => { const c = document.getElementById('kclock'); if (c) c.textContent = clockText(); }, 1000);
+setInterval(() => { if (isClock() && !$sheet.open) loadPunches(); }, 3600e3);   // פעם בשעה, כדי לחסוך קריאות בשרת
+
+/* ---------- הצעה להתקין את האפליקציה ---------- */
+/* מי שפתח באתר ולא התקין: באנדרואיד כפתור התקנה, באייפון הוראות (אפל לא מאפשרת התקנה בלחיצה) */
+let installEvt = null;
+const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const installSnoozed = () => Date.now() - (+store.get('installLater') || 0) < 14*864e5;   // "לא עכשיו" מסתיר לשבועיים
+function renderInstall(){
+  const box = document.getElementById('install'); if (!box) return;
+  const kind = isStandalone() || installSnoozed() || isClock() ? null : installEvt ? 'android' : isIOS() ? 'ios' : null;
+  box.hidden = !kind;
+  if (!kind) { box.innerHTML = ''; return; }
+  const share = '<svg viewBox="0 0 24 24" width="17" height="17" aria-label="שיתוף"><path d="M12 3v12M7.5 7.5 12 3l4.5 4.5M6 11H5v10h14V11h-1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  box.innerHTML = `<div class="inst"><img src="icon-192.png" alt="">
+    <div class="it"><b>התקנת האפליקציה</b><span>${kind === 'android'
+      ? 'אייקון במסך הבית, ונפתח במסך מלא כמו אפליקציה'
+      : `לוחצים על כפתור השיתוף ${share} ואז על "הוספה למסך הבית"`}</span></div>
+    <div class="ib">${kind === 'android' ? '<button class="btn sm primary" data-action="installApp">התקנה</button>' : ''}
+      <button class="btn sm" data-action="installLater">לא עכשיו</button></div></div>`;
+}
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; renderInstall(); });
+window.addEventListener('appinstalled', () => { installEvt = null; renderInstall(); });
+Object.assign(actions, {
+  async installApp(){
+    if (!installEvt) return;
+    installEvt.prompt();
+    const { outcome } = await installEvt.userChoice.catch(() => ({}));
+    installEvt = null;
+    if (outcome === 'dismissed') store.set('installLater', String(Date.now()));
+    renderInstall();
+  },
+  installLater(){ store.set('installLater', String(Date.now())); renderInstall(); },
+});
+
+/* ---------- boot ---------- */
+(async () => {
+  render();
+  try{ B = FIREBASE_CONFIG.apiKey ? await firebaseBackend(FIREBASE_CONFIG) : demoBackend(); }
+  catch(e){ console.error(e); B = demoBackend(); toast('החיבור ל-Firebase נכשל, עובר למצב הדגמה'); }
+  B.onAuth(async u => {
+    S.user = u; S.ready = true;
+    if (S.signingUp) return;  // ההרשמה ממשיכה בעצמה
+    if (u) { try{ await afterLogin(); }catch(e){ toast(errMsg(e)); render(); } }
+    else { S.profile = null; S.cid = null; S.dirty = false; S.sDirty = false; render(); }
+  });
+})();
+</script>
+</body>
+</html>
