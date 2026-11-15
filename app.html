@@ -220,6 +220,16 @@ dialog::backdrop{background:rgba(30,36,51,.45)}
 .kdone .kbig{font-family:'Secular One',sans-serif;font-size:2rem;margin:0}
 .kdone p{font-size:1.2rem;margin:6px 0}
 .tag.bad{background:#FDEDE4;color:var(--warn)}
+.badge{display:inline-block;min-width:18px;margin-inline-start:6px;padding:0 5px;border-radius:9px;background:var(--warn);color:#fff;font-size:.72rem;font-style:normal;line-height:18px;text-align:center}
+.reqb{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:flex-end}
+.list li.wrapli{flex-wrap:wrap}
+.list li.wrapli .reqb{flex-basis:100%}
+.reqs{margin:14px 0}
+.req{background:#fff;border:1px solid var(--line);border-inline-start:4px solid var(--warn);border-radius:12px;padding:10px 12px;margin-bottom:10px}
+.req>b{display:block}.req>.sub{display:block;color:var(--muted);font-size:.88rem;margin-bottom:4px}
+.vol{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:space-between;padding:6px 0;border-top:1px solid var(--line);flex:1}
+.vol em{font-style:normal;color:var(--muted);font-size:.82rem;margin-inline-start:4px}
+.reqrow{display:flex;gap:6px;align-items:center}
 #install{padding-top:10px;padding-bottom:0}
 .inst{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 14px}
 .inst img{width:42px;height:42px;border-radius:10px;flex:none}
@@ -435,6 +445,11 @@ function demoBackend(){
     async getWeekStatus(w){ return clone((C().status ??= {})[w] || {}); },
     async setWeekStatus(w,data){ (C().status ??= {})[w] = { ...((C().status)[w] || {}), ...clone(data) }; },
     async getMyView(w,uid){ return clone((C().views ??= {})[uid]?.[w] || null); },
+    // בקשות של עובדים: מסירת משמרת (give) ובקשה להיכנס למשמרת חסרה (take)
+    async listRequests(w){ return clone((C().requests ||= []).filter(r => r.week === w && r.status === 'open')); },
+    async addRequest(r){ (C().requests ||= []).push({ ...clone(r), id:newUid(), by:current.uid, status:'open', createdAt:new Date() }); },
+    async volunteer(id, on){ const r = C().requests.find(x => x.id === id); r.vols = on ? [...new Set([...r.vols, current.uid])] : r.vols.filter(u => u !== current.uid); },
+    async updateRequest(id, patch){ Object.assign(C().requests.find(x => x.id === id), clone(patch)); },
     async listMySchedule(uid){ return Object.entries((C().views ??= {})[uid] || {}).map(([id,v]) => ({ id, ...clone(v) })); },
     async writeViews(w, map){ const V = (C().views ??= {}); for (const [uid,v] of Object.entries(map)) (V[uid] ??= {})[w] = clone(v); },
     // שעון נוכחות (בהדגמה כל סיסמה שאינה ריקה נחשבת נכונה)
@@ -638,6 +653,13 @@ async function firebaseBackend(cfg){
     async getWeekStatus(w){ return snap(await F.getDoc(cdoc('weeks',w,'status','main'))) || {}; },
     async setWeekStatus(w,data){ await F.setDoc(cdoc('weeks',w,'status','main'), data, { merge:true }); },
     async getMyView(w,uid){ return snap(await F.getDoc(cdoc('members',uid,'schedule',w))); },
+    async listRequests(w){
+      const q = await F.getDocs(F.query(ccol('requests'), F.where('week', '==', w), F.where('status', '==', 'open')));
+      return q.docs.map(d => ({ id:d.id, ...d.data() }));
+    },
+    async addRequest(r){ await F.addDoc(ccol('requests'), { ...r, by:auth.currentUser.uid, status:'open', createdAt:now() }); },
+    async volunteer(id, on){ await F.updateDoc(cdoc('requests', id), { vols: on ? F.arrayUnion(auth.currentUser.uid) : F.arrayRemove(auth.currentUser.uid) }); },
+    async updateRequest(id, patch){ await F.updateDoc(cdoc('requests', id), patch); },
     async listMySchedule(uid){ const q = await F.getDocs(ccol('members',uid,'schedule')); return q.docs.map(d => ({ id:d.id, ...d.data() })); },
     // ===== שעון נוכחות =====
     // בדיקת הסיסמה של העובד באפליקציה המשנית, בלי לנתק את המנהל שמחובר במכשיר
@@ -717,7 +739,7 @@ async function firebaseBackend(cfg){
 const S = {
   ready:false, user:null, profile:null, cid:null, companies:[], sheetMode:null, authMode: location.hash === '#signup' ? 'signup' : 'login', freshLogin:false, picking:false, pickNew:false, signingUp:false, users:[], settings:clone(DEFAULT_SETTINGS), view:null,
   weekStart: addDays(sundayOf(new Date()),7),
-  week:{}, mySub:null, draft:{}, note:'', dirty:false, subs:{}, msgDraft:'',
+  week:{}, reqs:[], mySub:null, draft:{}, note:'', dirty:false, subs:{}, msgDraft:'',
   sDraft:null, sDirty:false, uDraft:null, editUid:null, created:null,
   loading:false, openKey:null,
   rep:'month', repUid:null, allWeeks:null, repMode:'plan', actual:null,
@@ -841,6 +863,7 @@ async function loadWeek(){
       S.week = { ...st, ...(v?.published ? v : {}) };
     }
     S.msgDraft = S.week.message || '';
+    S.reqs = S.week.published ? await B.listRequests(wid()).catch(() => []) : [];
     if (isMgr()) { S.subs = await B.listSubmissions(wid()); if (S.view === 'user') loadDraftFor(S.editUid); }
     else {
       S.mySub = await B.getSubmission(wid(), S.user.uid);
@@ -953,7 +976,8 @@ function render(){
         <span class="bars" aria-hidden="true"><i></i><i></i><i></i></span><span class="bn">${esc(ST().business)}</span><span class="caret" aria-hidden="true">▾</span></button></h1>
       <div class="who"><span class="me"><b>${esc(S.profile.name)}</b>${myTitle() ? `<small>${esc(myTitle())}</small>` : ''}</span><button class="iconbtn refresh" data-action="refresh" aria-label="רענון" title="רענון"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.34 5.66M20 4v7h-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="link" data-action="logout">יציאה</button></div>
     </header>
-    <nav class="tabs">${tabs.map(([v,l]) => `<button data-action="tab" data-v="${v}" ${tabOf===v?'aria-current="page"':''}>${l}</button>`).join('')}</nav>
+    <nav class="tabs">${tabs.map(([v,l]) => { const n = v === 'mine' && S.week.published ? offersFor().filter(o => !o.why && !(o.kind === 'give' ? o.mine : o.r)).length : 0;
+      return `<button data-action="tab" data-v="${v}" ${tabOf===v?'aria-current="page"':''}>${l}${n ? `<i class="badge">${n}</i>` : ''}</button>`; }).join('')}</nav>
     ${showWeek ? `<div class="weeknav">
       <button class="iconbtn" data-action="week" data-d="-7" aria-label="השבוע הקודם"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       <h2>${fmt(S.weekStart)}–${fmt(end)}<small>${weekLabel()}</small></h2>
@@ -1075,6 +1099,51 @@ function availEditor(asManager){
 }
 const viewSubmit = () => availEditor(false);
 
+/* ---------- מסירת משמרות ומשמרות חסרות ---------- */
+const slotStart = k => new Date(S.weekStart.getTime() + span(k)[0] * 60e3);
+const slotLabel = k => { const [d,id] = k.split('_'), sh = shiftById(id); return `יום ${DAYS[d]} ${fmt(addDays(S.weekStart,+d))} · ${esc(sh?.name || '')} ${ltr(sh ? hrs(sh) : '')}`; };
+const future = k => !!shiftById(k.split('_')[1]) && slotStart(k) > new Date();
+/* מה העובד יכול לבקש השבוע: משמרות שאחרים מוסרים, ומשמרות שחסרים בהן אנשים */
+function offersFor(){
+  const a = asg(), me = S.profile, uid = S.user.uid;
+  const why = k => { const c = conflicts(me, k, a); return c.length ? WARN[c[0]] : ''; };
+  const gives = S.reqs.filter(r => r.type === 'give' && r.by !== uid && future(r.k) && !a[r.k]?.includes(uid) && canWork(me, shiftById(r.k.split('_')[1])))
+    .map(r => ({ kind:'give', r, k:r.k, why:why(r.k), mine:r.vols?.includes(uid) }));
+  const takes = keys().filter(k => future(k) && a[k].length < needOf(k) && !a[k].includes(uid) && canWork(me, shiftById(k.split('_')[1])))
+    .map(k => ({ kind:'take', k, why:why(k), r:S.reqs.find(r => r.type === 'take' && r.by === uid && r.k === k) }));
+  return [...gives, ...takes].sort((x,y) => slotStart(x.k) - slotStart(y.k));
+}
+function offersHtml(){
+  const list = offersFor(); if (!list.length) return '';
+  return `<h3>משמרות זמינות</h3><ul class="list">${list.map(o => {
+    const done = o.kind === 'give' ? o.mine : !!o.r;
+    const sub = o.kind === 'give' ? `${esc(nameOf(o.r.by))} רוצה למסור את המשמרת` : `חסרים ${needOf(o.k) - asg()[o.k].length} במשמרת`;
+    const btn = done
+      ? `<span class="tag">ביקשת · ממתין למנהל</span><button class="btn sm" data-action="${o.kind === 'give' ? 'reqUnvol' : 'reqCancel'}" data-id="${o.r.id}">ביטול</button>`
+      : o.why ? `<span class="tag bad">${o.why}</span>`
+      : o.kind === 'give' ? `<button class="btn sm primary" data-action="reqVol" data-id="${o.r.id}">אני רוצה</button>`
+      : `<button class="btn sm primary" data-action="reqTake" data-k="${o.k}">אני רוצה</button>`;
+    return `<li><span><b>${slotLabel(o.k)}</b><span class="sub" style="display:block">${sub}</span></span><span class="reqb">${btn}</span></li>`; }).join('')}</ul>`;
+}
+/* מנהל: בקשות ממתינות לשבוע המוצג */
+function requestsHtml(){
+  const a = asg(), open = S.reqs.filter(r => r.status === 'open'); if (!open.length) return '';
+  const gives = open.filter(r => r.type === 'give'), slots = [...new Set(open.filter(r => r.type === 'take').map(r => r.k))];
+  const cand = (uid, k, id, a2) => { const u = S.users.find(x => x.uid === uid); if (!u) return '';
+    const w = [...(canWork(u, shiftById(k.split('_')[1])) ? [] : ['תפקיד לא מתאים']), ...conflicts(u, k, a2).map(c => WARN[c])];
+    return `<div class="vol"><span>${esc(u.name)} <em>${keys().filter(x => a[x].includes(uid)).length} משמרות השבוע</em>${w.map(x => `<span class="tag bad">${x}</span>`).join('')}</span>
+      <button class="btn sm primary" data-action="reqApprove" data-id="${id}" data-uid="${uid}">אישור</button></div>`; };
+  return `<div class="reqs"><h3>בקשות ממתינות (${gives.length + slots.length})</h3>
+    ${gives.map(r => { const a2 = { ...a, [r.k]:(a[r.k] || []).filter(x => x !== r.by) };
+      return `<div class="req"><b>${slotLabel(r.k)}</b><span class="sub">${esc(nameOf(r.by))} רוצה למסור את המשמרת</span>
+        ${(r.vols || []).map(v => cand(v, r.k, r.id, a2)).join('') || '<p class="hint" style="margin:6px 0">עוד אין מתנדבים.</p>'}
+        <button class="btn sm" data-action="reqReject" data-id="${r.id}">דחיית הבקשה</button></div>`; }).join('')}
+    ${slots.map(k => { const rs = open.filter(r => r.type === 'take' && r.k === k), left = needOf(k) - (a[k] || []).length;
+      return `<div class="req"><b>${slotLabel(k)}</b><span class="sub">${left > 0 ? `חסרים ${left}` : 'המשמרת כבר מלאה'} · עובדים שמבקשים להיכנס</span>
+        ${rs.map(r => `<div class="reqrow">${cand(r.by, k, r.id, a)}<button class="btn sm" data-action="reqReject" data-id="${r.id}">דחייה</button></div>`).join('')}</div>`; }).join('')}
+  </div>`;
+}
+
 function viewMine(){
   if (!S.week.published) return `<p class="empty">הסידור לשבוע הזה עוד לא פורסם.<br>אפשר בינתיים להגיש זמינות בלשונית "זמינות".</p>`;
   const a = asg(), uid = S.user.uid;
@@ -1083,8 +1152,12 @@ function viewMine(){
     ${S.week.message ? `<p class="notice msg">${esc(S.week.message)}</p>` : ''}
     <h3>המשמרות שלך</h3>
     ${mine.length ? `<ul class="list">${mine.map(k => { const [d,id] = k.split('_'), s = shiftById(id);
-      return `<li><span class="myshift"><i class="dot" style="--c:${s.color}"></i><b>יום ${DAYS[d]} ${fmt(addDays(S.weekStart,+d))}</b></span><span>${esc(s.name)}, ${ltr(hrs(s))}</span></li>`; }).join('')}</ul>`
+      const g = S.reqs.find(r => r.type === 'give' && r.by === uid && r.k === k);
+      const act = g ? `<span class="reqb"><span class="tag">מסרת · ${(g.vols || []).length} מתנדבים · ממתין למנהל</span><button class="btn sm" data-action="reqCancel" data-id="${g.id}">ביטול</button></span>`
+        : future(k) ? `<span class="reqb"><button class="btn sm" data-action="reqGive" data-k="${k}">למסור</button></span>` : '';
+      return `<li class="wrapli"><span class="myshift"><i class="dot" style="--c:${s.color}"></i><b>יום ${DAYS[d]} ${fmt(addDays(S.weekStart,+d))}</b></span><span>${esc(s.name)}, ${ltr(hrs(s))}</span>${act}</li>`; }).join('')}</ul>`
       : `<p class="hint">לא שובצת למשמרות השבוע.</p>`}
+    ${offersHtml()}
     <h3>הסידור</h3>
     ${dayGrid((d,s,k) => { const n = a[k];
       return `<div class="slot" style="--c:${s.color}"><span class="sn">${esc(s.name)}</span><span class="hr">${hrs(s)}</span>
@@ -1103,7 +1176,9 @@ function viewManage(){
       <span class="pill ${closed?'warn':''}">${S.week.locked ? 'ההגשה נסגרה ידנית' : (dl && Date.now() >= dl) ? 'מועד ההגשה עבר' : dl ? `הגשה עד ${fmt(dl)} ${ltr(hhmm(dl))}` : 'ההגשה פתוחה'}</span>
       <span class="pill ${S.week.published?'ok':''}">${S.week.published ? 'הסידור פורסם' : 'טיוטה'}</span>
       ${short ? `<span class="pill warn">${short} משמרות חסרות</span>` : ''}
+      ${S.reqs.length ? `<span class="pill warn">${S.reqs.length} בקשות ממתינות</span>` : ''}
     </div>
+    ${requestsHtml()}
     <div class="toolbar">
       <button class="btn" data-action="lock">${S.week.locked ? 'פתיחת ההגשה' : 'סגירת ההגשה'}</button>
       <button class="btn" data-action="auto">שיבוץ אוטומטי</button>
@@ -1613,6 +1688,11 @@ function renderPunchSheet(){
       ${x ? '<button class="btn danger" data-action="peVoid">מחיקת המשמרת</button>' : ''}</div></div>`;
 }
 
+async function reqDo(fn, msg){
+  try{ await fn(); if (msg) toast(msg); }catch(e){ toast(errMsg(e)); }
+  S.reqs = await B.listRequests(wid()).catch(() => S.reqs); render();
+}
+
 /* ---------- slot sheet ---------- */
 function renderSheet(){
   const k = S.openKey; if (!k) return;
@@ -1673,14 +1753,34 @@ async function saveWeek(patch, msg){
     if (S.week.published || patch.published === false) await syncViews(wid(), S.week);
     if (msg) toast(msg);
   }
-  catch(e){ toast(errMsg(e)); }
-  render();
+  catch(e){ toast(errMsg(e)); render(); return false; }
+  render(); return true;
 }
 const actions = {
   async demoLogin(el){ S.freshLogin = true; await B.signIn(el.dataset.uid); },
   period(el){ S.rep = el.dataset.p; if ((S.view === 'reports' || S.view === 'hours') && S.repMode === 'actual') loadActual(); else render(); },
   repMode(el){ S.repMode = el.dataset.m; S.repUid = null; if (S.repMode === 'actual') loadActual(); else render(); },
   csvActual(){ downloadActualCsv(); },
+  async reqGive(el){ await reqDo(() => B.addRequest({ type:'give', week:wid(), k:el.dataset.k, vols:[] }), 'המשמרת הוצעה לעובדים. עד שהמנהל מאשר, אתה עדיין משובץ'); },
+  async reqTake(el){ await reqDo(() => B.addRequest({ type:'take', week:wid(), k:el.dataset.k }), 'הבקשה נשלחה למנהל'); },
+  async reqVol(el){ await reqDo(() => B.volunteer(el.dataset.id, true), 'הבקשה נשלחה למנהל'); },
+  async reqUnvol(el){ await reqDo(() => B.volunteer(el.dataset.id, false), 'הבקשה בוטלה'); },
+  async reqCancel(el){ await reqDo(() => B.updateRequest(el.dataset.id, { status:'cancelled' }), 'הבקשה בוטלה'); },
+  async reqReject(el){ await reqDo(() => B.updateRequest(el.dataset.id, { status:'rejected', doneBy:S.user.uid, doneAt:new Date() }), 'הבקשה נדחתה'); },
+  async reqApprove(el){
+    const r = S.reqs.find(x => x.id === el.dataset.id), uid = el.dataset.uid; if (!r) return;
+    const a = asg(), list = a[r.k] || [];
+    if (r.type === 'give' && !list.includes(r.by)) {
+      await reqDo(() => B.updateRequest(r.id, { status:'rejected', doneBy:S.user.uid, doneAt:new Date() }));
+      return toast(`הבקשה כבר לא בתוקף: ${nameOf(r.by)} כבר לא במשמרת הזו`);
+    }
+    if (list.includes(uid)) return toast(`${nameOf(uid)} כבר במשמרת הזו`);
+    el.disabled = true;
+    a[r.k] = r.type === 'give' ? list.map(x => x === r.by ? uid : x) : [...list, uid];
+    if (!await saveWeek({ assignments:a })) { el.disabled = false; return; }
+    await reqDo(() => B.updateRequest(r.id, { status:'done', to:uid, doneBy:S.user.uid, doneAt:new Date() }),
+      r.type === 'give' ? `המשמרת עברה מ${nameOf(r.by)} ל${nameOf(uid)}` : `השיבוץ של ${nameOf(uid)} אושר`);
+  },
   peOpen(el){ S.pe = { uid:S.repUid, i:+el.dataset.i }; S.sheetMode = 'punch'; renderPunchSheet(); $sheet.showModal(); },
   async peSave(el){
     const pe = S.pe, x = pe.i >= 0 ? S.actual[pe.uid]?.[pe.i] : null, v = id => document.getElementById(id)?.value || '';
