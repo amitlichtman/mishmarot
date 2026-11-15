@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#1E2433">
-<title>משמרות</title>
+<title>DoTheShift</title>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="משמרות">
+<meta name="apple-mobile-web-app-title" content="DoTheShift">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700&family=Secular+One&display=swap" rel="stylesheet">
@@ -270,7 +270,7 @@ const DEFAULT_STATES = [
 ];
 const UNSET_LABEL = 'לא סומן';
 const DEFAULT_SETTINGS = {
-  business: 'משמרות',
+  business: 'DoTheShift',
   availStates: DEFAULT_STATES,
   positions: [ { id:'waiter', name:'מלצר' }, { id:'cook', name:'טבח' } ],
   shifts: [
@@ -965,7 +965,7 @@ function dayGrid(cell, sh = ST().shifts){
   </div>`).join('')}</div></div>`;
 }
 
-const BRAND = `<h1><span class="bars" aria-hidden="true"><i></i><i></i><i></i></span>משמרות</h1>`;
+const BRAND = `<h1><span dir="ltr">DoTheShift</span><span class="bars" dir="ltr" aria-hidden="true"><i></i><i></i><i></i></span></h1>`;
 function viewLogin(){
   if (S.authMode === 'signup') return viewSignup();
   const toSignup = `<p class="divider">מנהלים עסק ועוד אין לכם חשבון?</p>
@@ -1225,8 +1225,8 @@ function viewNewUser(){
       <div class="toolbar" style="margin-top:16px"><button class="btn primary" data-action="createUser">הוספת העובד</button></div></div>`;
 }
 const loginText = c => c.existing
-  ? `שלום ${c.name}, צורפת למערכת המשמרות של ${ST().business}.\nכניסה: ${location.origin + location.pathname}\nאימייל: ${c.email}\nהסיסמה שלך לא השתנתה. אם שכחת אותה, יש "שכחתי סיסמה" במסך הכניסה.`
-  : `שלום ${c.name}, נפתח לך חשבון במערכת המשמרות של ${ST().business}.\nכניסה: ${location.origin + location.pathname}\nאימייל: ${c.email}\nסיסמה: ${c.password}`;
+  ? `שלום ${c.name}, צורפת למערכת המשמרות של ${ST().business} ב-DoTheShift.\nכניסה: ${location.origin + location.pathname}\nאימייל: ${c.email}\nהסיסמה שלך לא השתנתה. אם שכחת אותה, יש "שכחתי סיסמה" במסך הכניסה.`
+  : `שלום ${c.name}, נפתח לך חשבון במערכת המשמרות של ${ST().business} ב-DoTheShift.\nכניסה: ${location.origin + location.pathname}\nאימייל: ${c.email}\nסיסמה: ${c.password}`;
 
 function viewSettings(){
   const st = S.sDraft;
@@ -2066,7 +2066,7 @@ const actions = {
       if (!s.start || !s.end) return toast(`צריך שעת התחלה וסיום למשמרת "${s.name}"`);
       s.need = Array.from({length:7}, (_,d) => needAt(s,d));
     }
-    st.business = (st.business||'').trim() || 'משמרות';
+    st.business = (st.business||'').trim() || 'DoTheShift';
     st.minRest = Math.max(0, parseInt(st.minRest) || 0);
     st.maxPerWeek = Math.max(0, parseInt(st.maxPerWeek) || 0);
     st.deadlineHours = Math.max(0, parseInt(st.deadlineHours) || 0);
