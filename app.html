@@ -2167,7 +2167,8 @@ setInterval(() => { if (isClock() && !$sheet.open) loadPunches(); }, 3600e3);   
 let installEvt = null;
 const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-const installSnoozed = () => Date.now() - (+store.get('installLater') || 0) < 14*864e5;   // "לא עכשיו" מסתיר לשבועיים
+let installHidden = false;                       // "לא עכשיו" מסתיר רק עד הכניסה הבאה לאתר
+const installSnoozed = () => installHidden;
 function renderInstall(){
   const box = document.getElementById('install'); if (!box) return;
   const kind = isStandalone() || installSnoozed() || isClock() ? null : installEvt ? 'android' : isIOS() ? 'ios' : null;
@@ -2189,10 +2190,10 @@ Object.assign(actions, {
     installEvt.prompt();
     const { outcome } = await installEvt.userChoice.catch(() => ({}));
     installEvt = null;
-    if (outcome === 'dismissed') store.set('installLater', String(Date.now()));
+    if (outcome === 'dismissed') installHidden = true;
     renderInstall();
   },
-  installLater(){ store.set('installLater', String(Date.now())); renderInstall(); },
+  installLater(){ installHidden = true; renderInstall(); },
 });
 
 /* ---------- boot ---------- */
