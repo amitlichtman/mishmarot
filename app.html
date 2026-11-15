@@ -6,6 +6,7 @@
 <meta name="theme-color" content="#1E2433">
 <title>DoTheShift</title>
 <link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="DoTheShift">
@@ -1865,12 +1866,12 @@ async function reqDo(fn, msg){
 /* ---------- התראות: מה כל משתמש רוצה לקבל, בכל עסק בנפרד ---------- */
 const NOTIF_TYPES = [
   ['publish',   'הסידור פורסם',                              'worker'],
-  ['reqResult', 'תשובה לבקשות שלי (אושרה או נדחתה)',         'all'],
+  ['reqResult', 'תשובה לבקשות שלי (אושרה או נדחתה)',         'emp'],   // רק עובדים מגישים בקשות
   ['reqNew',    'בקשות חדשות ומתנדבים מעובדים',              'mgr'],
   ['reminder',  'תזכורת להגיש זמינות לפני המועד האחרון',      'worker'],
   ['clockOut',  'תזכורת אם שכחתי להחתים יציאה',               'all'],
 ];
-const notifTypes = () => NOTIF_TYPES.filter(([,, who]) => who === 'all' || (who === 'mgr' ? isMgr() : isWorker(S.profile)));
+const notifTypes = () => NOTIF_TYPES.filter(([,, who]) => who === 'all' || (who === 'mgr' ? isMgr() : who === 'emp' ? !isMgr() : isWorker(S.profile)));
 function renderNotifSheet(){
   const p = S.prefs || {}, perm = typeof Notification === 'undefined' ? 'none' : Notification.permission;
   const stat = B.demo ? `<div class="nstat">במצב הדגמה אין התראות. אפשר לראות כאן את ההגדרות.</div>`
