@@ -1,6 +1,6 @@
 {
-  "name": "משמרות",
-  "short_name": "משמרות",
+  "name": "DoTheShift",
+  "short_name": "DoTheShift",
   "start_url": "./app.html",
   "scope": "./",
   "display": "standalone",
