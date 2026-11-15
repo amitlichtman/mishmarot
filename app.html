@@ -421,7 +421,7 @@ function demoBackend(){
     let code; do { code = genCode(); } while (companies[code]);
     const acc = accounts[current.uid];
     companies[code] = { ownerUid:current.uid, settings:clone(settings), weeks:{}, subs:{},
-      members:{ [current.uid]:{ name, email:acc.email, role:'owner', positions:[], active:true } } };
+      members:{ [current.uid]:{ name, email:acc.email, role:'owner', positions:[], active:true, hidden:false } } };
     return code;
   }
   return {
@@ -449,12 +449,13 @@ function demoBackend(){
     async renameInLists(){ },
     async fixMyListName(){ },
     async listUsers(){ return Object.entries(C().members).map(([uid,u]) => ({ uid, ...clone(u) })); },
+    async listVisibleUsers(){ return (await this.listUsers()).filter(u => u.hidden !== true); },
     async addUser(data){
       const { password, ...doc } = data;
       let uid = Object.keys(accounts).find(u => accounts[u].email === doc.email), existing = !!uid;
       if (uid && C().members[uid]) throw { code:'already-member' };
       if (!uid) { uid = newUid(); accounts[uid] = { name:doc.name, email:doc.email }; }
-      C().members[uid] = { ...clone(doc), active:true };
+      C().members[uid] = { hidden:false, ...clone(doc), active:true };
       return { uid, existing };
     },
     async updateUser(uid,data){ C().members[uid] = { ...C().members[uid], ...clone(data) }; },
@@ -557,7 +558,7 @@ async function firebaseBackend(cfg){
       catch(e){ if (!String(e?.code).includes('permission-denied')) throw e; }  // המספר תפוס, מגרילים שוב
     }
     if (!code) throw new Error('לא הצלחנו לפתוח את העסק, נסה שוב');
-    await F.setDoc(memberRef(code, u.uid), { name, email:(u.email||'').toLowerCase(), role:'owner', positions:[], active:true, joinedAt:now() });
+    await F.setDoc(memberRef(code, u.uid), { name, email:(u.email||'').toLowerCase(), role:'owner', positions:[], active:true, hidden:false, joinedAt:now() });
     await F.setDoc(indexRef(u.uid, code), { name:restaurant, joinedAt:now() });
     await F.setDoc(F.doc(db,'companies',code,'settings','main'), settings);
     return code;
@@ -613,6 +614,8 @@ async function firebaseBackend(cfg){
     // תיקון של השם ברשימה שלי, אם השתנה לפני העדכון הזה
     async fixMyListName(c, n){ await F.updateDoc(indexRef(auth.currentUser.uid, c), { name:n }); },
     async listUsers(){ const q = await F.getDocs(ccol('members')); return q.docs.map(d => ({ uid:d.id, ...d.data() })); },
+    // עובד רגיל: רק מי שלא סומן כחסוי (השרת מאשר רק את השאילתה הזו)
+    async listVisibleUsers(){ const q = await F.getDocs(F.query(ccol('members'), F.where('hidden', '==', false))); return q.docs.map(d => ({ uid:d.id, ...d.data() })); },
     async addUser(data, companyName){
       const { password, ...doc } = data;
       let uid, existing = false;
@@ -631,7 +634,7 @@ async function firebaseBackend(cfg){
       }
       if (snap(await F.getDoc(memberRef(cid, uid)))) throw { code:'already-member' };
       const b = F.writeBatch(db);
-      b.set(memberRef(cid, uid), { ...doc, active:true, joinedAt:now() });
+      b.set(memberRef(cid, uid), { hidden:false, ...doc, active:true, joinedAt:now() });
       b.set(indexRef(uid, cid), { name:companyName || '', joinedAt:now() });
       await b.commit();
       return { uid, existing };
@@ -653,7 +656,7 @@ async function firebaseBackend(cfg){
       const c = p.companyId;
       try {
         await F.setDoc(memberRef(c, me.uid), { name:p.name || '', email:(p.email || me.email || '').toLowerCase(), phone:p.phone || '',
-          role:'owner', positions:p.positions || [], maxShifts:p.maxShifts ?? null, active:true, joinedAt:now() });
+          role:'owner', positions:p.positions || [], maxShifts:p.maxShifts ?? null, active:true, hidden:false, joinedAt:now() });
       } catch { return { list:[], legacy:true }; }   // רק הבעלים מעביר את העסק
       const name = snap(await F.getDoc(F.doc(db,'companies',c,'settings','main')))?.business || '';
       await F.setDoc(indexRef(me.uid, c), { name, joinedAt:now() });
@@ -961,15 +964,18 @@ async function enterCompany(cid){
   if (p.role === 'kiosk') { await enterClock(); return true; }
   store.set('lastCompany:' + S.user.uid, cid);
   S.settings = normSettings(await B.getSettings());
-  if (isMgrRole(p.role) || ST().teamVisible) {
+  if (isMgrRole(p.role)) {
     const everyone = await B.listUsers();
     S.users = everyone.filter(u => u.role !== 'kiosk');      // מכשירי שעון הם לא עובדים
     S.clocks = everyone.filter(u => u.role === 'kiosk');
+    // כרטיסים ישנים בלי השדה "חסוי": משלימים, כי לפיו השרת מחליט מה עובדים רואים
+    for (const u of everyone) if (u.role !== 'kiosk' && u.hidden === undefined) { u.hidden = false; B.updateUser(u.uid, { hidden:false }).catch(e => console.warn(e)); }
   } else {
-    // פרטי העובדים מוסתרים: רק השמות, מהרשימה שהמנהל מעדכן
+    // עובד: השמות של כולם (בשביל הסידור), ופרטים רק של מי שמותר לו לראות
     const nm = await B.getNames().catch(() => null) || {};
-    S.users = Object.entries(nm.names || {}).filter(([uid]) => uid !== S.user.uid).map(([uid, name]) => ({ uid, name, active:true }));
-    S.users.push({ ...p, uid:S.user.uid });
+    const full = ST().teamVisible ? await B.listVisibleUsers().catch(() => []) : [];
+    S.users = Object.entries(nm.names || {}).filter(([uid]) => uid !== S.user.uid && !full.some(u => u.uid === uid)).map(([uid, name]) => ({ uid, name, active:true, nameOnly:true }));
+    S.users.push(...full.filter(u => u.uid !== S.user.uid && u.role !== 'kiosk'), { ...p, uid:S.user.uid });
     S.clocks = Object.entries(nm.clocks || {}).map(([uid, name]) => ({ uid, name, role:'kiosk' }));
   }
   S.clockSig = null; S.namesSig = null;
@@ -1232,7 +1238,7 @@ function viewCrew(){
   if (!ST().teamVisible) return `<p class="empty">המנהל לא פתח את רשימת העובדים.</p>`;
   const tel = ph => (ph || '').replace(/[^\d+]/g, ''), wa = ph => { const d = tel(ph).replace(/^\+/, ''); return d.startsWith('0') ? '972' + d.slice(1) : d; };
   const rank = u => u.role === 'owner' ? 0 : u.role === 'manager' ? 1 : 2;
-  const q = (S.crewQ || '').trim(), all = members().filter(u => u.uid !== S.user.uid);
+  const q = (S.crewQ || '').trim(), all = members().filter(u => u.uid !== S.user.uid && !u.nameOnly && u.hidden !== true);
   const list = all.filter(u => !q || (u.name || '').includes(q)).sort((a,b) => rank(a) - rank(b) || byName(a,b));
   const card = u => {
     const pos = userPos(u).map(posName).filter(Boolean), c = CREW_COLORS[[...(u.uid || '')].reduce((t,ch) => t + ch.charCodeAt(0), 0) % CREW_COLORS.length];
@@ -1334,7 +1340,7 @@ function viewTeam(){
     const sub = S.subs[u.uid], n = keys().filter(k => a[k].includes(u.uid)).length;
     const isW = isWorker(u);
     const pos = userPos(u).map(posName);
-    const info = [u.role !== 'employee' ? ROLE_LABEL[u.role] : null, pos.length ? pos.join(' ו') : null,
+    const info = [u.role !== 'employee' ? ROLE_LABEL[u.role] : null, u.hidden ? 'חסוי' : null, pos.length ? pos.join(' ו') : null,
       isW ? (sub ? `הגיש, משובץ ל-${n}` : 'עוד לא הגיש') : null].filter(Boolean).join(', ');
     return `<li class="btnrow"><button class="userbtn" data-action="openUser" data-uid="${u.uid}">
       <span><b>${esc(u.name)}</b><span class="sub" style="display:block">${info || 'לא משתבץ'}</span>${sub?.note ? `<span class="sub" style="display:block">"${esc(sub.note)}"</span>` : ''}</span>
@@ -1368,6 +1374,7 @@ function userFields(isNew){
     <div class="field">תפקידים בעסק<small>${isMgrRole(u.role) ? 'מנהל עם תפקיד משתבץ למשמרות. בלי תפקיד הוא רק מנהל.' : 'משמרות שמוגדרות לתפקיד מסוים יופיעו רק למי שיש לו אותו.'}</small>
       <div class="posgrid">${positions().map(p => `<label class="poschip"><input type="checkbox" data-action="userPos" data-id="${p.id}" ${(u.positions||[]).includes(p.id)?'checked':''}>${esc(p.name)}</label>`).join('')
         || '<span class="sub">עוד אין תפקידים. מוסיפים אותם בהגדרות.</span>'}</div></div>
+    <label class="check"><input type="checkbox" data-u="hidden" ${u.hidden?'checked':''}>חסוי: עובדים לא יראו אותו ברשימת הצוות (השם שלו עדיין יופיע בסידור)</label>
     ${isNew ? '' : lockedSelf(u) ? '' : `<label class="check"><input type="checkbox" data-u="active" ${u.active!==false?'checked':''}>פעיל (משתמש לא פעיל לא יכול להיכנס)</label>`}`;
 }
 /* בעלים ואתה עצמך: אי אפשר לשנות הרשאה או להשבית */
@@ -2184,7 +2191,7 @@ const actions = {
     if ((u.password||'').length < 6) return toast('הסיסמה צריכה לכלול לפחות 6 תווים');
     if (S.users.some(x => (x.email||'').toLowerCase() === email)) return toast(errMsg({ code:'already-member' }));
     el.disabled = true;
-    const doc = { name:u.name.trim(), email, phone:(u.phone||'').trim(), role:u.role === 'manager' ? 'manager' : 'employee', positions:userPos(u),
+    const doc = { name:u.name.trim(), email, phone:(u.phone||'').trim(), role:u.role === 'manager' ? 'manager' : 'employee', positions:userPos(u), hidden:!!u.hidden,
       maxShifts: u.maxShifts === '' || u.maxShifts == null ? null : Math.max(0, parseInt(u.maxShifts) || 0) };
     try{
       const { uid, existing } = await B.addUser({ ...doc, password:u.password }, ST().business);
@@ -2255,7 +2262,7 @@ const actions = {
     const locked = lockedSelf(orig);
     const data = { name:u.name.trim(), phone:(u.phone||'').trim(), positions:userPos(u),
       role: locked ? orig.role : (u.role === 'manager' ? 'manager' : 'employee'),
-      active: locked ? orig.active !== false : u.active !== false,
+      active: locked ? orig.active !== false : u.active !== false, hidden: !!u.hidden,
       maxShifts: u.maxShifts === '' || u.maxShifts == null ? null : Math.max(0, parseInt(u.maxShifts) || 0) };
     try{
       await B.updateUser(u.uid, data);
