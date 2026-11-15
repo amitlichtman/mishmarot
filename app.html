@@ -220,6 +220,7 @@ dialog::backdrop{background:rgba(30,36,51,.45)}
 .kdone .kbig{font-family:'Secular One',sans-serif;font-size:2rem;margin:0}
 .kdone p{font-size:1.2rem;margin:6px 0}
 .tag.bad{background:#FDEDE4;color:var(--warn)}
+a.btn{text-decoration:none;display:inline-flex;align-items:center}
 .badge{display:inline-block;min-width:18px;margin-inline-start:6px;padding:0 5px;border-radius:9px;background:var(--warn);color:#fff;font-size:.72rem;font-style:normal;line-height:18px;text-align:center}
 .tk{display:flex;flex-direction:column;align-items:flex-start;gap:3px;margin-top:5px;padding-top:5px;border-top:1px dashed var(--line)}
 .tkn{font-size:.72rem;color:var(--warn);font-weight:500}
@@ -298,6 +299,9 @@ const DEFAULT_SETTINGS = {
   minRest: 8,
   onePerDay: true,
   maxPerWeek: 6,
+  allowGive: true,     // עובדים יכולים לבקש למסור משמרת
+  allowTake: true,     // עובדים יכולים לבקש להיכנס למשמרת חסרה
+  teamVisible: false,  // עובדים רואים את רשימת העובדים ופרטי הקשר
 };
 /* חשבונות של מכשירי שעון נוכחות מקבלים כתובת מומצאת בדומיין הזה. אף מייל לא נשלח אליה */
 const CLOCK_DOMAIN = 'clock.example.com';
@@ -441,6 +445,8 @@ function demoBackend(){
     async transferOwnership(nu){ const me = current.uid; C().ownerUid = nu; C().members[nu].role = 'owner'; C().members[me].role = 'manager'; },
     async getSettings(){ return C().settings ? clone(C().settings) : null; },
     async saveSettings(s){ C().settings = clone(s); },
+    async getNames(){ const M = C().members; return clone(C().names || { names:Object.fromEntries(Object.entries(M).filter(([,m]) => m.role !== 'kiosk').map(([u,m]) => [u, m.name])), clocks:{} }); },
+    async setNames(d){ C().names = clone(d); },
     async getWeek(id){ return clone(C().weeks[id] || {}); },
     async updateWeek(id,data){ C().weeks[id] = { ...(C().weeks[id]||{}), ...clone(data) }; },
     async getSubmission(w,uid){ return C().subs[w]?.[uid] ? clone(C().subs[w][uid]) : null; },
@@ -651,6 +657,9 @@ async function firebaseBackend(cfg){
     },
     async getSettings(){ return snap(await F.getDoc(cdoc('settings','main'))); },
     async saveSettings(s){ await F.setDoc(cdoc('settings','main'), s); },
+    // רק שמות. כל העובדים קוראים את זה, כדי להציג שמות בסידור גם כשפרטי העובדים מוסתרים
+    async getNames(){ return snap(await F.getDoc(cdoc('settings','names'))); },
+    async setNames(d){ await F.setDoc(cdoc('settings','names'), d); },
     async getWeek(id){ return snap(await F.getDoc(cdoc('weeks',id))) || {}; },
     async updateWeek(id,data){ await F.setDoc(cdoc('weeks',id), data, { mergeFields:Object.keys(data) }); },
     async getSubmission(w,uid){ return snap(await F.getDoc(cdoc('weeks',w,'submissions',uid))); },
@@ -936,13 +945,22 @@ async function enterCompany(cid){
   if (p.role === 'kiosk') { await enterClock(); return true; }
   store.set('lastCompany:' + S.user.uid, cid);
   S.settings = normSettings(await B.getSettings());
-  const everyone = await B.listUsers();
-  S.users = everyone.filter(u => u.role !== 'kiosk');      // מכשירי שעון הם לא עובדים
-  S.clocks = everyone.filter(u => u.role === 'kiosk'); S.clockSig = null;
+  if (isMgrRole(p.role) || ST().teamVisible) {
+    const everyone = await B.listUsers();
+    S.users = everyone.filter(u => u.role !== 'kiosk');      // מכשירי שעון הם לא עובדים
+    S.clocks = everyone.filter(u => u.role === 'kiosk');
+  } else {
+    // פרטי העובדים מוסתרים: רק השמות, מהרשימה שהמנהל מעדכן
+    const nm = await B.getNames().catch(() => null) || {};
+    S.users = Object.entries(nm.names || {}).filter(([uid]) => uid !== S.user.uid).map(([uid, name]) => ({ uid, name, active:true }));
+    S.users.push({ ...p, uid:S.user.uid });
+    S.clocks = Object.entries(nm.clocks || {}).map(([uid, name]) => ({ uid, name, role:'kiosk' }));
+  }
+  S.clockSig = null; S.namesSig = null;
   Object.assign(S, { subs:{}, week:{}, allWeeks:null, repUid:null, editUid:null, draft:{}, note:'', dirty:false, sDirty:false, mySub:null });
   const c = S.companies.find(x => x.cid === cid); if (c) c.name = ST().business;
   S.view = isMgr() ? 'manage' : 'submit';
-  if (isMgr()) syncClockList().catch(e => console.warn(e));
+  if (isMgr()) { syncClockList().catch(e => console.warn(e)); syncNames().catch(e => console.warn(e)); }
   if (isMgr()) B.getCompany().then(c => { if (c && c.name !== ST().business) return B.setCompanyName(ST().business); }).catch(e => console.warn(e));
   if (isMgr() && !ST().viewsVersion) {
     resyncPublished(true).then(async () => {
@@ -974,6 +992,13 @@ async function syncClockList(force = false){
   await B.setClockList(data); S.clockSig = sig;
 }
 const isClock = () => S.profile?.role === 'kiosk';
+/* המנהל מעדכן את רשימת השמות שכל העובדים רואים */
+async function syncNames(){
+  if (!isMgr()) return;
+  const data = { names:Object.fromEntries(S.users.map(u => [u.uid, u.name || ''])), clocks:Object.fromEntries(S.clocks.map(c => [c.uid, c.name || ''])) };
+  const sig = JSON.stringify(data); if (sig === S.namesSig) return;
+  await B.setNames(data); S.namesSig = sig;
+}
 
 /* ---------- render ---------- */
 function render(){
@@ -984,10 +1009,10 @@ function render(){
   if (!S.user || !S.profile) { $app.innerHTML = viewLogin(); return; }
   const tabs = isMgr()
     ? [['manage','שיבוץ'],['team','עובדים'],['reports','דוחות'],['settings','הגדרות']]
-    : [['submit','זמינות'],['mine','הסידור שלי'],['hours','שעות']];
+    : [['submit','זמינות'],['mine','הסידור שלי'],['hours','שעות'], ...(ST().teamVisible ? [['crew','צוות']] : [])];
   const tabOf = { user:'team', newUser:'team' }[S.view] || S.view;  // newCompany: אף לשונית
-  const showWeek = !['settings','newUser','reports','hours','newCompany'].includes(S.view);
-  const views = { submit:viewSubmit, mine:viewMine, manage:viewManage, team:viewTeam, user:viewUser, newUser:viewNewUser, settings:viewSettings, hours:viewHours, reports:viewReports, newCompany:viewNewCompany };
+  const showWeek = !['settings','newUser','reports','hours','newCompany','crew'].includes(S.view);
+  const views = { submit:viewSubmit, mine:viewMine, manage:viewManage, team:viewTeam, user:viewUser, newUser:viewNewUser, settings:viewSettings, hours:viewHours, crew:viewCrew, reports:viewReports, newCompany:viewNewCompany };
   const end = addDays(S.weekStart,6);
   $app.innerHTML = `
     ${B.demo ? `<div class="demo">מצב הדגמה: הנתונים נשמרים רק עד רענון הדף.</div>` : ''}
@@ -1127,9 +1152,9 @@ const future = k => !!shiftById(k.split('_')[1]) && slotStart(k) > new Date();
 function offersFor(){
   const a = asg(), me = S.profile, uid = S.user.uid;
   const why = k => { const c = conflicts(me, k, a); return c.length ? WARN[c[0]] : ''; };
-  const gives = S.reqs.filter(r => r.type === 'give' && r.by !== uid && future(r.k) && !a[r.k]?.includes(uid) && canWork(me, shiftById(r.k.split('_')[1])))
+  const gives = S.reqs.filter(r => ST().allowGive !== false && r.type === 'give' && r.by !== uid && future(r.k) && !a[r.k]?.includes(uid) && canWork(me, shiftById(r.k.split('_')[1])))
     .map(r => ({ kind:'give', r, k:r.k, why:why(r.k), mine:r.vols?.includes(uid) }));
-  const takes = keys().filter(k => future(k) && a[k].length < needOf(k) && !a[k].includes(uid) && canWork(me, shiftById(k.split('_')[1])))
+  const takes = keys().filter(k => ST().allowTake !== false && future(k) && a[k].length < needOf(k) && !a[k].includes(uid) && canWork(me, shiftById(k.split('_')[1])))
     .map(k => ({ kind:'take', k, why:why(k), r:S.reqs.find(r => r.type === 'take' && r.by === uid && r.k === k),
       no:S.myReqs.some(r => r.type === 'take' && r.k === k && r.status === 'rejected') }));
   return [...gives, ...takes].sort((x,y) => slotStart(x.k) - slotStart(y.k));
@@ -1180,6 +1205,17 @@ function takeCell(k, takes){
     : `<button class="btn xs primary" data-action="reqTake" data-k="${k}">אני רוצה</button>`}</span>`;
 }
 
+/* רשימת העובדים לעובד רגיל, רק אם המנהל התיר */
+function viewCrew(){
+  if (!ST().teamVisible) return `<p class="empty">המנהל לא פתח את רשימת העובדים.</p>`;
+  const roleTag = u => u.role === 'owner' || u.role === 'manager' ? `<span class="tag">${ROLE_LABEL[u.role]}</span>` : '';
+  const tel = ph => (ph || '').replace(/[^\d+]/g, ''), wa = ph => { const d = tel(ph).replace(/^\+/, ''); return d.startsWith('0') ? '972' + d.slice(1) : d; };
+  return `<ul class="list">${members().sort(byName).map(u => { const pos = userPos(u).map(posName).filter(Boolean).join(', ');
+    return `<li class="wrapli"><span><b>${esc(u.name)}</b> ${roleTag(u)}${pos ? `<span class="sub" style="display:block">${esc(pos)}</span>` : ''}</span>
+      <span class="reqb">${u.phone ? `<a class="btn sm" href="tel:${esc(tel(u.phone))}">${ltr(esc(u.phone))}</a><a class="btn sm" href="https://wa.me/${esc(wa(u.phone))}" target="_blank" rel="noopener">וואטסאפ</a>` : ''}
+        ${u.email ? `<a class="btn sm" href="mailto:${esc(u.email)}">אימייל</a>` : ''}</span></li>`; }).join('')}</ul>`;
+}
+
 function viewMine(){
   if (!S.week.published) return `<p class="empty">הסידור לשבוע הזה עוד לא פורסם.<br>אפשר בינתיים להגיש זמינות בלשונית "זמינות".</p>`;
   const a = asg(), uid = S.user.uid;
@@ -1188,15 +1224,16 @@ function viewMine(){
   const nGive = offers.filter(o => o.kind === 'give' && !o.why && !o.mine).length;
   const seg = `<div class="seg"><button data-action="mineMode" data-m="sched" aria-pressed="${S.mineMode !== 'offers'}">הסידור</button>
     <button data-action="mineMode" data-m="offers" aria-pressed="${S.mineMode === 'offers'}">משמרות למסירה${nGive ? `<i class="badge">${nGive}</i>` : ''}</button></div>`;
-  if (S.mineMode === 'offers') return seg + offersHtml();
-  return `${seg}
+  const segOn = ST().allowGive !== false;
+  if (S.mineMode === 'offers' && segOn) return seg + offersHtml();
+  return `${segOn ? seg : ''}
     ${S.week.message ? `<p class="notice msg">${esc(S.week.message)}</p>` : ''}
     <h3>המשמרות שלך</h3>
     ${mine.length ? `<ul class="list">${mine.map(k => { const [d,id] = k.split('_'), s = shiftById(id);
       const g = S.reqs.find(r => r.type === 'give' && r.by === uid && r.k === k), gNo = S.myReqs.some(r => r.type === 'give' && r.k === k && r.status === 'rejected');
       const act = g ? `<span class="reqb"><span class="tag">מסרת · ${(g.vols || []).length} מתנדבים · ממתין למנהל</span><button class="btn sm" data-action="reqCancel" data-id="${g.id}">ביטול</button></span>`
         : gNo ? `<span class="reqb"><span class="tag bad">המנהל דחה את המסירה</span></span>`
-        : future(k) ? `<span class="reqb"><button class="btn sm" data-action="reqGive" data-k="${k}">למסור</button></span>` : '';
+        : future(k) && ST().allowGive !== false ? `<span class="reqb"><button class="btn sm" data-action="reqGive" data-k="${k}">למסור</button></span>` : '';
       return `<li class="wrapli"><span class="myshift"><i class="dot" style="--c:${s.color}"></i><b>יום ${DAYS[d]} ${fmt(addDays(S.weekStart,+d))}</b></span><span>${esc(s.name)}, ${ltr(hrs(s))}</span>${act}</li>`; }).join('')}</ul>`
       : `<p class="hint">לא שובצת למשמרות השבוע.</p>`}
     <h3>הסידור</h3>
@@ -1427,6 +1464,12 @@ function viewSettings(){
       <label class="field">מקסימום משמרות לעובד בשבוע<small>0 = ללא הגבלה</small><input type="number" min="0" inputmode="numeric" data-s="maxPerWeek" value="${esc(st.maxPerWeek)}"></label>
     </div>
     <label class="check"><input type="checkbox" data-s="onePerDay" ${st.onePerDay?'checked':''}>עד משמרת אחת ביום לכל עובד</label>
+
+    <h3>מה עובדים יכולים לעשות</h3>
+    <p class="hint">השרת אוכף את ההגדרות האלה, לא רק האפליקציה. בקשה שנשלחה לפני השינוי נשארת אצלך לטיפול.</p>
+    <label class="check"><input type="checkbox" data-s="allowGive" ${st.allowGive!==false?'checked':''}>לבקש למסור משמרת לעובד אחר</label>
+    <label class="check"><input type="checkbox" data-s="allowTake" ${st.allowTake!==false?'checked':''}>לבקש להיכנס למשמרת שחסרים בה אנשים</label>
+    <label class="check"><input type="checkbox" data-s="teamVisible" ${st.teamVisible?'checked':''}>לראות את רשימת העובדים ופרטי הקשר שלהם (טלפון ואימייל)</label>
 
     <div class="savebar"><div class="in">${S.sDirty ? '<span class="dirty">יש שינויים שלא נשמרו</span>' : '<span>ההגדרות שמורות</span>'}
       <button class="btn primary" data-action="saveSettings">שמירת הגדרות</button></div></div>`;
@@ -1789,6 +1832,7 @@ async function syncViews(weekIdv, w){
 /* אחרי שינוי בהגדרות או בעובדים: מעדכנים את העותקים של הסידורים שפורסמו (מהשבוע הנוכחי והלאה, או את כולם) */
 async function resyncPublished(all = false){
   syncClockList().catch(e => console.warn(e));
+  syncNames().catch(e => console.warn(e));
   const from = weekId(sundayOf(new Date()));
   const weeks = (await B.listWeeks()).filter(w => w.published && (all || w.id >= from));
   for (const w of weeks) await syncViews(w.id, w);
@@ -1925,7 +1969,7 @@ const actions = {
     try{
       const r = await B.createClock(name, ST().business);
       S.clocks.push({ uid:r.uid, name, role:'kiosk', active:true });
-      await syncClockList(true);
+      await syncClockList(true); await syncNames();
       $sheet.close();
       // המכשיר עובר לחשבון השעון. המנהל כבר לא מחובר בו
       S.profile = null; S.cid = null; S.companies = []; render();
