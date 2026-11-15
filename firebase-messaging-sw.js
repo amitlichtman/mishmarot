@@ -1,7 +1,7 @@
-// Service worker להתראות פוש. חייב לשבת באותה תיקייה כמו index.html
+/* DoTheShift: קובץ הרקע של ההתראות. הדפדפן מריץ אותו גם כשהאפליקציה סגורה,
+   ומציג את ההתראות שהשרת שולח. לחיצה על התראה פותחת את האפליקציה */
 importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js');
-
 firebase.initializeApp({
   apiKey: "AIzaSyCoNfZ33l3LxFApgRq0sTQt3gU-YDMlYRM",
   authDomain: "mishmarot-83976.firebaseapp.com",
@@ -10,6 +10,4 @@ firebase.initializeApp({
   messagingSenderId: "802595753105",
   appId: "1:802595753105:web:87a979f151f647cb6f0330"
 });
-
-// ההתראה מוצגת אוטומטית כשהאפליקציה סגורה, ולחיצה עליה פותחת את המערכת
-firebase.messaging();
+firebase.messaging();   // התראות עם כותרת וטקסט מוצגות אוטומטית
