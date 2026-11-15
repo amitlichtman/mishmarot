@@ -288,6 +288,8 @@ const FIREBASE_CONFIG = {
   messagingSenderId: "802595753105",
   appId: "1:802595753105:web:87a979f151f647cb6f0330"
 };
+/* המפתח הציבורי להתראות דחיפה (Cloud Messaging → Web Push certificates) */
+const VAPID_KEY = 'BBQQo88ScjLfBVZX5iJYCFM7TF3zboIqn1kAbHbWC4qrMOHIxBlD-sH-_qR6iS-fsPOo6xgNQv8EUHIWQSZBti4';
 
 /* ===== ברירות מחדל. המנהל משנה הכול במסך ההגדרות ===== */
 const PALETTE = ['#E9A23B','#D6577A','#34478F','#2E8B7A','#7A5AC8','#C2662D','#4A90C2','#8A94A6'];
@@ -355,6 +357,9 @@ function errMsg(e){
   if (c.includes('too-many-requests')) return 'יותר מדי ניסיונות. נסה שוב בעוד כמה דקות';
   if (c === 'no-company') return 'החשבון הזה לא משויך לאף עסק. אפשר לפתוח חשבון עסק, או לבקש ממנהל להוסיף אותך';
   if (c === 'inactive') return 'החשבון שלך לא פעיל באף עסק. פנה למנהל';
+  if (c === 'push-demo') return 'במצב הדגמה אין התראות. הן עובדות באתר האמיתי';
+  if (c === 'push-unsupported') return 'הדפדפן הזה לא תומך בהתראות. באייפון צריך קודם להתקין את האפליקציה במסך הבית';
+  if (c === 'push-denied') return 'ההתראות חסומות. אפשר לאפשר אותן בהגדרות הדפדפן או הטלפון';
   if (c === 'not-manager') return 'רק מנהל של העסק הזה יכול להוציא את המכשיר ממצב שעון נוכחות';
   if (c === 'clock-off') return 'המכשיר הזה כבר לא שעון נוכחות. אפשר להיכנס עם החשבון שלך';
   if (c === 'inactive-here') return 'החשבון שלך לא פעיל בעסק הזה. פנה למנהל';
@@ -464,6 +469,8 @@ function demoBackend(){
     async saveSettings(s){ C().settings = clone(s); },
     async getNames(){ const M = C().members; return clone(C().names || { names:Object.fromEntries(Object.entries(M).filter(([,m]) => m.role !== 'kiosk').map(([u,m]) => [u, m.name])), clocks:{} }); },
     async setNames(d){ C().names = clone(d); },
+    async enablePush(){ throw { code:'push-demo' }; },
+    async dropPush(){},
     async getWeek(id){ return clone(C().weeks[id] || {}); },
     async updateWeek(id,data){ C().weeks[id] = { ...(C().weeks[id]||{}), ...clone(data) }; },
     async getSubmission(w,uid){ return C().subs[w]?.[uid] ? clone(C().subs[w][uid]) : null; },
@@ -678,6 +685,19 @@ async function firebaseBackend(cfg){
     async saveSettings(s){ await F.setDoc(cdoc('settings','main'), s); },
     // רק שמות. כל העובדים קוראים את זה, כדי להציג שמות בסידור גם כשפרטי העובדים מוסתרים
     async getNames(){ return snap(await F.getDoc(cdoc('settings','names'))); },
+    // התראות דחיפה: רושמים את המכשיר, ושומרים את הכתובת שלו אצל המשתמש. השרת שולח לפי זה
+    async enablePush(){
+      const M = await import(base + 'firebase-messaging.js');
+      if (!('serviceWorker' in navigator) || !(await M.isSupported())) throw { code:'push-unsupported' };
+      const reg = await navigator.serviceWorker.register('firebase-messaging-sw.js');
+      const msg = M.getMessaging(app);
+      const token = await M.getToken(msg, { vapidKey:VAPID_KEY, serviceWorkerRegistration:reg });
+      if (!token) throw { code:'push-unsupported' };
+      await F.setDoc(F.doc(db, 'users', auth.currentUser.uid, 'tokens', token), { createdAt:now(), ua:navigator.userAgent.slice(0, 150) });
+      M.onMessage(msg, p => window.dispatchEvent(new CustomEvent('push', { detail:p })));   // כשהאפליקציה פתוחה
+      return token;
+    },
+    async dropPush(token){ await F.deleteDoc(F.doc(db, 'users', auth.currentUser.uid, 'tokens', token)); },
     async setNames(d){ await F.setDoc(cdoc('settings','names'), d); },
     async getWeek(id){ return snap(await F.getDoc(cdoc('weeks',id))) || {}; },
     async updateWeek(id,data){ await F.setDoc(cdoc('weeks',id), data, { mergeFields:Object.keys(data) }); },
@@ -983,6 +1003,7 @@ async function enterCompany(cid){
   const c = S.companies.find(x => x.cid === cid); if (c) c.name = ST().business;
   S.view = isMgr() ? 'manage' : 'submit';
   if (isMgr()) { syncClockList().catch(e => console.warn(e)); syncNames().catch(e => console.warn(e)); }
+  if (!B.demo && typeof Notification !== 'undefined' && Notification.permission === 'granted') B.enablePush().then(t => S.pushToken = t).catch(e => console.warn(e));
   if (isMgr()) B.getCompany().then(c => { if (c && c.name !== ST().business) return B.setCompanyName(ST().business); }).catch(e => console.warn(e));
   if (isMgr() && !ST().viewsVersion) {
     resyncPublished(true).then(async () => {
@@ -2004,7 +2025,8 @@ const actions = {
     el.classList.add('busy');
     location.reload();
   },
-  async logout(){ if (!confirmLeave()) return; S.profile = null; S.cid = null; S.companies = []; S.picking = false; S.pickNew = false; await B.signOut(); },
+  async logout(){ if (!confirmLeave()) return; if (S.pushToken) { await B.dropPush(S.pushToken).catch(() => {}); S.pushToken = null; }
+    S.profile = null; S.cid = null; S.companies = []; S.picking = false; S.pickNew = false; await B.signOut(); },
   // חלון אישור בתוך האפליקציה (חלון confirm של הדפדפן חסום בחלק מהתצוגות)
   kioskOn(){ Object.assign(S.kiosk, { sel:'__on', busy:false, done:null }); S.sheetMode = 'kiosk'; renderKioskSheet(); $sheet.showModal(); },
   async kioskOnConfirm(el){
@@ -2406,13 +2428,24 @@ setInterval(() => { if (isClock() && !$sheet.open) loadPunches(); }, 3600e3);   
 let installEvt = null;
 const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+let pushHidden = false;
+/* מציעים התראות רק אחרי כניסה, כשהדפדפן עוד לא שאל. באייפון רק באפליקציה מותקנת */
+const pushOffer = () => !pushHidden && !!S.profile && !isClock() && typeof Notification !== 'undefined'
+  && Notification.permission === 'default' && (isStandalone() || !isIOS());
 let installHidden = false;                       // "לא עכשיו" מסתיר רק עד הכניסה הבאה לאתר
 const installSnoozed = () => installHidden;
 function renderInstall(){
   const box = document.getElementById('install'); if (!box) return;
-  const kind = isStandalone() || installSnoozed() || isClock() ? null : installEvt ? 'android' : isIOS() ? 'ios' : null;
+  let kind = isStandalone() || installSnoozed() || isClock() ? null : installEvt ? 'android' : isIOS() ? 'ios' : null;
+  if (!kind && pushOffer()) kind = 'push';
   box.hidden = !kind;
   if (!kind) { box.innerHTML = ''; return; }
+  if (kind === 'push') {
+    box.innerHTML = `<div class="inst"><img src="icon-192.png" alt="">
+      <div class="it"><b>הפעלת התראות</b><span>הודעה כשהסידור מתפרסם וכשיש תשובה לבקשות</span></div>
+      <div class="ib"><button class="btn sm primary" data-action="pushOn">הפעלה</button><button class="btn sm" data-action="pushLater">לא עכשיו</button></div></div>`;
+    return;
+  }
   const share = '<svg viewBox="0 0 24 24" width="17" height="17" aria-label="שיתוף"><path d="M12 3v12M7.5 7.5 12 3l4.5 4.5M6 11H5v10h14V11h-1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   box.innerHTML = `<div class="inst"><img src="icon-192.png" alt="">
     <div class="it"><b>התקנת האפליקציה</b><span>${kind === 'android'
@@ -2422,6 +2455,7 @@ function renderInstall(){
       <button class="btn sm" data-action="installLater">לא עכשיו</button></div></div>`;
 }
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; renderInstall(); });
+window.addEventListener('push', e => { const n = e.detail?.notification; if (n) toast(`${n.title}: ${n.body}`); });
 window.addEventListener('appinstalled', () => { installEvt = null; renderInstall(); });
 Object.assign(actions, {
   async installApp(){
@@ -2433,6 +2467,16 @@ Object.assign(actions, {
     renderInstall();
   },
   installLater(){ installHidden = true; renderInstall(); },
+  async pushOn(el){
+    el.disabled = true;
+    try{
+      const perm = await Notification.requestPermission();     // חייב לקרות מיד אחרי הלחיצה
+      if (perm !== 'granted') throw { code:'push-denied' };
+      S.pushToken = await B.enablePush(); toast('ההתראות הופעלו');
+    }catch(e){ toast(errMsg(e)); pushHidden = true; }
+    renderInstall();
+  },
+  pushLater(){ pushHidden = true; renderInstall(); },
 });
 
 /* ---------- boot ---------- */
