@@ -1522,4 +1522,691 @@ function sessionsOf(punches){
   const now = Date.now();
   Object.values(by).forEach(arr => arr.forEach(x => {
     x.hours = x.in && x.out ? (x.out - x.in) / 3600e3 : 0;
-    x.issue = !x.in ? 'חסרה כניסה' : !x.out ? (x.noOut || now - x.in > 16*3600e3 ? 'חסרה יצ
+    x.issue = !x.in ? 'חסרה כניסה' : !x.out ? (x.noOut || now - x.in > 16*3600e3 ? 'חסרה יציאה' : 'בעבודה עכשיו') : '';
+    const ps = [x.inP, x.outP].filter(Boolean);
+    x.mark = ps.some(p => p.manual) ? 'ידני' : ps.some(p => p.origAt) ? 'נערך' : '';
+  }));
+  return by;
+}
+async function loadActual(){
+  S.actual = null; render();
+  const [a,b] = periodRange(S.rep);
+  try {
+    const list = isMgr() ? await B.listPunches(S.rep === 'all' ? new Date(2020,0,1) : a, S.rep === 'all' ? null : b)
+      : (await B.listMyPunches(S.user.uid)).filter(p => S.rep === 'all' || (p.at >= a && p.at < b));
+    S.actual = sessionsOf(list);
+  }
+  catch(e){ toast(errMsg(e)); S.actual = {}; }
+  render();
+}
+const deviceOf = x => [...new Set((x.by || []).map(id => S.clocks.find(c => c.uid === id)?.name).filter(Boolean))].join(', ');
+const repModePicker = () => `<div class="seg"><button data-action="repMode" data-m="plan" aria-pressed="${S.repMode==='plan'}">לפי הסידור</button>
+  <button data-action="repMode" data-m="actual" aria-pressed="${S.repMode==='actual'}">נוכחות בפועל</button></div>`;
+function viewActual(){
+  if (!S.actual) return `<p class="loading">טוען…</p>`;
+  const sum = arr => arr.reduce((t,x) => t + x.hours, 0);
+  if (S.repUid) {
+    const arr = [...(S.actual[S.repUid] || [])].reverse();
+    return `${repModePicker()}${periodPicker()}<div class="toolbar"><button class="btn sm" data-action="repBack">חזרה לכל העובדים</button></div>
+      <h3 style="margin-top:6px">${esc(nameOf(S.repUid))}, ${periodTitle(S.rep)}</h3>
+      <div class="cards"><div class="stat"><b>${fmtH(sum(arr))}</b><span>שעות נוכחות</span></div><div class="stat"><b>${arr.filter(x => x.in && x.out).length}</b><span>משמרות שהושלמו</span></div></div>
+      <div class="toolbar"><button class="btn sm" data-action="peOpen" data-i="-1">הוספת משמרת</button><button class="btn sm" data-action="csvActual">הורדה כקובץ אקסל (CSV)</button></div>
+      ${arr.length ? `<ul class="list">${arr.map(x => { const d = x.in || x.out, i = S.actual[S.repUid].indexOf(x);
+        return `<li class="btnrow"><button class="userbtn" data-action="peOpen" data-i="${i}"><span><b>יום ${DAYS[d.getDay()]} ${fmt(d)}</b><span class="sub" style="display:block">${ltr(`${x.in ? hhmm(x.in) : '?'}–${x.out ? hhmm(x.out) : '?'}`)}${deviceOf(x) ? ` · ${esc(deviceOf(x))}` : ''}</span></span>
+          <span>${x.hours ? `${fmtH(x.hours)} ש׳` : ''}${x.mark ? `<span class="tag">${x.mark}</span>` : ''}${x.issue ? `<span class="tag ${x.issue === 'בעבודה עכשיו' ? '' : 'bad'}">${x.issue}</span>` : ''}</span></button></li>`; }).join('')}</ul>`
+        : '<p class="empty">אין החתמות בתקופה הזו.</p>'}
+      <p class="hint">השעות מחושבות מהחתמות בשעון הנוכחות. משמרת בלי כניסה או בלי יציאה לא נספרת. לוחצים על משמרת כדי לתקן אותה. השעה המקורית נשמרת תמיד.</p>`;
+  }
+  const ids = new Set([...workers().map(u => u.uid), ...Object.keys(S.actual)]);
+  const rows = [...ids].map(uid => { const arr = S.actual[uid] || []; return { uid, h:sum(arr), n:arr.filter(x => x.in && x.out).length, bad:arr.filter(x => x.issue && x.issue !== 'בעבודה עכשיו').length, now:arr.some(x => x.issue === 'בעבודה עכשיו') }; })
+    .sort((a,b) => b.h - a.h || nameOf(a.uid).localeCompare(nameOf(b.uid),'he'));
+  const tot = rows.reduce((t,r) => t + r.h, 0);
+  return `${repModePicker()}${periodPicker()}<h3 style="margin-top:6px">${periodTitle(S.rep)}</h3>
+    <div class="cards"><div class="stat"><b>${fmtH(tot)}</b><span>שעות נוכחות בסך הכול</span></div><div class="stat"><b>${rows.filter(r => r.now).length}</b><span>בעבודה עכשיו</span></div></div>
+    <div class="toolbar"><button class="btn sm" data-action="csvActual">הורדת דוח מפורט (CSV)</button><button class="btn sm" data-action="refreshRep">רענון</button></div>
+    <ul class="list">${rows.map(r => `<li class="btnrow"><button class="userbtn" data-action="repUser" data-uid="${r.uid}">
+      <span><b>${esc(nameOf(r.uid))}</b><span class="sub" style="display:block">${r.n} משמרות${r.now ? ', בעבודה עכשיו' : ''}${r.bad ? `, <span style="color:var(--warn)">${r.bad} החתמות חסרות</span>` : ''}</span></span>
+      <span><b>${fmtH(r.h)}</b> שעות</span></button></li>`).join('')}</ul>
+    <p class="hint">השעות מחושבות מהחתמות בשעון הנוכחות.</p>`;
+}
+/* העובד רואה את ההחתמות של עצמו, בלי אפשרות לשנות */
+function viewMyActual(){
+  if (!S.actual) return `<p class="loading">טוען…</p>`;
+  const arr = [...(S.actual[S.user.uid] || [])].reverse(), sum = arr.reduce((t,x) => t + x.hours, 0);
+  return `${repModePicker()}${periodPicker()}<h3 style="margin-top:6px">${periodTitle(S.rep)}</h3>
+    <div class="cards"><div class="stat"><b>${fmtH(sum)}</b><span>שעות נוכחות</span></div><div class="stat"><b>${arr.filter(x => x.in && x.out).length}</b><span>משמרות שהושלמו</span></div></div>
+    ${arr.length ? `<div class="toolbar"><button class="btn sm" data-action="csvActual">הורדה כקובץ אקסל (CSV)</button></div>
+    <ul class="list">${arr.map(x => { const d = x.in || x.out;
+      return `<li><span><b>יום ${DAYS[d.getDay()]} ${fmt(d)}</b><span class="sub" style="display:block">${ltr(`${x.in ? hhmm(x.in) : '?'}–${x.out ? hhmm(x.out) : '?'}`)}${deviceOf(x) ? ` · ${esc(deviceOf(x))}` : ''}</span></span>
+        <span>${x.hours ? `${fmtH(x.hours)} ש׳` : ''}${x.mark ? `<span class="tag">${x.mark === 'ידני' ? 'נוסף על ידי מנהל' : 'תוקן על ידי מנהל'}</span>` : ''}${x.issue ? `<span class="tag ${x.issue === 'בעבודה עכשיו' ? '' : 'bad'}">${x.issue}</span>` : ''}</span></li>`; }).join('')}</ul>`
+      : '<p class="empty">אין לך החתמות בתקופה הזו.</p>'}
+    <p class="hint">השעות לפי ההחתמות שלך בשעון הנוכחות. משמרת בלי כניסה או בלי יציאה לא נספרת. רואים טעות? פנה למנהל, הוא יכול לתקן.</p>`;
+}
+function downloadActualCsv(){
+  const rows = [['עובד','תאריך','יום','כניסה','יציאה','שעות','הערה','מכשיר','תיקון']];
+  Object.entries(S.actual || {}).filter(([uid]) => !S.repUid || uid === S.repUid).forEach(([uid,arr]) => arr.forEach(x => {
+    const d = x.in || x.out;
+    rows.push([nameOf(uid), `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`, DAYS[d.getDay()], x.in ? hhmm(x.in) : '', x.out ? hhmm(x.out) : '', x.hours ? fmtH(x.hours) : '', x.issue, deviceOf(x), x.mark]);
+  }));
+  const csv = '﻿' + rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type:'text/csv;charset=utf-8' }));
+  a.download = `נוכחות-${S.repUid ? nameOf(S.repUid) + '-' : ''}${periodTitle(S.rep)}.csv`.replace(/\s+/g,'-');
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+/* ---------- תיקון נוכחות (מנהל) ---------- */
+const dIn = d => d ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` : '';
+const fromIn = (d, t) => d && t ? new Date(`${d}T${t}`) : null;
+function renderPunchSheet(){
+  const pe = S.pe, x = pe.i >= 0 ? S.actual[pe.uid]?.[pe.i] : null, today = new Date();
+  const orig = P => P?.origAt ? `<small>במקור ${ltr(hhmm(P.origAt))}${P.editedBy ? `, תוקן על ידי ${esc(nameOf(P.editedBy))}` : ''}</small>`
+                  : P?.manual ? `<small>נוספה ידנית על ידי ${esc(nameOf(P.by))}</small>` : '';
+  const side = (key, label, at, P) => `<div class="pe-row"><span class="pe-l">${label}${orig(P)}</span>
+    <input type="date" id="pe-${key}d" value="${dIn(at || x?.in || x?.out || today)}"><input type="time" id="pe-${key}t" value="${at ? hhmm(at) : ''}"></div>`;
+  $sheet.innerHTML = `<div class="sheet"><header><div><h2>${x ? 'תיקון משמרת' : 'הוספת משמרת'}</h2><div class="hint" style="margin:0">${esc(nameOf(pe.uid))}</div></div>
+      <button class="iconbtn" data-action="closeSheet" aria-label="סגירה">✕</button></header>
+    ${side('in', 'כניסה', x?.in, x?.inP)}
+    ${side('out', 'יציאה', x?.out, x?.outP)}
+    <p class="hint">שעה שמשאירים ריקה לא נרשמת. אם היציאה הייתה אחרי חצות, משנים את תאריך היציאה ליום שאחרי.</p>
+    <div class="toolbar" style="margin-top:14px"><button class="btn primary" data-action="peSave">שמירה</button>
+      ${x ? '<button class="btn danger" data-action="peVoid">מחיקת המשמרת</button>' : ''}</div></div>`;
+}
+
+/* ---------- slot sheet ---------- */
+function renderSheet(){
+  const k = S.openKey; if (!k) return;
+  const [d,id] = k.split('_'), s = shiftById(id), a = asg(), on = new Set(a[k]);
+  const count = uid => keys().filter(x => a[x].includes(uid)).length;
+  // קבוצות לפי המצבים שהמנהל הגדיר: קודם עדיפות גבוהה, רגיל, נמוכה, אחר כך מי שלא סימן, ובסוף "לא לשבץ"
+  const ordered = [...states()].sort((x,y) => (LEVEL_RANK[x.level] ?? 9) - (LEVEL_RANK[y.level] ?? 9));
+  const groups = [...ordered.filter(x => x.level !== 'never').map(x => [x.id, x.name]), ['unset', UNSET_LABEL], ...ordered.filter(x => x.level === 'never').map(x => [x.id, x.name])];
+  const rows = workers().filter(u => on.has(u.uid) || canWork(u,s)).map(u => { const v = S.subs[u.uid]?.avail?.[k]; return { u, v: stateOf(v) ? v : 'unset', w: on.has(u.uid) ? [] : conflicts(u,k,a) }; });
+  const sp = (s.positions || []).map(posName).filter(Boolean);
+  $sheet.innerHTML = `<div class="sheet" style="--c:${s.color}">
+    <header><div><h2>${esc(s.name)}, יום ${DAYS[d]} ${fmt(addDays(S.weekStart,+d))}</h2>
+      <div class="hint" style="margin:0">${ltr(hrs(s))}. משובצים ${on.size} מתוך ${needOf(k)}${sp.length ? `. מתאימה ל${sp.join(' ול')}` : ''}</div></div>
+      <button class="iconbtn" data-action="closeSheet" aria-label="סגירה">✕</button></header>
+    ${groups.map(([g,title]) => { const list = rows.filter(r => r.v === g); if (!list.length) return '';
+      return `<h4>${title}</h4>${list.map(({u,w}) => `<label class="opt">
+        <input type="checkbox" data-assign="${u.uid}" ${on.has(u.uid)?'checked':''}>
+        <span>${esc(u.name)}<span class="sub" style="display:block">${userPos(u).map(posName).join(', ')}</span></span>
+        <span class="meta">${count(u.uid)} משמרות${w.map(x => `<span class="w">${WARN[x]}</span>`).join('')}</span></label>`).join('')}`; }).join('')}
+    ${!rows.length ? `<p class="hint">${sp.length ? 'אין עובדים עם התפקיד שמתאים למשמרת הזו.' : 'אין עובדים פעילים. מוסיפים עובדים בלשונית "עובדים".'}</p>` : ''}
+  </div>`;
+}
+
+/* ---------- actions ---------- */
+function confirmLeave(){
+  if ((S.dirty || S.sDirty) && !confirm('יש שינויים שלא נשמרו. להמשיך בלי לשמור?')) return false;
+  S.dirty = false; S.sDirty = false; return true;
+}
+/* העותק של כל עובד: רק משמרות שהוא רשאי לראות (לפי ההגדרות), ותמיד משמרות שהוא משובץ בהן */
+function viewFor(u, w){
+  if (!w.published) return { published:false };
+  const ids = new Set(), all = w.assignments || {};
+  Object.keys(all).forEach(k => {
+    const id = k.split('_')[1], s = shiftById(id) || { id, positions:[] };
+    if (canSee(u, s) || (all[k] || []).includes(u.uid)) ids.add(id);
+  });
+  const assignments = {}, shiftsSnap = {};
+  Object.entries(all).forEach(([k,v]) => { if (ids.has(k.split('_')[1])) assignments[k] = v; });
+  ids.forEach(id => { const sn = w.shiftsSnap?.[id]; if (sn) shiftsSnap[id] = sn; });
+  return { published:true, message:w.message || '', assignments, shiftsSnap };
+}
+async function syncViews(weekIdv, w){
+  const map = {};
+  S.users.forEach(u => { map[u.uid] = viewFor(u, w); });
+  await B.writeViews(weekIdv, map);
+}
+/* אחרי שינוי בהגדרות או בעובדים: מעדכנים את העותקים של הסידורים שפורסמו (מהשבוע הנוכחי והלאה, או את כולם) */
+async function resyncPublished(all = false){
+  syncClockList().catch(e => console.warn(e));
+  const from = weekId(sundayOf(new Date()));
+  const weeks = (await B.listWeeks()).filter(w => w.published && (all || w.id >= from));
+  for (const w of weeks) await syncViews(w.id, w);
+}
+async function saveWeek(patch, msg){
+  try{
+    await B.updateWeek(wid(), patch); S.week = { ...S.week, ...patch }; S.allWeeks = null;
+    if ('locked' in patch) await B.setWeekStatus(wid(), { locked:!!patch.locked });
+    if (S.week.published || patch.published === false) await syncViews(wid(), S.week);
+    if (msg) toast(msg);
+  }
+  catch(e){ toast(errMsg(e)); }
+  render();
+}
+const actions = {
+  async demoLogin(el){ S.freshLogin = true; await B.signIn(el.dataset.uid); },
+  period(el){ S.rep = el.dataset.p; if ((S.view === 'reports' || S.view === 'hours') && S.repMode === 'actual') loadActual(); else render(); },
+  repMode(el){ S.repMode = el.dataset.m; S.repUid = null; if (S.repMode === 'actual') loadActual(); else render(); },
+  csvActual(){ downloadActualCsv(); },
+  peOpen(el){ S.pe = { uid:S.repUid, i:+el.dataset.i }; S.sheetMode = 'punch'; renderPunchSheet(); $sheet.showModal(); },
+  async peSave(el){
+    const pe = S.pe, x = pe.i >= 0 ? S.actual[pe.uid]?.[pe.i] : null, v = id => document.getElementById(id)?.value || '';
+    const at = { in:fromIn(v('pe-ind'), v('pe-int')), out:fromIn(v('pe-outd'), v('pe-outt')) };
+    if (!at.in && !at.out) return toast('צריך למלא לפחות שעת כניסה או שעת יציאה');
+    if (at.in && at.out && at.out <= at.in) return toast('שעת היציאה צריכה להיות אחרי שעת הכניסה. יציאה אחרי חצות? שנה את תאריך היציאה');
+    if ([at.in, at.out].some(d => d && d > new Date())) return toast('אי אפשר לרשום שעה שעוד לא הגיעה');
+    el.disabled = true;
+    try{
+      for (const k of ['in','out']) {
+        const P = x?.[k + 'P'];
+        if (P && at[k] && hhmm(P.at) + dIn(P.at) !== hhmm(at[k]) + dIn(at[k])) await B.editPunch(P, at[k]);
+        else if (P && !at[k]) await B.voidPunch(P);
+        else if (!P && at[k]) await B.addManualPunch(pe.uid, k, at[k]);
+      }
+      $sheet.close(); toast('הנוכחות עודכנה'); await loadActual();
+    }catch(e){ toast(errMsg(e)); el.disabled = false; }
+  },
+  async peVoid(el){
+    const x = S.actual[S.pe.uid]?.[S.pe.i]; if (!x) return;
+    if (!el.dataset.sure) { el.dataset.sure = '1'; el.textContent = 'בטוח? ללחוץ שוב כדי למחוק'; return; }
+    el.disabled = true;
+    try{ for (const P of [x.inP, x.outP]) if (P) await B.voidPunch(P); $sheet.close(); toast('המשמרת נמחקה מהדוח'); await loadActual(); }
+    catch(e){ toast(errMsg(e)); el.disabled = false; }
+  },
+  repUser(el){ S.repUid = el.dataset.uid; render(); window.scrollTo(0,0); },
+  repBack(){ S.repUid = null; render(); },
+  refreshRep(){ if (S.repMode === 'actual') loadActual(); else loadReports(); },
+  csv(){ downloadCsv(); },
+  async login(){
+    if (!val('f-email') || !val('f-pw')) return toast('צריך למלא אימייל וסיסמה');
+    S.freshLogin = true;
+    try{ await B.signIn(val('f-email'), val('f-pw')); }
+    catch(e){ S.freshLogin = false; toast(errMsg(e)); }
+  },
+  async pickCompany(el){
+    S.picking = false; S.loading = true; render();
+    try{
+      if (!await enterCompany(el.dataset.cid)) { toast(errMsg({ code:'inactive-here' })); S.companies = S.companies.filter(c => c.cid !== el.dataset.cid); S.picking = true; S.loading = false; render(); }
+    }catch(e){ toast(errMsg(e)); S.picking = true; S.loading = false; render(); }
+  },
+  pickNew(el){ S.pickNew = !!el.dataset.on; render(); },
+  async pickCreate(el){
+    const restaurant = val('f-rest'), name = val('f-name');
+    if (!restaurant) return toast('צריך למלא את שם העסק');
+    if (!name) return toast('צריך למלא את השם שלך');
+    el.disabled = true;
+    try{
+      const code = await B.createCompany({ restaurant, name, settings:newSettings(restaurant) });
+      S.companies.push({ cid:code, name:restaurant });
+      S.picking = false; S.pickNew = false;
+      await enterCompany(code); toast(`${restaurant} נפתח`);
+    }catch(e){ toast(errMsg(e)); el.disabled = false; }
+    render();
+  },
+  authMode(el){ S.authMode = el.dataset.m; render(); window.scrollTo(0,0); },
+  async signup(el){
+    const restaurant = val('f-rest'), name = val('f-name'), email = val('f-email').toLowerCase(), password = document.getElementById('f-pw')?.value || '';
+    if (!restaurant) return toast('צריך למלא את שם העסק');
+    if (!name) return toast('צריך למלא את השם שלך');
+    if (!email) return toast('צריך למלא אימייל');
+    if (password.length < 6) return toast('הסיסמה צריכה לכלול לפחות 6 תווים');
+    el.disabled = true; S.signingUp = true;
+    const settings = newSettings(restaurant);
+    try{
+      const { uid, code } = await B.signUp({ restaurant, name, email, password, settings });
+      store.set('lastCompany:' + uid, code);
+      if (B.demo) await B.signIn(uid);
+      S.user = S.user || { uid, email }; S.ready = true;
+      await afterLogin();
+      S.authMode = 'login';
+      toast(`${restaurant} נפתח`);
+    }catch(e){ toast(errMsg(e)); el.disabled = false; }
+    S.signingUp = false; render();
+  },
+  async forgot(){
+    const email = val('f-email'); if (!email) return toast('קודם כותבים את האימייל בשדה');
+    try{ await B.sendReset(email); toast('אם האימייל רשום במערכת, נשלח אליו קישור לאיפוס'); }catch(e){ toast(errMsg(e)); }
+  },
+  /* רענון: כמו ריענון בדפדפן. טוען את כל האתר מחדש, כולל גרסה חדשה של הקוד אם הועלתה */
+  refresh(el){
+    if (!confirmLeave()) return;
+    el.classList.add('busy');
+    location.reload();
+  },
+  async logout(){ if (!confirmLeave()) return; S.profile = null; S.cid = null; S.companies = []; S.picking = false; S.pickNew = false; await B.signOut(); },
+  // חלון אישור בתוך האפליקציה (חלון confirm של הדפדפן חסום בחלק מהתצוגות)
+  kioskOn(){ Object.assign(S.kiosk, { sel:'__on', busy:false, done:null }); S.sheetMode = 'kiosk'; renderKioskSheet(); $sheet.showModal(); },
+  async kioskOnConfirm(el){
+    const name = (document.getElementById('k-name')?.value || '').trim() || 'שעון נוכחות';
+    S.kiosk.busy = true; el.disabled = true;
+    try{
+      const r = await B.createClock(name, ST().business);
+      S.clocks.push({ uid:r.uid, name, role:'kiosk', active:true });
+      await syncClockList(true);
+      $sheet.close();
+      // המכשיר עובר לחשבון השעון. המנהל כבר לא מחובר בו
+      S.profile = null; S.cid = null; S.companies = []; render();
+      await (B.demo ? B.signIn(r.uid) : B.signIn(r.email, r.pw));
+      window.scrollTo(0,0);
+    }catch(e){ toast(errMsg(e)); S.kiosk.busy = false; el.disabled = false; }
+  },
+  clockOff(el){ Object.assign(S.kiosk, { sel:'__off', off:el.dataset.uid, busy:false, done:null }); S.sheetMode = 'kiosk'; renderKioskSheet(); $sheet.showModal(); },
+  async clockOffConfirm(el){
+    const c = S.clocks.find(x => x.uid === S.kiosk.off); if (!c) return;
+    el.disabled = true;
+    try{ await B.updateUser(c.uid, { active:false }); c.active = false; $sheet.close(); toast(`${c.name} הושבת`); render(); }
+    catch(e){ toast(errMsg(e)); el.disabled = false; }
+  },
+  // לפני ההחתמה מרעננים, כדי לדעת אם העובד כבר נכנס בשעון אחר
+  kExit(){ Object.assign(S.kiosk, { sel:'__exit', busy:false, done:null }); S.sheetMode = 'kiosk'; renderKioskSheet(); $sheet.showModal(); },
+  async kExitConfirm(el){
+    const email = (document.getElementById('kx-email')?.value || '').trim().toLowerCase(), pw = document.getElementById('kx-pw')?.value || '';
+    if (!email || !pw) return toast('צריך למלא אימייל וסיסמה של מנהל');
+    el.disabled = true;
+    try{
+      const cid = S.cid, uid = await B.exitClock(email, pw);
+      store.set('lastCompany:' + uid, cid);           // המנהל ייכנס ישר לעסק הזה
+      $sheet.close(); S.profile = null; S.cid = null; S.companies = []; render();
+      await (B.demo ? B.signIn(uid) : B.signIn(email, pw));
+      toast('המכשיר יצא ממצב שעון נוכחות');
+    }catch(e){
+      toast(e?.code === 'not-manager' ? errMsg(e) : /invalid-credential|wrong-password|user-not-found|invalid-email/.test(e?.code || '') ? 'האימייל או הסיסמה שגויים' : errMsg(e));
+      el.disabled = false;
+    }
+  },
+  async kPick(el){
+    const uid = el.dataset.uid;
+    Object.assign(S.kiosk, { sel:uid, busy:false, done:null }); S.sheetMode = 'kiosk'; renderKioskSheet(); $sheet.showModal();
+    await loadPunches();
+    if ($sheet.open && S.kiosk.sel === uid && !S.kiosk.done) { const pw = document.getElementById('k-pw')?.value || ''; renderKioskSheet(); const f = document.getElementById('k-pw'); if (f) f.value = pw; }
+  },
+  async kPunch(el){
+    const k = S.kiosk, u = S.users.find(x => x.uid === k.sel), type = el.dataset.type;
+    const pw = document.getElementById('k-pw')?.value || '';
+    if (!u) return;
+    if (!pw) return toast('צריך להקליד סיסמה');
+    if (!u.email) return toast('לעובד הזה אין אימייל במערכת. פנה למנהל');
+    // יציאה פחות מ-15 דקות אחרי הכניסה: כנראה לחיצה בטעות, אז שואלים קודם
+    const pin = lastPunch()[u.uid];
+    if (type === 'out' && !el.dataset.sure && pin?.type === 'in' && Date.now() - pin.at < 15*60e3) {
+      const m = Math.floor((Date.now() - pin.at) / 60e3);
+      el.dataset.sure = '1'; el.textContent = 'כן, לצאת בכל זאת';
+      el.closest('.toolbar').insertAdjacentHTML('beforebegin', `<p class="kwarn">נכנסת ${m < 1 ? 'לפני פחות מדקה' : m === 1 ? 'רק לפני דקה' : `רק לפני ${m} דקות`}. לצאת בכל זאת?</p>`);
+      el.insertAdjacentHTML('afterend', '<button class="btn" data-action="closeSheet">ביטול</button>');
+      return;
+    }
+    k.busy = true; el.disabled = true;
+    try{
+      const uid = await B.verifyEmployee(u.email, pw);
+      if (uid !== u.uid) throw { code:'auth/invalid-credential' };
+      const prev = lastPunch()[u.uid];
+      await B.addPunch(u.uid, type);
+      await loadPunches();
+      const mine = lastPunch()[u.uid];
+      k.done = { name:u.name, type, at:mine?.at || new Date(), dur: type === 'out' && prev?.type === 'in' ? durText((mine?.at || new Date()) - prev.at) : '' };
+      renderKioskSheet();
+      setTimeout(() => { if (S.kiosk.done && $sheet.open) $sheet.close(); }, 3500);
+    }catch(e){
+      if (String(e?.code).includes('permission-denied') && await clockDisabled()) return;
+      toast(/invalid-credential|wrong-password|user-not-found/.test(e?.code || '') ? 'הסיסמה שגויה' : errMsg(e));
+      k.busy = false; el.disabled = false;
+      const f = document.getElementById('k-pw'); if (f) { f.value = ''; f.focus(); }
+    }
+  },
+  async openSwitch(){
+    S.sheetMode = 'switch'; renderSwitch(); $sheet.showModal();
+    refreshNames();  // שמות עדכניים, אם שונו בהגדרות של עסק אחר
+  },
+  async switchTo(el){
+    const cid = el.dataset.cid;
+    if (cid === S.cid) return $sheet.close();
+    if (!confirmLeave()) return;
+    $sheet.close();
+    S.loading = true; render();
+    try{
+      if (await enterCompany(cid)) toast(`עברת ל${ST().business}`);
+      else { toast(errMsg({ code:'inactive-here' })); S.companies = S.companies.filter(c => c.cid !== cid); S.loading = false; render(); }
+    }catch(e){ toast(errMsg(e)); S.loading = false; render(); }
+  },
+  newCompany(){ $sheet.close(); if (!confirmLeave()) return; S.view = 'newCompany'; render(); window.scrollTo(0,0); },
+  async createCompany(el){
+    const restaurant = val('f-rest'); if (!restaurant) return toast('צריך למלא את שם העסק');
+    el.disabled = true;
+    const settings = newSettings(restaurant);
+    try{
+      const code = await B.createCompany({ restaurant, name:S.profile.name, settings });
+      S.companies.push({ cid:code, name:restaurant });
+      await enterCompany(code); toast(`${restaurant} נפתח`);
+    }catch(e){ toast(errMsg(e)); el.disabled = false; }
+    render();
+  },
+  tab(el){
+    if (!confirmLeave()) return;
+    const v = el.dataset.v;
+    if (v === 'settings') { S.sDraft = clone(S.settings); S.sDirty = false; }
+    if (S.view === 'user' && isMgr()) S.draft = {};
+    if (v === 'reports') S.repUid = null;
+    S.view = v; render(); window.scrollTo(0,0);
+    if ((v === 'reports' || v === 'hours') && !S.allWeeks) loadReports();
+    if ((v === 'reports' || v === 'hours') && S.repMode === 'actual') loadActual();
+  },
+  async week(el){ if (!confirmLeave()) return; S.weekStart = addDays(S.weekStart, +el.dataset.d); await loadWeek(); },
+
+  /* זמינות */
+  cycle(el){
+    const k = el.dataset.k, list = states();
+    if (list.length > 3) { S.sheetMode = 'avail'; S.pickKey = k; renderAvailPicker(); $sheet.showModal(); return; }
+    const i = list.findIndex(x => x.id === S.draft[k]);             // לא סומן -> מצב ראשון -> ... -> לא סומן
+    const nx = list[i + 1];
+    if (nx) S.draft[k] = nx.id; else delete S.draft[k];
+    S.dirty = true; render();
+  },
+  pickState(el){
+    const k = S.pickKey; if (!k) return;
+    if (el.dataset.id) S.draft[k] = el.dataset.id; else delete S.draft[k];
+    S.dirty = true; $sheet.close(); render();
+  },
+  allYes(){ const fs = fillState(); if (!fs) return; availKeys().forEach(k => S.draft[k] = fs.id); S.dirty = true; render(); },
+  allClear(){ S.draft = {}; S.dirty = true; render(); },
+  async save(el){
+    el.disabled = true;
+    const target = S.view === 'user' ? S.editUid : S.user.uid;
+    const data = { avail:S.draft, note:S.note.trim() };
+    try{
+      await B.saveSubmission(wid(), target, data);
+      if (isMgr()) S.subs[target] = clone(data); else S.mySub = clone(data);
+      S.dirty = false; toast('הזמינות נשמרה');
+    }catch(e){ toast(errMsg(e)); }
+    render();
+  },
+
+  /* שיבוץ */
+  async lock(){ await saveWeek({ locked: !S.week.locked }, S.week.locked ? 'ההגשה נפתחה' : 'ההגשה נסגרה'); },
+  async publish(){
+    if (!S.week.published && !confirm('לפרסם את הסידור? העובדים יראו אותו מיד.')) return;
+    const snap = Object.fromEntries(ST().shifts.map(s => [s.id, { name:s.name, start:s.start, end:s.end, color:s.color }]));
+    await saveWeek(S.week.published ? { published:false } : { published:true, shiftsSnap:snap, appUrl:location.origin + location.pathname },
+      S.week.published ? 'הפרסום בוטל' : 'הסידור פורסם');
+  },
+  async auto(){
+    if (Object.values(asg()).some(x => x.length) && !confirm('השיבוץ האוטומטי יחליף את השיבוץ הנוכחי. להמשיך?')) return;
+    const a = autoAssign(); const short = keys().filter(k => a[k].length < needOf(k)).length;
+    await saveWeek({ assignments:a }, short ? `השיבוץ הושלם. ${short} משמרות נשארו חסרות` : 'השיבוץ הושלם, כל המשמרות מאוישות');
+  },
+  openSlot(el){ S.sheetMode = 'slot'; S.openKey = el.dataset.k; renderSheet(); $sheet.showModal(); },
+  closeSheet(){ $sheet.close(); },
+  async saveMsg(){ await saveWeek({ message:S.msgDraft.trim() }, 'ההודעה נשמרה'); },
+  shareWa(){ window.open('https://wa.me/?text=' + encodeURIComponent(scheduleText()), '_blank'); },
+  copySched(){ copyText(scheduleText()); },
+  print(){ window.print(); },
+  async copyPrev(){
+    if (Object.values(asg()).some(x => x.length) && !confirm('להחליף את השיבוץ הנוכחי בשיבוץ מהשבוע הקודם?')) return;
+    try{
+      const prev = await B.getWeek(weekId(addDays(S.weekStart,-7)));
+      const ids = new Set(workers().map(u => u.uid)), a = {};
+      keys().forEach(k => a[k] = (prev.assignments?.[k] || []).filter(uid => ids.has(uid)));
+      await saveWeek({ assignments:a }, 'השיבוץ הועתק מהשבוע הקודם');
+    }catch(e){ toast(errMsg(e)); }
+  },
+  async clearAsg(){ if (!confirm('למחוק את כל השיבוץ של השבוע הזה?')) return; await saveWeek({ assignments:emptyAsg() }, 'השיבוץ נוקה'); },
+
+  /* עובדים */
+  newUser(){ S.uDraft = { name:'', email:'', phone:'', password:genPw(), role:'employee', positions:[], maxShifts:'' }; S.created = null; S.view = 'newUser'; render(); },
+  genPw(){ S.uDraft.password = genPw(); render(); },
+  async createUser(el){
+    const u = S.uDraft, email = (u.email||'').trim().toLowerCase();
+    if (!u.name?.trim()) return toast('צריך למלא שם');
+    if (!email) return toast('צריך למלא אימייל');
+    if ((u.password||'').length < 6) return toast('הסיסמה צריכה לכלול לפחות 6 תווים');
+    if (S.users.some(x => (x.email||'').toLowerCase() === email)) return toast(errMsg({ code:'already-member' }));
+    el.disabled = true;
+    const doc = { name:u.name.trim(), email, phone:(u.phone||'').trim(), role:u.role === 'manager' ? 'manager' : 'employee', positions:userPos(u),
+      maxShifts: u.maxShifts === '' || u.maxShifts == null ? null : Math.max(0, parseInt(u.maxShifts) || 0) };
+    try{
+      const { uid, existing } = await B.addUser({ ...doc, password:u.password }, ST().business);
+      S.users.push({ uid, ...doc, active:true });
+      S.created = { ...doc, password: existing ? null : u.password, existing };
+      resyncPublished().catch(e => console.warn(e));
+    }catch(e){ toast(errMsg(e)); }
+    render();
+  },
+  copyCreated(){ copyText(loginText(S.created)); },
+  userPos(el){
+    const set = new Set(S.uDraft.positions || []);
+    el.checked ? set.add(el.dataset.id) : set.delete(el.dataset.id);
+    S.uDraft.positions = [...set];
+  },
+  shiftPos(el){
+    const sh = S.sDraft.shifts[+el.dataset.i], set = new Set(sh.positions || []);
+    el.checked ? set.add(el.dataset.id) : set.delete(el.dataset.id);
+    sh.positions = [...set]; S.sDirty = true; render();
+  },
+  stateColor(el){ S.sDraft.availStates[+el.dataset.i].color = el.dataset.c; S.sDirty = true; render(); },
+  moveState(el){
+    const i = +el.dataset.i, j = i + +el.dataset.d, a = S.sDraft.availStates;
+    [a[i], a[j]] = [a[j], a[i]]; S.sDirty = true; render();
+  },
+  addState(){
+    const a = S.sDraft.availStates; if (a.length >= 6) return;
+    const used = new Set(a.map(x => x.color)), color = STATE_PALETTE.find(c => !used.has(c)) || STATE_PALETTE[0];
+    a.push({ id:'s' + Math.random().toString(36).slice(2,8), name:'', color, level:'normal' });
+    S.sDirty = true; render();
+  },
+  delState(el){
+    const a = S.sDraft.availStates, x = a[+el.dataset.i];
+    if (a.length <= 2) return toast('צריך לפחות שני מצבים');
+    const n = Object.values(S.subs || {}).filter(sub => Object.values(sub.avail || {}).includes(x.id)).length;
+    const warn = n ? `\n${n} עובדים בחרו במצב הזה בשבוע המוצג. אחרי המחיקה ההגשות שלהם במשמרות האלה ייחשבו "${UNSET_LABEL}".` : '';
+    if (!confirm(`למחוק את המצב "${x.name || 'ללא שם'}"?${warn}`)) return;
+    a.splice(+el.dataset.i, 1); S.sDirty = true; render();
+  },
+  resetStates(){
+    if (!confirm('לחזור לשלושת המצבים של ברירת המחדל (יכול, מעדיף שלא, לא יכול)?')) return;
+    S.sDraft.availStates = clone(DEFAULT_STATES); S.sDirty = true; render();
+  },
+  addPos(){ (S.sDraft.positions ??= []).push({ id:'p'+Math.random().toString(36).slice(2,8), name:'' }); S.sDirty = true; render(); },
+  posSees(el){
+    const p = S.sDraft.positions[+el.dataset.i], set = new Set(p.sees || []);
+    el.checked ? set.add(el.dataset.id) : set.delete(el.dataset.id);
+    p.sees = [...set]; S.sDirty = true;
+  },
+  delPos(el){
+    const p = S.sDraft.positions[+el.dataset.i];
+    if (!confirm(`למחוק את התפקיד "${p.name || 'ללא שם'}"? הוא יוסר מכל העובדים ומכל המשמרות.`)) return;
+    S.sDraft.positions.splice(+el.dataset.i, 1);
+    S.sDraft.shifts.forEach(sh => sh.positions = (sh.positions || []).filter(id => id !== p.id));
+    S.sDraft.positions.forEach(o => o.sees = (o.sees || []).filter(id => id !== p.id));
+    S.sDirty = true; render();
+  },
+  waCreated(){ const c = S.created; window.open(`https://wa.me/${waPhone(c.phone)}?text=` + encodeURIComponent(loginText(c)), '_blank'); },
+  openUser(el){
+    S.editUid = el.dataset.uid;
+    S.uDraft = clone(S.users.find(u => u.uid === S.editUid));
+    loadDraftFor(S.editUid); S.view = 'user'; render(); window.scrollTo(0,0);
+  },
+  async saveUser(){
+    const u = S.uDraft;
+    if (!u.name?.trim()) return toast('צריך למלא שם');
+    const orig = S.users.find(x => x.uid === u.uid);
+    const locked = lockedSelf(orig);
+    const data = { name:u.name.trim(), phone:(u.phone||'').trim(), positions:userPos(u),
+      role: locked ? orig.role : (u.role === 'manager' ? 'manager' : 'employee'),
+      active: locked ? orig.active !== false : u.active !== false,
+      maxShifts: u.maxShifts === '' || u.maxShifts == null ? null : Math.max(0, parseInt(u.maxShifts) || 0) };
+    try{
+      await B.updateUser(u.uid, data);
+      Object.assign(S.users.find(x => x.uid === u.uid), data);
+      if (u.uid === S.user.uid) Object.assign(S.profile, data);
+      resyncPublished().catch(e => console.warn(e));
+      toast('הפרטים נשמרו');
+    }catch(e){ toast(errMsg(e)); }
+    render();
+  },
+  async resetPw(){
+    const u = S.users.find(x => x.uid === S.editUid);
+    if (!u?.email) return toast('לעובד הזה אין אימייל במערכת');
+    if (B.demo) return toast('במצב הדגמה לא נשלחים מיילים');
+    try{ await B.sendReset(u.email); toast(`נשלח מייל לאיפוס סיסמה ל-${u.email}`); }catch(e){ toast(errMsg(e)); }
+  },
+  waUser(){ const u = S.users.find(x => x.uid === S.editUid); window.open(`https://wa.me/${waPhone(u.phone)}`, '_blank'); },
+  async transferOwner(el){
+    const u = S.users.find(x => x.uid === S.editUid);
+    if (!u || S.profile.role !== 'owner' || u.uid === S.user.uid || u.active === false) return;
+    if (!confirm(`להעביר את הבעלות על ${ST().business} ל${u.name}?\n\n${u.name} יהיה הבעלים, ואתה תהיה מנהל. אי אפשר לבטל את זה בעצמך: רק ${u.name} יוכל להחזיר לך את הבעלות.`)) return;
+    el.disabled = true;
+    try{
+      await B.transferOwnership(u.uid);
+      u.role = 'owner';
+      S.profile.role = 'manager';
+      const me = S.users.find(x => x.uid === S.user.uid); if (me) me.role = 'manager';
+      S.uDraft = clone(u);
+      toast(`${u.name} הוא עכשיו הבעלים`);
+    }catch(e){ toast(errMsg(e)); el.disabled = false; }
+    render();
+  },
+
+  /* הגדרות */
+  color(el){ S.sDraft.shifts[+el.dataset.i].color = el.dataset.c; S.sDirty = true; render(); },
+  addShift(){
+    const n = S.sDraft.shifts.length;
+    S.sDraft.shifts.push({ id:'s'+Math.random().toString(36).slice(2,8), name:'משמרת חדשה', start:'09:00', end:'17:00', color:PALETTE[n % PALETTE.length], need:[1,1,1,1,1,1,1] });
+    S.sDirty = true; render();
+  },
+  moveShift(el){
+    const i = +el.dataset.i, j = i + +el.dataset.d, sh = S.sDraft.shifts;
+    [sh[i], sh[j]] = [sh[j], sh[i]]; S.sDirty = true; render();
+  },
+  delShift(el){
+    const s = S.sDraft.shifts[+el.dataset.i];
+    if (!confirm(`למחוק את משמרת "${s.name}"? השיבוצים שלה יוסתרו בכל השבועות.`)) return;
+    S.sDraft.shifts.splice(+el.dataset.i, 1); S.sDirty = true; render();
+  },
+  async saveSettings(el){
+    const st = clone(S.sDraft);
+    if (!st.shifts.length) return toast('צריך לפחות משמרת אחת');
+    st.availStates = (st.availStates || []).map(x => ({ id:x.id, name:(x.name || '').trim(), color:x.color, level:x.level }));
+    if (st.availStates.length < 2 || st.availStates.length > 6) return toast('צריך בין 2 ל-6 מצבי זמינות');
+    if (st.availStates.some(x => !x.name)) return toast('לכל מצב זמינות צריך שם');
+    if (new Set(st.availStates.map(x => x.name)).size !== st.availStates.length) return toast('יש שני מצבי זמינות עם אותו שם');
+    if (!st.availStates.some(x => x.level !== 'never')) return toast('צריך לפחות מצב אחד שאפשר לשבץ בו');
+    st.positions = (st.positions || []).map(p => ({ id:p.id, name:(p.name||'').trim(), sees:(p.sees || []).filter(x => x !== p.id && (st.positions || []).some(o => o.id === x)) }));
+    if (st.positions.some(p => !p.name)) return toast('לכל תפקיד צריך שם');
+    if (new Set(st.positions.map(p => p.name)).size !== st.positions.length) return toast('יש שני תפקידים עם אותו שם');
+    for (const s of st.shifts) {
+      s.positions = (s.positions || []).filter(id => st.positions.some(p => p.id === id));
+      s.name = (s.name||'').trim();
+      if (!s.name) return toast('לכל משמרת צריך שם');
+      if (!s.start || !s.end) return toast(`צריך שעת התחלה וסיום למשמרת "${s.name}"`);
+      s.need = Array.from({length:7}, (_,d) => needAt(s,d));
+    }
+    st.business = (st.business||'').trim() || 'DoTheShift';
+    st.minRest = Math.max(0, parseInt(st.minRest) || 0);
+    st.maxPerWeek = Math.max(0, parseInt(st.maxPerWeek) || 0);
+    st.deadlineHours = Math.max(0, parseInt(st.deadlineHours) || 0);
+    st.tzMin = -new Date().getTimezoneOffset();
+    st.appUrl = location.origin + location.pathname;
+    el.disabled = true;
+    const renamed = st.business !== S.settings.business;
+    try{ await B.saveSettings(st); await B.setCompanyName(st.business);
+      if (renamed) {
+        B.renameInLists([...S.users, ...S.clocks].map(u => u.uid), st.business).catch(e => console.warn(e));
+        const c = S.companies.find(x => x.cid === S.cid); if (c) c.name = st.business;
+      }
+      S.settings = normSettings(st); S.sDraft = clone(S.settings); S.sDirty = false; toast('ההגדרות נשמרו'); resyncPublished().catch(e => console.warn(e)); }
+    catch(e){ toast(errMsg(e)); }
+    render();
+  },
+};
+
+/* ---------- events ---------- */
+function setPath(obj, path, v){ const p = path.split('.'); let o = obj; for (let i = 0; i < p.length-1; i++) o = o[p[i]]; o[p.at(-1)] = v; }
+const readInput = t => t.type === 'checkbox' ? t.checked : t.value;
+
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-action]');
+  if (el && actions[el.dataset.action]) actions[el.dataset.action](el);
+});
+document.addEventListener('input', e => {
+  const t = e.target;
+  if (t.dataset.s != null) {
+    setPath(S.sDraft, t.dataset.s, readInput(t));
+    if (!S.sDirty) { S.sDirty = true; const sp = document.querySelector('.savebar span'); if (sp) { sp.className = 'dirty'; sp.textContent = 'יש שינויים שלא נשמרו'; } }
+    if (t.type === 'checkbox') render();
+  }
+  else if (t.dataset.u != null) S.uDraft[t.dataset.u] = readInput(t);
+  else if (t.id === 'weekMsg') S.msgDraft = t.value;
+  else if (t.id === 'kq') { S.kiosk.q = t.value; render(); const f = document.getElementById('kq'); if (f) { f.focus(); f.setSelectionRange(f.value.length, f.value.length); } }
+  else if (t.id === 'note') {
+    S.note = t.value;
+    if (!S.dirty) { S.dirty = true; const sp = document.querySelector('.savebar span'); if (sp) { sp.className = 'dirty'; sp.textContent = 'יש שינויים שלא נשמרו'; } }
+  }
+});
+document.addEventListener('change', e => {
+  if (e.target.dataset.s?.startsWith('positions.')) { render(); return; }  // שם תפקיד חדש מופיע מיד גם במשמרות
+  if (!e.target.dataset.dl) return;
+  const day = +document.querySelector('[data-dl="day"]').value, hour = +document.querySelector('[data-dl="hour"]').value;
+  S.sDraft.deadlineHours = day < 0 ? 0 : 168 - (day*24 + hour);
+  S.sDirty = true; render();
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.id === 'kx-pw') { e.preventDefault(); document.querySelector('#sheet [data-action=kExitConfirm]')?.click(); return; }
+  if (e.key === 'Enter' && e.target.id === 'k-pw') { e.preventDefault(); document.querySelector('#sheet [data-action=kPunch]')?.click(); return; } if (e.key === 'Enter' && e.target.matches('.login input')) document.querySelector('.login .btn.primary')?.click(); });
+$sheet.addEventListener('change', async e => {
+  const uid = e.target.dataset.assign; if (!uid) return;
+  const a = asg(), k = S.openKey;
+  a[k] = e.target.checked ? [...a[k], uid] : a[k].filter(x => x !== uid);
+  await saveWeek({ assignments:a });
+  renderSheet();
+});
+$sheet.addEventListener('close', () => {
+  const wasKiosk = S.sheetMode === 'kiosk';
+  S.openKey = null; S.sheetMode = null;
+  if (wasKiosk) { clearTimeout(kioskIdle); Object.assign(S.kiosk, { sel:null, busy:false, done:null }); if (isClock()) render(); }
+});
+$sheet.addEventListener('click', e => { if (e.target === $sheet) $sheet.close(); });
+
+/* שעון חי במסך הנוכחות (בלי פנייה לשרת), ורענון הרשימה וההחתמות פעם בשעה */
+setInterval(() => { const c = document.getElementById('kclock'); if (c) c.textContent = clockText(); }, 1000);
+setInterval(() => { if (isClock() && !$sheet.open) loadPunches(); }, 3600e3);   // פעם בשעה, כדי לחסוך קריאות בשרת
+
+/* ---------- הצעה להתקין את האפליקציה ---------- */
+/* מי שפתח באתר ולא התקין: באנדרואיד כפתור התקנה, באייפון הוראות (אפל לא מאפשרת התקנה בלחיצה) */
+let installEvt = null;
+const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const installSnoozed = () => Date.now() - (+store.get('installLater') || 0) < 14*864e5;   // "לא עכשיו" מסתיר לשבועיים
+function renderInstall(){
+  const box = document.getElementById('install'); if (!box) return;
+  const kind = isStandalone() || installSnoozed() || isClock() ? null : installEvt ? 'android' : isIOS() ? 'ios' : null;
+  box.hidden = !kind;
+  if (!kind) { box.innerHTML = ''; return; }
+  const share = '<svg viewBox="0 0 24 24" width="17" height="17" aria-label="שיתוף"><path d="M12 3v12M7.5 7.5 12 3l4.5 4.5M6 11H5v10h14V11h-1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  box.innerHTML = `<div class="inst"><img src="icon-192.png" alt="">
+    <div class="it"><b>התקנת האפליקציה</b><span>${kind === 'android'
+      ? 'אייקון במסך הבית, ונפתח במסך מלא כמו אפליקציה'
+      : `לוחצים על כפתור השיתוף ${share} ואז על "הוספה למסך הבית"`}</span></div>
+    <div class="ib">${kind === 'android' ? '<button class="btn sm primary" data-action="installApp">התקנה</button>' : ''}
+      <button class="btn sm" data-action="installLater">לא עכשיו</button></div></div>`;
+}
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; renderInstall(); });
+window.addEventListener('appinstalled', () => { installEvt = null; renderInstall(); });
+Object.assign(actions, {
+  async installApp(){
+    if (!installEvt) return;
+    installEvt.prompt();
+    const { outcome } = await installEvt.userChoice.catch(() => ({}));
+    installEvt = null;
+    if (outcome === 'dismissed') store.set('installLater', String(Date.now()));
+    renderInstall();
+  },
+  installLater(){ store.set('installLater', String(Date.now())); renderInstall(); },
+});
+
+/* ---------- boot ---------- */
+(async () => {
+  render();
+  try{ B = FIREBASE_CONFIG.apiKey ? await firebaseBackend(FIREBASE_CONFIG) : demoBackend(); }
+  catch(e){ console.error(e); B = demoBackend(); toast('החיבור ל-Firebase נכשל, עובר למצב הדגמה'); }
+  B.onAuth(async u => {
+    S.user = u; S.ready = true;
+    if (S.signingUp) return;  // ההרשמה ממשיכה בעצמה
+    if (u) { try{ await afterLogin(); }catch(e){ toast(errMsg(e)); render(); } }
+    else { S.profile = null; S.cid = null; S.dirty = false; S.sDirty = false; render(); }
+  });
+})();
+</script>
+</body>
+</html>
