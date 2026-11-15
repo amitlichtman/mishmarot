@@ -221,6 +221,22 @@ dialog::backdrop{background:rgba(30,36,51,.45)}
 .kdone p{font-size:1.2rem;margin:6px 0}
 .tag.bad{background:#FDEDE4;color:var(--warn)}
 a.btn{text-decoration:none;display:inline-flex;align-items:center}
+.crew-head{display:flex;align-items:baseline;justify-content:space-between;margin:16px 0 10px}
+.crew-head h3{margin:0}.crew-head span{color:var(--muted);font-size:.9rem}
+.crew-q{margin-bottom:12px}
+.crew{list-style:none;padding:0;margin:0;display:grid;gap:10px}
+.crew-card{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px}
+.av{flex:none;width:46px;height:46px;border-radius:50%;display:grid;place-items:center;font-weight:700;color:var(--c);background:color-mix(in srgb,var(--c) 15%,#fff);font-size:1.05rem}
+.ci{flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px}
+.ci b{font-size:1.02rem}
+.crole{font-size:.72rem;font-weight:500;padding:1px 8px;border-radius:9px;background:var(--ink);color:#fff}
+.cpos{flex-basis:100%;display:flex;flex-wrap:wrap;gap:4px}
+.cpos i{font-style:normal;font-size:.75rem;padding:1px 8px;border-radius:9px;background:#EEF0F5;color:var(--muted)}
+.cph{flex-basis:100%;font-size:.82rem;color:var(--muted)}
+.cact{flex:none;display:flex;gap:6px}
+.ib{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line);color:var(--ink);background:#fff;text-decoration:none}
+.ib:active{transform:scale(.94)}
+.ib.wa{color:#17855B;border-color:color-mix(in srgb,#17855B 35%,#fff)}
 .badge{display:inline-block;min-width:18px;margin-inline-start:6px;padding:0 5px;border-radius:9px;background:var(--warn);color:#fff;font-size:.72rem;font-style:normal;line-height:18px;text-align:center}
 .tk{display:flex;flex-direction:column;align-items:flex-start;gap:3px;margin-top:5px;padding-top:5px;border-top:1px dashed var(--line)}
 .tkn{font-size:.72rem;color:var(--warn);font-weight:500}
@@ -1206,14 +1222,35 @@ function takeCell(k, takes){
 }
 
 /* רשימת העובדים לעובד רגיל, רק אם המנהל התיר */
+const CREW_COLORS = ['#E9A23B','#D6577A','#34478F','#17855B','#7A5AF8','#0E8FA8','#C2621B'];
+const ICON = {
+  phone:'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></svg>',
+  wa:'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21l1.7-5A8.5 8.5 0 1 1 8 19.3z"/><path d="M9 10c0 3 2 5 5 5l1-1.5-2-1-1 1c-1-.4-1.6-1-2-2l1-1-1-2z"/></svg>',
+  mail:'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>'
+};
 function viewCrew(){
   if (!ST().teamVisible) return `<p class="empty">המנהל לא פתח את רשימת העובדים.</p>`;
-  const roleTag = u => u.role === 'owner' || u.role === 'manager' ? `<span class="tag">${ROLE_LABEL[u.role]}</span>` : '';
   const tel = ph => (ph || '').replace(/[^\d+]/g, ''), wa = ph => { const d = tel(ph).replace(/^\+/, ''); return d.startsWith('0') ? '972' + d.slice(1) : d; };
-  return `<ul class="list">${members().sort(byName).map(u => { const pos = userPos(u).map(posName).filter(Boolean).join(', ');
-    return `<li class="wrapli"><span><b>${esc(u.name)}</b> ${roleTag(u)}${pos ? `<span class="sub" style="display:block">${esc(pos)}</span>` : ''}</span>
-      <span class="reqb">${u.phone ? `<a class="btn sm" href="tel:${esc(tel(u.phone))}">${ltr(esc(u.phone))}</a><a class="btn sm" href="https://wa.me/${esc(wa(u.phone))}" target="_blank" rel="noopener">וואטסאפ</a>` : ''}
-        ${u.email ? `<a class="btn sm" href="mailto:${esc(u.email)}">אימייל</a>` : ''}</span></li>`; }).join('')}</ul>`;
+  const rank = u => u.role === 'owner' ? 0 : u.role === 'manager' ? 1 : 2;
+  const q = (S.crewQ || '').trim(), all = members().filter(u => u.uid !== S.user.uid);
+  const list = all.filter(u => !q || (u.name || '').includes(q)).sort((a,b) => rank(a) - rank(b) || byName(a,b));
+  const card = u => {
+    const pos = userPos(u).map(posName).filter(Boolean), c = CREW_COLORS[[...(u.uid || '')].reduce((t,ch) => t + ch.charCodeAt(0), 0) % CREW_COLORS.length];
+    const ini = (u.name || '?').trim().split(/\s+/).slice(0,2).map(w => w[0]).join('');
+    return `<li class="crew-card">
+      <span class="av" style="--c:${c}" aria-hidden="true">${esc(ini)}</span>
+      <span class="ci"><b>${esc(u.name)}</b>${rank(u) < 2 ? `<span class="crole">${ROLE_LABEL[u.role]}</span>` : ''}
+        ${pos.length ? `<span class="cpos">${pos.map(x => `<i>${esc(x)}</i>`).join('')}</span>` : ''}
+        ${u.phone ? `<span class="cph">${ltr(esc(u.phone))}</span>` : ''}</span>
+      <span class="cact">
+        ${u.phone ? `<a class="ib" href="tel:${esc(tel(u.phone))}" aria-label="להתקשר ל${esc(u.name)}">${ICON.phone}</a>
+          <a class="ib wa" href="https://wa.me/${esc(wa(u.phone))}" target="_blank" rel="noopener" aria-label="וואטסאפ ל${esc(u.name)}">${ICON.wa}</a>` : ''}
+        ${u.email ? `<a class="ib" href="mailto:${esc(u.email)}" aria-label="אימייל ל${esc(u.name)}">${ICON.mail}</a>` : ''}
+      </span></li>`;
+  };
+  return `<div class="crew-head"><h3>הצוות</h3><span>${all.length} עובדים</span></div>
+    ${all.length > 8 ? `<input type="search" id="crewQ" class="crew-q" placeholder="חיפוש לפי שם" value="${esc(S.crewQ || '')}" autocomplete="off">` : ''}
+    ${list.length ? `<ul class="crew">${list.map(card).join('')}</ul>` : '<p class="empty">אין עובדים בשם הזה.</p>'}`;
 }
 
 function viewMine(){
@@ -2322,6 +2359,7 @@ document.addEventListener('input', e => {
   }
   else if (t.dataset.u != null) S.uDraft[t.dataset.u] = readInput(t);
   else if (t.id === 'weekMsg') S.msgDraft = t.value;
+  else if (t.id === 'crewQ') { S.crewQ = t.value; render(); const f = document.getElementById('crewQ'); if (f) { f.focus(); f.setSelectionRange(f.value.length, f.value.length); } }
   else if (t.id === 'kq') { S.kiosk.q = t.value; render(); const f = document.getElementById('kq'); if (f) { f.focus(); f.setSelectionRange(f.value.length, f.value.length); } }
   else if (t.id === 'note') {
     S.note = t.value;
