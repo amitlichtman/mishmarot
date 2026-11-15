@@ -221,6 +221,10 @@ dialog::backdrop{background:rgba(30,36,51,.45)}
 .kdone p{font-size:1.2rem;margin:6px 0}
 .tag.bad{background:#FDEDE4;color:var(--warn)}
 .badge{display:inline-block;min-width:18px;margin-inline-start:6px;padding:0 5px;border-radius:9px;background:var(--warn);color:#fff;font-size:.72rem;font-style:normal;line-height:18px;text-align:center}
+.tk{display:flex;flex-direction:column;align-items:flex-start;gap:3px;margin-top:5px;padding-top:5px;border-top:1px dashed var(--line)}
+.tkn{font-size:.72rem;color:var(--warn);font-weight:500}
+.btn.xs{padding:3px 8px;font-size:.74rem;border-radius:7px}
+.tk .tag{font-size:.7rem;margin:0}
 .reqb{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:flex-end}
 .list li.wrapli{flex-wrap:wrap}
 .list li.wrapli .reqb{flex-basis:100%}
@@ -739,7 +743,7 @@ async function firebaseBackend(cfg){
 const S = {
   ready:false, user:null, profile:null, cid:null, companies:[], sheetMode:null, authMode: location.hash === '#signup' ? 'signup' : 'login', freshLogin:false, picking:false, pickNew:false, signingUp:false, users:[], settings:clone(DEFAULT_SETTINGS), view:null,
   weekStart: addDays(sundayOf(new Date()),7),
-  week:{}, reqs:[], mySub:null, draft:{}, note:'', dirty:false, subs:{}, msgDraft:'',
+  week:{}, reqs:[], mineMode:'sched', mySub:null, draft:{}, note:'', dirty:false, subs:{}, msgDraft:'',
   sDraft:null, sDirty:false, uDraft:null, editUid:null, created:null,
   loading:false, openKey:null,
   rep:'month', repUid:null, allWeeks:null, repMode:'plan', actual:null,
@@ -1114,8 +1118,9 @@ function offersFor(){
   return [...gives, ...takes].sort((x,y) => slotStart(x.k) - slotStart(y.k));
 }
 function offersHtml(){
-  const list = offersFor(); if (!list.length) return '';
-  return `<h3>משמרות זמינות</h3><ul class="list">${list.map(o => {
+  const list = offersFor().filter(o => o.kind === 'give');
+  if (!list.length) return `<p class="empty">אין כרגע משמרות שעובדים רוצים למסור.<br>משמרות שחסרים בהן אנשים מופיעות בסידור עצמו.</p>`;
+  return `<p class="hint">משמרות שעובדים אחרים רוצים למסור, ומתאימות לך.</p><ul class="list">${list.map(o => {
     const done = o.kind === 'give' ? o.mine : !!o.r;
     const sub = o.kind === 'give' ? `${esc(nameOf(o.r.by))} רוצה למסור את המשמרת` : `חסרים ${needOf(o.k) - asg()[o.k].length} במשמרת`;
     const btn = done
@@ -1144,11 +1149,26 @@ function requestsHtml(){
   </div>`;
 }
 
+/* בתוך משבצת של משמרת חסרה: "אני רוצה", או סטטוס הבקשה */
+function takeCell(k, takes){
+  const o = takes.find(x => x.k === k); if (!o) return '';
+  const left = needOf(k) - asg()[k].length;
+  return `<span class="tk"><span class="tkn">חסרים ${left}</span>${o.r
+    ? `<span class="tag">ביקשת</span><button class="btn xs" data-action="reqCancel" data-id="${o.r.id}">ביטול</button>`
+    : o.why ? `<span class="tag bad">${o.why}</span>`
+    : `<button class="btn xs primary" data-action="reqTake" data-k="${k}">אני רוצה</button>`}</span>`;
+}
+
 function viewMine(){
   if (!S.week.published) return `<p class="empty">הסידור לשבוע הזה עוד לא פורסם.<br>אפשר בינתיים להגיש זמינות בלשונית "זמינות".</p>`;
   const a = asg(), uid = S.user.uid;
   const mine = keys().filter(k => a[k].includes(uid));
-  return `
+  const offers = offersFor(), takes = offers.filter(o => o.kind === 'take');
+  const nGive = offers.filter(o => o.kind === 'give' && !o.why && !o.mine).length;
+  const seg = `<div class="seg"><button data-action="mineMode" data-m="sched" aria-pressed="${S.mineMode !== 'offers'}">הסידור</button>
+    <button data-action="mineMode" data-m="offers" aria-pressed="${S.mineMode === 'offers'}">משמרות למסירה${nGive ? `<i class="badge">${nGive}</i>` : ''}</button></div>`;
+  if (S.mineMode === 'offers') return seg + offersHtml();
+  return `${seg}
     ${S.week.message ? `<p class="notice msg">${esc(S.week.message)}</p>` : ''}
     <h3>המשמרות שלך</h3>
     ${mine.length ? `<ul class="list">${mine.map(k => { const [d,id] = k.split('_'), s = shiftById(id);
@@ -1157,11 +1177,11 @@ function viewMine(){
         : future(k) ? `<span class="reqb"><button class="btn sm" data-action="reqGive" data-k="${k}">למסור</button></span>` : '';
       return `<li class="wrapli"><span class="myshift"><i class="dot" style="--c:${s.color}"></i><b>יום ${DAYS[d]} ${fmt(addDays(S.weekStart,+d))}</b></span><span>${esc(s.name)}, ${ltr(hrs(s))}</span>${act}</li>`; }).join('')}</ul>`
       : `<p class="hint">לא שובצת למשמרות השבוע.</p>`}
-    ${offersHtml()}
     <h3>הסידור</h3>
     ${dayGrid((d,s,k) => { const n = a[k];
-      return `<div class="slot" style="--c:${s.color}"><span class="sn">${esc(s.name)}</span><span class="hr">${hrs(s)}</span>
-        <span class="names ${n.length?'':'none'}">${n.length ? n.map(u => u===uid ? `<b>${esc(nameOf(u))}</b>` : esc(nameOf(u))).join('<br>') : 'אין שיבוץ'}</span></div>`; },
+      const tk = takeCell(k, takes);
+      return `<div class="slot ${tk ? 'short' : ''}" style="--c:${s.color}"><span class="sn">${esc(s.name)}</span><span class="hr">${hrs(s)}</span>
+        <span class="names ${n.length?'':'none'}">${n.length ? n.map(u => u===uid ? `<b>${esc(nameOf(u))}</b>` : esc(nameOf(u))).join('<br>') : 'אין שיבוץ'}</span>${tk}</div>`; },
       ST().shifts.filter(s => canSee(S.profile, s) || mine.some(k => k.endsWith('_' + s.id))))}`;
 }
 
@@ -1761,6 +1781,7 @@ const actions = {
   period(el){ S.rep = el.dataset.p; if ((S.view === 'reports' || S.view === 'hours') && S.repMode === 'actual') loadActual(); else render(); },
   repMode(el){ S.repMode = el.dataset.m; S.repUid = null; if (S.repMode === 'actual') loadActual(); else render(); },
   csvActual(){ downloadActualCsv(); },
+  mineMode(el){ S.mineMode = el.dataset.m; render(); },
   async reqGive(el){ await reqDo(() => B.addRequest({ type:'give', week:wid(), k:el.dataset.k, vols:[] }), 'המשמרת הוצעה לעובדים. עד שהמנהל מאשר, אתה עדיין משובץ'); },
   async reqTake(el){ await reqDo(() => B.addRequest({ type:'take', week:wid(), k:el.dataset.k }), 'הבקשה נשלחה למנהל'); },
   async reqVol(el){ await reqDo(() => B.volunteer(el.dataset.id, true), 'הבקשה נשלחה למנהל'); },
