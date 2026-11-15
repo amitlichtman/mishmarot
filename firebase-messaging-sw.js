@@ -11,3 +11,13 @@ firebase.initializeApp({
   appId: "1:802595753105:web:87a979f151f647cb6f0330"
 });
 firebase.messaging();   // התראות עם כותרת וטקסט מוצגות אוטומטית
+
+/* לחיצה על התראה שהאפליקציה עצמה הציגה (כשהיא הייתה פתוחה): חוזרים לאפליקציה */
+self.addEventListener('notificationclick', e => {
+  if (!e.notification.data?.local) return;          // התראות מהשרת מטופלות על ידי Firebase
+  e.notification.close();
+  e.waitUntil(clients.matchAll({ type:'window', includeUncontrolled:true }).then(list => {
+    const open = list.find(c => c.url.includes('app.html'));
+    return open ? open.focus() : clients.openWindow('app.html');
+  }));
+});
