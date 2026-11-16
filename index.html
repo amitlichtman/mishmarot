@@ -205,6 +205,9 @@ details p{margin:0 0 18px;color:var(--muted)}
 .final h2{font-size:clamp(2rem,5vw,3rem);margin-bottom:12px}
 .final p{color:var(--muted);margin:0 0 26px;font-size:1.1rem}
 footer{border-top:1px solid var(--line);padding:26px 0;color:var(--muted);font-size:.9rem}
+.faq-more{margin:18px 0 0;color:var(--muted)}
+.faq-more a,.contact a{color:var(--ink);font-weight:500}
+.contact{display:flex;flex-wrap:wrap;gap:6px 18px}
 footer .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;align-items:center}
 
 /* reveal on scroll */
@@ -411,7 +414,8 @@ footer .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;
       <details class="rv"><summary>What do I need for the attendance clock?</summary><p>Any phone, tablet or computer with internet. A manager turns on clock mode, and employees punch with their own password.</p></details>
       <details class="rv"><summary>Can employees swap or give away shifts?</summary><p>Yes. An employee offers their shift, suitable coworkers volunteer, and the manager picks and approves. Employees can also ask to join short-staffed shifts. The manager can turn either option off.</p></details>
       <details class="rv"><summary>Are there notifications?</summary><p>Yes. Phone notifications when the schedule is published, when a request is answered, before the submission deadline, and for anyone who forgot to clock out. Everyone picks what they get, separately for each business. On iPhone, notifications work after installing the app on the home screen.</p></details>
-      <details class="rv"><summary>Where is the data stored?</summary><p>On Google Firebase servers. Each employee sees only what they're allowed to: other employees' submissions and the full schedule are visible only to managers, and contact details only if the manager allows it.</p></details>
+      <details class="rv"><summary>Where is the data stored?</summary><p>On Google Firebase servers. Each employee sees only what they're allowed to: other employees' submissions and the full schedule are visible only to managers, and contact details only if the manager allows it. Privacy questions: <a href="mailto:privacy@dotheshift.com">privacy@dotheshift.com</a></p></details>
+      <p class="faq-more rv">Didn't find an answer? Email us at <a href="mailto:support@dotheshift.com">support@dotheshift.com</a></p>
     </div>
   </section>
 
@@ -427,6 +431,7 @@ footer .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;
 <footer>
   <div class="wrap">
     <a class="logo" href="#top" style="font-size:1.05rem"><span class="bars" aria-hidden="true"><i></i><i></i><i></i></span>DoTheShift</a>
+    <span class="contact"><span>Contact: <a href="mailto:hello@dotheshift.com">hello@dotheshift.com</a></span><span>Support: <a href="mailto:support@dotheshift.com">support@dotheshift.com</a></span></span>
     <span>© 2026 DoTheShift · <a href="app.html?lang=en">Sign in</a></span>
   </div>
 </footer>
