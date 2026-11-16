@@ -96,8 +96,10 @@ h3{font-family:'Secular One',sans-serif;font-weight:400;font-size:1.15rem;margin
 .chip:disabled{cursor:default}
 
 .slot{border-radius:10px;border:1.5px solid var(--line);border-top:5px solid var(--c);background:#fff;
-  padding:6px;min-height:72px;text-align:right;display:flex;flex-direction:column;gap:2px}
-.slot .sn{display:flex;justify-content:space-between;gap:4px;font-weight:700;font-size:.84rem}
+  padding:6px;min-height:72px;text-align:start;display:flex;flex-direction:column;gap:2px}
+.slot .sn{display:flex;justify-content:space-between;gap:0 4px;flex-wrap:wrap;font-weight:700;font-size:.84rem}
+/* באנגלית הכיוון הפוך: החצים של השבועות מתהפכים */
+[dir=ltr] [data-action=week] svg{transform:scaleX(-1)}
 .slot em{font-style:normal;font-weight:500}
 .slot.short em{color:var(--warn)}
 .slot.short{background:#FFF8F4}
@@ -151,7 +153,7 @@ input:disabled,select:disabled{background:#F0F2F5;color:var(--muted)}
 .list li{display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
 .list li:last-child{border-bottom:0}
 .list li.btnrow{padding:0}
-.userbtn{width:100%;display:flex;justify-content:space-between;align-items:center;gap:12px;border:0;background:none;text-align:right;padding:11px 2px}
+.userbtn{width:100%;display:flex;justify-content:space-between;align-items:center;gap:12px;border:0;background:none;text-align:start;padding:11px 2px}
 .sub{color:var(--muted);font-size:.84rem}
 .myshift{display:flex;align-items:center;gap:10px}
 .dot{width:12px;height:12px;border-radius:50%;background:var(--c);flex:none}
@@ -161,7 +163,7 @@ input:disabled,select:disabled{background:#F0F2F5;color:var(--muted)}
 .login h1{font-family:'Secular One',sans-serif;font-weight:400;font-size:2.3rem;margin:0 0 4px;display:flex;align-items:center;gap:12px}
 .login p{color:var(--muted);margin-top:0}
 .userpick{display:grid;gap:8px;margin-top:16px}
-.userpick button{text-align:right;border:1.5px solid var(--line);background:#fff;border-radius:10px;padding:12px;display:flex;justify-content:space-between}
+.userpick button{text-align:start;border:1.5px solid var(--line);background:#fff;border-radius:10px;padding:12px;display:flex;justify-content:space-between}
 .userpick button span{color:var(--muted);font-size:.85rem}
 
 /* sheet */
@@ -173,11 +175,11 @@ dialog::backdrop{background:rgba(30,36,51,.45)}
 .sheet h4{margin:14px 0 4px;font-size:.85rem;color:var(--muted);font-weight:500}
 .opt{display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid #EEF0F3}
 .opt input{width:20px;height:20px;accent-color:var(--ink);flex:none}
-.opt .meta{margin-inline-start:auto;text-align:left;font-size:.78rem;color:var(--muted)}
+.opt .meta{margin-inline-start:auto;text-align:end;font-size:.78rem;color:var(--muted)}
 .opt .meta .w{color:var(--warn);display:block}
 
 .chip .hr{font-size:.68rem;opacity:.85;direction:ltr}
-.slot .hr{font-size:.7rem;color:var(--muted);direction:ltr;text-align:right}
+.slot .hr{font-size:.7rem;color:var(--muted);direction:ltr;text-align:start}
 .seg{display:flex;flex-wrap:wrap;gap:6px;margin:16px 0 10px}
 .seg button{border:1.5px solid var(--line);background:#fff;border-radius:99px;padding:6px 14px;font-size:.9rem}
 .seg button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
@@ -196,7 +198,7 @@ dialog::backdrop{background:rgba(30,36,51,.45)}
 .poschip{display:flex;align-items:center;gap:7px;border:1.5px solid var(--line);background:#fff;border-radius:99px;padding:6px 12px 6px 14px;cursor:pointer}
 .poschip:has(input:checked){border-color:var(--ink);background:#EEF1F6}
 .poschip input{width:18px;height:18px;accent-color:var(--ink);margin:0}
-.brandbtn{display:flex;align-items:center;gap:10px;border:0;background:none;padding:2px 0;font:inherit;color:inherit;text-align:right;min-width:0;max-width:100%}
+.brandbtn{display:flex;align-items:center;gap:10px;border:0;background:none;padding:2px 0;font:inherit;color:inherit;text-align:start;min-width:0;max-width:100%}
 .brandbtn .bars{flex:none}
 .brandbtn .bn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .brandbtn .caret{font-family:'Rubik';font-size:.9rem;color:var(--muted)}
@@ -238,6 +240,15 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center}
 .cib{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line);color:var(--ink);background:#fff;text-decoration:none}
 .cib:active{transform:scale(.94)}
 .cib.wa{color:#17855B;border-color:color-mix(in srgb,#17855B 35%,#fff)}
+.langdd{position:relative}
+.langdd summary{list-style:none;cursor:pointer}
+.langdd summary::-webkit-details-marker{display:none}
+.langmenu{position:absolute;top:calc(100% + 8px);inset-inline-end:0;min-width:168px;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 18px 36px -14px rgba(30,36,51,.3);padding:6px;z-index:40}
+.langmenu button{display:flex;width:100%;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:0;border-radius:10px;background:none;font:500 1rem 'Rubik',sans-serif;color:var(--ink);cursor:pointer;text-align:start}
+.langmenu button:hover{background:var(--paper)}
+.langmenu .ck{color:var(--ok)}
+.brandrow{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.brandrow h1{margin:0}
 .badge{display:inline-block;min-width:18px;margin-inline-start:6px;padding:0 5px;border-radius:9px;background:var(--warn);color:#fff;font-size:.72rem;font-style:normal;line-height:18px;text-align:center}
 .tk{display:flex;flex-direction:column;align-items:flex-start;gap:3px;margin-top:5px;padding-top:5px;border-top:1px dashed var(--line)}
 .tkn{font-size:.72rem;color:var(--warn);font-weight:500}
@@ -297,6 +308,77 @@ const FIREBASE_CONFIG = {
   messagingSenderId: "802595753105",
   appId: "1:802595753105:web:87a979f151f647cb6f0330"
 };
+
+/* ===== שפה: עברית (ברירת מחדל) או אנגלית =====
+   הקוד כתוב בעברית. כשהמשתמש בוחר אנגלית, כל טקסט שמופיע על המסך מתורגם לפי המילון הזה,
+   וכיוון הכתיבה מתהפך. בעברית שום דבר לא משתנה */
+const I18N_EN = {"e":{", בעבודה עכשיו":", at work now","0 = ללא הגבלה":"0 = no limit","אחרי המועד עובדים לא יכולים לשנות זמינות. אתה תמיד יכול.":"After the deadline employees can't change availability. You always can.","אי אפשר לרשום שעה שעוד לא הגיעה":"You can't enter a time that hasn't happened yet","אי אפשר לשנות אימייל של משתמש קיים":"You can't change the email of an existing user","אי אפשר לשנות את ההרשאה של הבעלים":"You can't change the owner's role","אי אפשר לשנות את ההרשאה של עצמך":"You can't change your own role","אייקון במסך הבית, ונפתח במסך מלא כמו אפליקציה":"An icon on your home screen that opens full screen, like an app","אימייל":"Email","אין בקשות ממתינות לשבוע הזה.":"No pending requests for this week.","אין החתמות בתקופה הזו.":"No punches in this period.","אין הרשאה לפעולה הזו":"You don't have permission to do this","אין כרגע משמרות שעובדים רוצים למסור.":"No one is giving away shifts right now.","אין לך החתמות בתקופה הזו.":"You have no punches in this period.","אין לך משמרות שמתאימות לתפקיד שלך. פנה למנהל.":"There are no shifts that match your role. Contact your manager.","אין לעובד הזה משמרות שמתאימות לתפקידים שלו.":"This employee has no shifts that match their roles.","אין משמרות בתקופה הזו.":"No shifts in this period.","אין עובדים בשם הזה.":"No employees with this name.","אין עובדים עם התפקיד שמתאים למשמרת הזו.":"No employees have a role that fits this shift.","אין עובדים פעילים. מוסיפים עובדים בלשונית \"עובדים\".":"No active employees. Add employees in the \"Team\" tab.","אין שיבוץ":"Not assigned","אישור":"Approve","אם האימייל רשום במערכת, נשלח אליו קישור לאיפוס":"If the email is registered, a reset link will be sent to it","אם העובד כבר רשום במערכת, הוא ממשיך עם הסיסמה שלו":"If the employee already has an account, they keep their password","אני רוצה":"I want it","אפשר בינתיים להגיש זמינות בלשונית \"זמינות\".":"Meanwhile you can submit availability in the \"Availability\" tab.","אפשר להוציא מכשיר ממצב שעון במכשיר עצמו (עם אימייל וסיסמה של מנהל), או להשבית אותו כאן. ההשבתה סופית: המכשיר מתנתק תוך שעה לכל היותר, או מיד כשמרעננים בו את הדף או כשמישהו מנסה להחתים בו.":"A device can leave clock mode on the device itself (with a manager's email and password), or you can disable it here. Disabling is final: the device disconnects within an hour, or immediately when its page is refreshed or someone tries to punch on it.","אתה הבעלים. אפשר להעביר את הבעלות מהכרטיס של משתמש אחר":"You are the owner. You can transfer ownership from another user's card","א׳":"Su","בוצע":"Done","בוקר":"Morning","בטוח? ללחוץ שוב כדי למחוק":"Sure? Tap again to delete","ביטול":"Cancel","ביטול פרסום":"Unpublish","ביקשת":"Requested","ביקשת · ממתין למנהל":"Requested · waiting for manager","במצב הדגמה אין התראות. אפשר לראות כאן את ההגדרות.":"Notifications don't work in demo mode. You can see the settings here.","במצב הדגמה אין התראות. הן עובדות באתר האמיתי":"Notifications don't work in demo mode. They work on the real site","במצב הדגמה לא נשלחים מיילים":"No emails are sent in demo mode","בעבודה עכשיו":"At work now","בעלים":"Owner","בקשות חדשות ומתנדבים מעובדים":"New requests and volunteers from employees","בשיבוץ":"Scheduled","ב׳":"Mo","ג׳":"Tu","דוחות":"Reports","דחייה":"Reject","דחיית הבקשה":"Reject request","ד׳":"We","האימייל או הסיסמה שגויים":"Wrong email or password","האימייל הזה כבר רשום. כדי לפתוח איתו עסק, הקלד את הסיסמה שלו":"This email is already registered. To open a business with it, type its password","האימייל הזה רשום, אבל העובד צריך להיכנס למערכת פעם אחת לפני שאפשר לצרף אותו":"This email is registered, but the employee needs to sign in once before they can be added","האימייל של המנהל":"Manager's email","הבקשה בוטלה":"Request cancelled","הבקשה נדחתה":"Request rejected","הבקשה נשלחה למנהל":"Request sent to the manager","הגדרות":"Settings","הגדרות ההתראות נשמרו":"Notification settings saved","הגיע למקסימום":"Reached the maximum","הגיש":"Submitted","הדגמה בלבד: חזרה לבחירת משתמש":"Demo only: back to user selection","הדוח מחושב לפי הסידורים שפורסמו, לא לפי שעון נוכחות.":"The report is based on published schedules, not on the attendance clock.","הדפדפן הזה לא תומך בהתראות. באייפון צריך קודם להתקין את האפליקציה במסך הבית":"This browser doesn't support notifications. On iPhone, first install the app on your home screen","הדפדפן הזה לא תומך בהתראות. באייפון צריך קודם להתקין את האפליקציה במסך הבית.":"This browser doesn't support notifications. On iPhone, first install the app on your home screen.","הדפסה":"Print","ההגדרות האלה חלות רק על העסק הזה, ועל כל המכשירים שלך.":"These settings apply only to this business, on all your devices.","ההגדרות נשמרו":"Settings saved","ההגדרות שמורות":"Settings are saved","ההגשה לשבוע הזה נסגרה. לשינויים פונים למנהל.":"Submission for this week is closed. Contact your manager for changes.","ההגשה נסגרה":"Submission closed","ההגשה נסגרה ידנית":"Submission closed manually","ההגשה נפתחה":"Submission opened","ההגשה פתוחה":"Submission open","ההודעה נשמרה":"Message saved","ההשבתה סופית. כדי שהמכשיר יחזור להיות שעון, נכנסים בו עם חשבון של מנהל ומפעילים שעון נוכחות מחדש. ההחתמות שכבר נעשו בו נשמרות.":"Disabling is final. To make the device a clock again, sign in on it with a manager account and turn on the attendance clock again. Punches already made on it are kept.","ההתראות הופעלו":"Notifications turned on","ההתראות חסומות במכשיר הזה. אפשר לאפשר אותן בהגדרות הדפדפן או הטלפון.":"Notifications are blocked on this device. You can allow them in your browser or phone settings.","ההתראות חסומות. אפשר לאפשר אותן בהגדרות הדפדפן או הטלפון":"Notifications are blocked. You can allow them in your browser or phone settings","ההתראות כבויות במכשיר הזה.":"Notifications are off on this device.","ההתראות פעילות במכשיר הזה":"Notifications are on for this device","הודעה כשהסידור מתפרסם וכשיש תשובה לבקשות":"Get notified when the schedule is published and when your requests are answered","הודעה לעובדים":"Message to employees","הוספת העובד":"Add employee","הוספת מצב":"Add option","הוספת משמרת":"Add shift","הוספת עובד":"Add employee","הוספת עובד נוסף":"Add another employee","הוספת תפקיד":"Add role","הועתק":"Copied","הורדה כקובץ אקסל (CSV)":"Download as Excel (CSV)","הורדת דוח מפורט (CSV)":"Download detailed report (CSV)","הושבת":"Disabled","הזזה ימינה":"Move right","הזזה שמאלה":"Move left","הזמינות לשבוע הזה שמורה":"Your availability for this week is saved","הזמינות נשמרה":"Availability saved","החודש":"This month","החודש הקודם":"Last month","החיבור ל-Firebase נכשל, עובר למצב הדגמה":"Couldn't connect to Firebase, switching to demo mode","החשבון הזה לא משויך לאף עסק. אפשר לפתוח חשבון עסק, או לבקש ממנהל להוסיף אותך":"This account isn't linked to any business. You can open a business account, or ask a manager to add you","החשבון שלך לא פעיל באף עסק. פנה למנהל":"Your account isn't active in any business. Contact your manager","החשבון שלך לא פעיל בעסק הזה. פנה למנהל":"Your account isn't active in this business. Contact your manager","הכנות":"Prep","המכשיר הזה כבר לא שעון נוכחות. אפשר להיכנס עם החשבון שלך":"This device is no longer an attendance clock. You can sign in with your account","המכשיר יפסיק לשמש כשעון נוכחות (זה סופי), ויתחבר לחשבון של המנהל.":"The device will stop being an attendance clock (this is final) and will sign in to the manager's account.","המכשיר יפסיק לשמש כשעון נוכחות ויתנתק.":"The device will stop being an attendance clock and will disconnect.","המכשיר יצא ממצב שעון נוכחות":"The device left attendance clock mode","המכשיר יתנתק מהחשבון שלך ויעבור לחשבון של שעון, שיכול רק להחתים. כדי להוציא אותו ממצב שעון, כל מנהל של העסק לוחץ במכשיר על \"יציאה ממצב שעון נוכחות\" ומקליד את האימייל והסיסמה שלו. אפשר גם להשבית אותו מרשימת המכשירים בלשונית \"עובדים\".":"The device will sign out of your account and switch to a clock account that can only punch. To take it out of clock mode, any manager of the business taps \"Leave attendance clock mode\" on the device and types their email and password. You can also disable it from the device list in the \"Team\" tab.","המנהל דחה":"Manager rejected","המנהל דחה את המסירה":"The manager rejected the hand-off","המנהל לא פתח את רשימת העובדים.":"The manager hasn't opened the team list.","המסך יציג את רשימת העובדים, וכל עובד יחתים כניסה ויציאה עם הסיסמה שלו.":"The screen will show the list of employees, and each employee will punch in and out with their own password.","המספרים הם כמה עובדים צריך בכל יום. 0 אומר שהמשמרת לא קיימת באותו יום.":"The numbers are how many employees are needed each day. 0 means the shift doesn't exist that day.","המערכת עודכנה. בקש מבעל העסק להיכנס פעם אחת, ואז נסה שוב":"The system was updated. Ask the business owner to sign in once, then try again","המצבים שעובדים בוחרים בהגשת זמינות. לכל מצב קובעים איך השיבוץ מתייחס אליו. עם עד 3 מצבים עובדים מחליפים מצב בלחיצות חוזרות, ומעל 3 נפתח חלון בחירה.":"The options employees choose when submitting availability. For each one you set how scheduling treats it. With up to 3 options employees switch by tapping repeatedly; with more, a picker opens.","המשמרות שלך":"Your shifts","המשמרת הוצעה לעובדים. עד שהמנהל מאשר, אתה עדיין משובץ":"The shift was offered to employees. Until the manager approves, you are still assigned","המשמרת כבר התחילה. אפשר רק לדחות":"The shift has already started. It can only be rejected","המשמרת כבר התחילה. אפשר רק לדחות את הבקשה":"The shift has already started. The request can only be rejected","המשמרת כבר מלאה":"The shift is already full","המשמרת נמחקה מהדוח":"The shift was removed from the report","הנוכחות עודכנה":"Attendance updated","הסידור":"Schedule","הסידור לשבוע הזה עוד לא פורסם, אז עובדים לא יכולים לשלוח בקשות.":"The schedule for this week hasn't been published yet, so employees can't send requests.","הסידור לשבוע הזה עוד לא פורסם.":"The schedule for this week hasn't been published yet.","הסידור פורסם":"Schedule published","הסידור שלי":"My schedule","הסיסמה":"Password","הסיסמה צריכה לכלול לפחות 6 תווים":"The password must be at least 6 characters","הסיסמה שגויה":"Wrong password","הסיסמה שלך":"Your password","העברת הבעלות":"Transfer ownership","העובד הזה כבר נמצא ברשימת העובדים של העסק":"This employee is already on the business's team","העובד לא נמצא.":"Employee not found.","העובד עוד לא הגיש":"The employee hasn't submitted yet","העסק החדש נפתח בחשבון שלך, ואתה הבעלים שלו. העסקים האחרים שלך לא משתנים, ועוברים ביניהם בלחיצה על שם העסק למעלה.":"The new business was opened in your account, and you are its owner. Your other businesses don't change; switch between them by tapping the business name at the top.","העסקים שלך":"Your businesses","הערה":"Note","הערה למנהל":"Note to manager","העתק את הטקסט:":"Copy the text:","העתקת הסידור כטקסט":"Copy schedule as text","העתקת השיבוץ מהשבוע הקודם":"Copy assignments from last week","העתקת פרטי הכניסה":"Copy sign-in details","הפעלה":"Turn on","הפעלה במכשיר הזה":"Turn on on this device","הפעלת התראות":"Turn on notifications","הפעלת התראות במכשיר הזה":"Turn on notifications on this device","הפרטים נשמרו":"Details saved","הפרסום בוטל":"Unpublished","הצוות":"The team","הרשאה":"Role","השבוע":"This week","השבתה":"Disable","השיבוץ האוטומטי יחליף את השיבוץ הנוכחי. להמשיך?":"Auto-assign will replace the current assignments. Continue?","השיבוץ האוטומטי שומר עליהם, ובשיבוץ ידני מופיעה אזהרה.":"Auto-assign respects these, and manual assignment shows a warning.","השיבוץ הועתק מהשבוע הקודם":"Assignments copied from last week","השיבוץ הושלם, כל המשמרות מאוישות":"Scheduling done, all shifts are staffed","השיבוץ נוקה":"Assignments cleared","השם שלך":"Your name","השנה":"This year","השעות לפי ההחתמות שלך בשעון הנוכחות. משמרת בלי כניסה או בלי יציאה לא נספרת. רואים טעות? פנה למנהל, הוא יכול לתקן.":"Hours are based on your punches on the attendance clock. A shift without a punch-in or punch-out isn't counted. See a mistake? Ask your manager to fix it.","השעות מחושבות מהחתמות בשעון הנוכחות.":"Hours are calculated from attendance clock punches.","השעות מחושבות מהחתמות בשעון הנוכחות. משמרת בלי כניסה או בלי יציאה לא נספרת. לוחצים על משמרת כדי לתקן אותה. השעה המקורית נשמרת תמיד.":"Hours are calculated from attendance clock punches. A shift without a punch-in or punch-out isn't counted. Tap a shift to correct it. The original time is always kept.","השרת אוכף את ההגדרות האלה, לא רק האפליקציה. בקשה שנשלחה לפני השינוי נשארת אצלך לטיפול.":"The server enforces these settings, not just the app. Requests sent before a change stay with you to handle.","התחלה":"Start","התפקיד הזה":"This role","התקנה":"Install","התקנת האפליקציה":"Install the app","התראות":"Notifications","ה׳":"Th","וואטסאפ":"WhatsApp","ו׳":"Fr","זמינות":"Availability","זמינות לשבוע הזה":"Availability for this week","חזרה לברירת המחדל":"Reset to default","חזרה לכל העובדים":"Back to all employees","חזרה לעובדים":"Back to team","חזרה לרשימה":"Back to list","חמישי":"Thursday","חסוי":"Hidden","חסוי: עובדים לא יראו אותו ברשימת הצוות (השם שלו עדיין יופיע בסידור)":"Hidden: employees won't see them in the team list (their name still appears in the schedule)","חסר":"Missing","חסרה יציאה":"Missing punch-out","חסרה כניסה":"Missing punch-in","טבח":"Cook","טוען…":"Loading…","טיוטה":"Draft","טלפון":"Phone","ידני":"Manual","יום":"Day","יום, בשבוע שלפני":"day, in the week before","יותר מדי ניסיונות. נסה שוב בעוד כמה דקות":"Too many attempts. Try again in a few minutes","יכול":"Available","יצאת":"You clocked out","יציאה":"Sign out","יציאה מהעבודה":"Clock out","יציאה ממצב שעון נוכחות":"Leave attendance clock mode","יציאה ממצב שעון נוכחות (למנהלים)":"Leave attendance clock mode (managers)","יש שינויים שלא נשמרו":"There are unsaved changes","יש שינויים שלא נשמרו. להמשיך בלי לשמור?":"There are unsaved changes. Continue without saving?","יש שני מצבי זמינות עם אותו שם":"Two availability options have the same name","יש שני תפקידים עם אותו שם":"Two roles have the same name","כאן עכשיו":"Here now","כבר יש לי חשבון":"I already have an account","כבר משובץ ביום הזה":"Already scheduled that day","כבר קיים משתמש עם האימייל הזה":"A user with this email already exists","כדי לזהות אותו ברשימה, למשל \"טאבלט בכניסה\"":"To identify it in the list, e.g. \"Front door tablet\"","כך תופיע לעובדים בעסק הזה":"This is how employees in this business will see it","כל הזמן":"All time","כללי":"General","כללי שיבוץ":"Scheduling rules","כן, לצאת בכל זאת":"Yes, clock out anyway","כניסה":"Sign in","כניסה לעבודה":"Clock in","כניסה עם הפרטים שקיבלת מהמנהל":"Sign in with the details you got from your manager","כתובת האימייל לא תקינה":"Invalid email address","לא בעבודה":"Not at work","לא הצלחנו לפתוח את העסק, נסה שוב":"Couldn't open the business, try again","לא ידוע":"Unknown","לא יכול":"Unavailable","לא לשבץ":"Don't schedule","לא מספיק מנוחה":"Not enough rest","לא משובץ השבוע.":"Not scheduled this week.","לא משתבץ":"Not scheduled","לא סומן":"Not marked","לא סומן תפקיד: המשמרת מתאימה לכולם":"No role selected: the shift fits everyone","לא עכשיו":"Not now","לא פעילים":"Inactive","לא שובצת למשמרות השבוע.":"You weren't scheduled for any shifts this week.","לאיזה עסק להיכנס?":"Which business do you want to enter?","לבקש להיכנס למשמרת שחסרים בה אנשים":"Ask to join shifts that are short-staffed","לבקש למסור משמרת לעובד אחר":"Ask to give a shift to another employee","להחליף את השיבוץ הנוכחי בשיבוץ מהשבוע הקודם?":"Replace the current assignments with last week's?","להפוך את המכשיר הזה לשעון נוכחות?":"Turn this device into an attendance clock?","לוחצים על משמרת ובוחרים מצב.":"Tap a shift and choose an option.","לוחצים על משמרת כדי לראות מי זמין ולשבץ.":"Tap a shift to see who's available and assign.","לחזור לשלושת המצבים של ברירת המחדל (יכול, מעדיף שלא, לא יכול)?":"Go back to the three default options (Available, Prefer not, Unavailable)?","לילה":"Night","לכל מנהל של העסק":"For any manager of the business","לכל מצב זמינות צריך שם":"Every availability option needs a name","לכל משמרת צריך שם":"Every shift needs a name","לכל תפקיד צריך שם":"Every role needs a name","ללא":"None","ללא מועד אחרון":"No deadline","ללא שם":"Untitled","למחוק את כל השיבוץ של השבוע הזה?":"Delete all assignments for this week?","למטה":"Down","למסור":"Give away","למעלה":"Up","למשל מלצר, קופאי, מחסנאי או נהג. לכל עובד אפשר לתת כמה תפקידים, ולכל משמרת לקבוע לאילו תפקידים היא מתאימה.":"For example waiter, cashier, stock clerk or driver. Each employee can have several roles, and each shift can be set to the roles it fits.","לעובד הזה אין אימייל במערכת":"This employee has no email in the system","לעובד הזה אין אימייל במערכת. פנה למנהל":"This employee has no email in the system. Contact your manager","לפחות 6 תווים":"At least 6 characters","לפי הסידור":"By schedule","לפני פחות מדקה":"less than a minute ago","לפרסם את הסידור? העובדים יראו אותו מיד.":"Publish the schedule? Employees will see it right away.","לראות את רשימת העובדים ופרטי הקשר שלהם (טלפון ואימייל)":"See the team list and their contact details (phone and email)","לשליחת פרטים בוואטסאפ":"To send details via WhatsApp","מה עובדים יכולים לעשות":"What employees can do","מועד אחרון להגשה":"Submission deadline","מועד ההגשה לשבוע הזה עבר. לשינויים פונים למנהל.":"The submission deadline for this week has passed. Contact your manager for changes.","מועד ההגשה עבר":"Deadline passed","מופיעה לעובדים מעל הסידור, ובטקסט לוואטסאפ.":"Shown to employees above the schedule, and in the WhatsApp text.","מחיקה":"Delete","מחיקת המשמרת":"Delete shift","מכשיר":"Device","מכשירי שעון נוכחות":"Attendance clock devices","מלצר":"Waiter","מנהל":"Manager","מנהל עם תפקיד משתבץ למשמרות. בלי תפקיד הוא רק מנהל.":"A manager with a role is scheduled for shifts. Without a role they are only a manager.","מנהלים עסק ועוד אין לכם חשבון?":"Running a business and don't have an account yet?","מעדיף שלא":"Prefer not","מצב הדגמה. בוחרים משתמש כדי לראות את המערכת מהצד שלו. יוסי ונועה עובדים בשני עסקים.":"Demo mode. Choose a user to see the system from their side. Yossi and Noa work in two businesses.","מצב הדגמה: הנתונים נשמרים רק עד רענון הדף.":"Demo mode: data is kept only until the page is refreshed.","מצבי זמינות":"Availability options","מקסימום משמרות בשבוע":"Max shifts per week","מקסימום משמרות לעובד בשבוע":"Max shifts per employee per week","משהו השתבש, נסה שוב":"Something went wrong, try again","משובץ השבוע":"Scheduled this week","משמרות":"Shifts","משמרות שבוצעו":"Shifts worked","משמרות שהושלמו":"Completed shifts","משמרות שחסרים בהן אנשים מופיעות בסידור עצמו.":"Short-staffed shifts appear in the schedule itself.","משמרות שמוגדרות לתפקיד מסוים יופיעו רק למי שיש לו אותו.":"Shifts set for a specific role appear only to employees who have it.","משמרות שעובדים אחרים רוצים למסור, ומתאימות לך.":"Shifts other employees want to give away that fit you.","משמרת":"Shift","משמרת חדשה":"New shift","מתאימה לתפקידים":"Fits roles","מתוכנן":"Planned","נוכחות בפועל":"Actual attendance","נוסף למערכת":"Added to the system","נוסף על ידי מנהל":"Added by a manager","ניקוי":"Clear","ניקוי השיבוץ":"Clear assignments","נכנסת":"You clocked in","נערך":"Edited","סגירה":"Close","סגירת ההגשה":"Close submission","סטטוס":"Status","סיום":"End","סיסמה":"Password","סיסמה חדשה":"New password","סיסמה ראשונית":"Initial password","עד משמרת אחת ביום לכל עובד":"At most one shift per day per employee","עדיפות גבוהה":"High priority","עדיפות נמוכה":"Low priority","עובד":"Employee","עובד חדש":"New employee","עובדים":"Team","עוד אין מתנדבים.":"No volunteers yet.","עוד אין תפקידים. מוסיפים אותם בהגדרות.":"No roles yet. Add them in Settings.","עוד לא הגיש":"Hasn't submitted","עוד לא הגשת לשבוע הזה":"You haven't submitted for this week yet","עוד פעולות":"More actions","על מה לקבל התראות":"What to get notified about","עסק":"Business","ערב":"Evening","עריכה בשם העובד. אפשר לערוך גם אחרי שההגשה נסגרה.":"Editing on the employee's behalf. You can edit even after submission closed.","פעיל":"Active","פעיל (משתמש לא פעיל לא יכול להיכנס)":"Active (inactive users can't sign in)","פרסום הסידור":"Publish schedule","פתיחה":"Open","פתיחת ההגשה":"Open submission","פתיחת העסק":"Open the business","פתיחת חשבון עסק":"Open a business account","פתיחת חשבון עסק. אתה תהיה הבעלים שלו, ואת העובדים מוסיפים אחר כך מלשונית \"עובדים\". כבר יש לך חשבון בעסק אחר? ממלאים את אותו אימייל וסיסמה.":"Open a business account. You'll be its owner, and you add employees later from the \"Team\" tab. Already have an account in another business? Use the same email and password.","פתיחת עסק חדש":"Open a new business","פתיחת עסק חדש בחשבון שלך. אתה תהיה הבעלים שלו.":"Open a new business in your account. You'll be its owner.","צוות":"Team","צורף לעסק":"Added to the business","צריך בין 2 ל-6 מצבי זמינות":"You need between 2 and 6 availability options","צריך להקליד סיסמה":"Type a password","צריך למלא אימייל":"Enter an email","צריך למלא אימייל וסיסמה":"Enter email and password","צריך למלא אימייל וסיסמה של מנהל":"Enter a manager's email and password","צריך למלא את השם שלך":"Enter your name","צריך למלא את שם העסק":"Enter the business name","צריך למלא לפחות שעת כניסה או שעת יציאה":"Enter at least a punch-in or punch-out time","צריך למלא שם":"Enter a name","צריך לפחות מצב אחד שאפשר לשבץ בו":"At least one option must allow scheduling","צריך לפחות משמרת אחת":"At least one shift is needed","צריך לפחות שני מצבים":"At least two options are needed","קודם כותבים את האימייל בשדה":"First type the email in the field","ראשון":"Sunday","רביעי":"Wednesday","רגיל":"Normal","רואים בסידור גם את המשמרות של":"Also sees shifts of","רענון":"Refresh","רק לפני דקה":"only a minute ago","רק מנהל של העסק הזה יכול להוציא את המכשיר ממצב שעון נוכחות":"Only a manager of this business can take the device out of attendance clock mode","רק עובדים עם התפקידים המסומנים יראו את המשמרת":"Only employees with the selected roles will see the shift","שבוע הבא":"Next week","שבוע שעבר":"Last week","שבת":"Saturday","שיבוץ":"Schedule","שיבוץ אוטומטי":"Auto-assign","שישי":"Friday","שכחתי סיסמה":"Forgot password","שלח לעובד את פרטי הכניסה. הסיסמה לא תוצג שוב.":"Send the employee their sign-in details. The password won't be shown again.","שליחה בוואטסאפ":"Send via WhatsApp","שליחת מייל לאיפוס סיסמה":"Send password reset email","שלישי":"Tuesday","שם":"Name","שם המכשיר":"Device name","שם המצב":"Option name","שם המשמרת":"Shift name","שם העסק":"Business name","שם התפקיד":"Role name","שמירה":"Save","שמירת הגדרות":"Save settings","שמירת הודעה":"Save message","שמירת זמינות":"Save availability","שמירת פרטים":"Save details","שני":"Monday","שעה":"Hour","שעה שמשאירים ריקה לא נרשמת. אם היציאה הייתה אחרי חצות, משנים את תאריך היציאה ליום שאחרי.":"A time left empty isn't recorded. If the punch-out was after midnight, change the punch-out date to the next day.","שעון נוכחות":"Attendance clock","שעון נוכחות. בוחרים את השם שלך ומקלידים את הסיסמה שלך כדי להחתים כניסה או יציאה.":"Attendance clock. Choose your name and type your password to punch in or out.","שעון:":"Clock:","שעות":"Hours","שעות בסך הכול":"Total hours","שעות מנוחה בין משמרות":"Rest hours between shifts","שעות מתוכננות":"Planned hours","שעות נוכחות":"Attendance hours","שעות נוכחות בסך הכול":"Total attendance hours","שעות שבוצעו":"Hours worked","שעות שעבדת":"Hours you worked","שעת היציאה צריכה להיות אחרי שעת הכניסה. יציאה אחרי חצות? שנה את תאריך היציאה":"Punch-out must be after punch-in. Left after midnight? Change the punch-out date","ש׳":"h","תאריך":"Date","תוקן על ידי מנהל":"Corrected by a manager","תזכורת אם שכחתי להחתים יציאה":"Remind me if I forgot to clock out","תזכורת להגיש זמינות לפני המועד האחרון":"Remind me to submit availability before the deadline","תיקון":"Correction","תיקון משמרת":"Correct shift","תפקיד לא מתאים":"Role doesn't fit","תפקידים":"Roles","תפקידים בעסק":"Roles in the business","תשובה לבקשות שלי (אושרה או נדחתה)":"Answers to my requests (approved or rejected)","השבוע הקודם":"Previous week","השבוע הבא":"Next week","למשל: ביום שלישי יכול רק עד 20:00":"For example: on Tuesday I can only until 20:00","חיפוש לפי שם":"Search by name","למשל: ביום שישי סוגרים מוקדם":"For example: closing early on Friday","בחירת צבע":"Pick a color","שיתוף":"Share"},"p":[["^שלום\\ (.*?),\\ צורפת\\ למערכת\\ המשמרות\\ של\\ (.*?)\\ ב\\-DoTheShift\\.\\ כניסה:\\ (.*?)\\ אימייל:\\ (.*?)\\ הסיסמה\\ שלך\\ לא\\ השתנתה\\.\\ אם\\ שכחת\\ אותה,\\ יש\\ \"שכחתי\\ סיסמה\"\\ במסך\\ הכניסה\\.$","Hi {}, you were added to {}'s shift system on DoTheShift. Sign in: {} Email: {} Your password hasn't changed. If you forgot it, tap \"Forgot password\" on the sign-in screen."],["^להעביר\\ את\\ הבעלות\\ על\\ (.*?)\\ ל(.*?)\\?\\ (.*?)\\ יהיה\\ הבעלים,\\ ואתה\\ תהיה\\ מנהל\\.\\ אי\\ אפשר\\ לבטל\\ את\\ זה\\ בעצמך:\\ רק\\ (.*?)\\ יוכל\\ להחזיר\\ לך\\ את\\ הבעלות\\.$","Transfer ownership of {} to {}? {} will be the owner, and you will be a manager. You can't undo this yourself: only {} can give ownership back to you."],["^(.*?)\\ יהפוך\\ לבעלים\\ של\\ העסק,\\ ואתה\\ תרד\\ לדרגת\\ מנהל\\.\\ לעסק\\ תמיד\\ יש\\ בעלים\\ אחד,\\ ורק\\ הבעלים\\ יכול\\ להעביר\\ את\\ הבעלות\\.$","{} will become the owner of the business, and you will become a manager. A business always has exactly one owner, and only the owner can transfer ownership."],["^(.*?)\\ כבר\\ רשום\\ במערכת\\ ולכן\\ צורף\\ לעסק\\.\\ הוא\\ נכנס\\ עם\\ הסיסמה\\ שכבר\\ יש\\ לו,\\ והסיסמה\\ שהקלדת\\ לא\\ נשמרה\\.$","{} already has an account, so they were added to the business. They sign in with their existing password; the password you typed was not saved."],["^(.*?)\\ עובדים\\ בחרו\\ במצב\\ הזה\\ בשבוע\\ המוצג\\.\\ אחרי\\ המחיקה\\ ההגשות\\ שלהם\\ במשמרות\\ האלה\\ ייחשבו\\ \"(.*?)\"\\.$","{} employees chose this option in the week shown. After deleting it, their availability for those shifts will count as \"{}\"."],["^שלום\\ (.*?),\\ נפתח\\ לך\\ חשבון\\ במערכת\\ המשמרות\\ של\\ (.*?)\\ ב\\-DoTheShift\\.\\ כניסה:\\ (.*?)\\ אימייל:\\ (.*?)\\ סיסמה:\\ (.*?)$","Hi {}, an account was opened for you in {}'s shift system on DoTheShift. Sign in: {} Email: {} Password: {}"],["^למחוק\\ את\\ התפקיד\\ \"(.*?)\"\\?\\ הוא\\ יוסר\\ מכל\\ העובדים\\ ומכל\\ המשמרות\\.$","Delete the role \"{}\"? It will be removed from all employees and all shifts."],["^למחוק\\ את\\ משמרת\\ \"(.*?)\"\\?\\ השיבוצים\\ שלה\\ יוסתרו\\ בכל\\ השבועות\\.$","Delete the shift \"{}\"? Its assignments will be hidden in all weeks."],["^לוחצים\\ על\\ כפתור\\ השיתוף\\ (.*?)\\ ואז\\ על\\ \"הוספה\\ למסך\\ הבית\"$","Tap the share button {} and then \"Add to Home Screen\""],["^(.*?)\\ תמיד\\ רואה\\ את\\ המשמרות\\ שלו\\ ואת\\ המשמרות\\ הכלליות$","{} always sees their own shifts and general shifts"],["^הבקשה\\ כבר\\ לא\\ בתוקף:\\ (.*?)\\ כבר\\ לא\\ במשמרת\\ הזו$","This request is no longer valid: {} is no longer on this shift"],["^השיבוץ\\ הושלם\\.\\ (.*?)\\ משמרות\\ נשארו\\ חסרות$","Scheduling done. {} shifts are still short"],["^לוחצים\\ על\\ משמרת\\ כדי\\ להחליף\\ מצב:\\ (.*?)\\.$","Tap a shift to change its option: {}."],["^צריך\\ שעת\\ התחלה\\ וסיום\\ למשמרת\\ \"(.*?)\"$","Shift \"{}\" needs a start and end time"],["^מסרת\\ ·\\ (.*?)\\ מתנדבים\\ ·\\ ממתין\\ למנהל$","You gave it away · {} volunteers · waiting for manager"],["^משמרת\\ (.*?)\\ ביום\\ (.*?),\\ (.*?)\\ מתוך\\ (.*?)\\ משובצים$","{} shift on {}, {} of {} assigned"],["^נשלח\\ מייל\\ לאיפוס\\ סיסמה\\ ל\\-(.*?)$","A password reset email was sent to {}"],["^(.*?)\\ ·\\ עובדים\\ שמבקשים\\ להיכנס$","{} · employees asking to join"],["^שעות\\ מתוכננות\\ \\((.*?)\\ משמרות\\)$","Planned hours ({} shifts)"],["^(.*?)\\ מתוך\\ (.*?)\\ הגישו\\ לשבוע\\ הזה$","{} of {} submitted for this week"],["^(.*?)\\ רוצה\\ למסור\\ את\\ המשמרת$","{} wants to give away the shift"],["^נכנסת\\ (.*?)\\.\\ לצאת\\ בכל\\ זאת\\?$","You clocked in {}. Clock out anyway?"],["^ריק\\ =\\ לפי\\ ההגדרות\\ \\((.*?)\\)$","Empty = use settings ({})"],["^נוספה\\ ידנית\\ על\\ ידי\\ (.*?)$","Added manually by {}"],["^(.*?)\\ הוא\\ עכשיו\\ הבעלים$","{} is now the owner"],["^\\*(.*?):\\ סידור\\ עבודה\\ (.*?)–(.*?)\\*$","*{}: Work schedule {}–{}*"],["^למחוק\\ את\\ המצב\\ \"(.*?)\"\\?(.*?)$","Delete the option \"{}\"?{}"],["^(.*?)\\.\\ משובצים\\ (.*?)\\ מתוך\\ (.*?)(.*?)$","{}. Assigned {} of {}{}"],["^(.*?)\\ כבר\\ במשמרת\\ הזו$","{} is already on this shift"],["^,\\ עוד\\ (.*?)\\ מתוכננות$",", {} more planned"],["^אפשר\\ להגיש\\ עד\\ (.*?)\\.$","You can submit until {}."],["^המשמרת\\ עברה\\ מ(.*?)\\ ל(.*?)$","The shift moved from {} to {}"],["^השיבוץ\\ של\\ (.*?)\\ אושר$","{}'s assignment was approved"],["^(.*?)\\ בקשות\\ ממתינות$","{} pending requests"],["^,\\ תוקן\\ על\\ ידי\\ (.*?)$",", corrected by {}"],["^הגיש,\\ משובץ\\ ל\\-(.*?)$","Submitted, assigned to {}"],["^העברת\\ הבעלות\\ ל(.*?)$","Transfer ownership to {}"],["^משמרת\\ (.*?)\\ ביום\\ (.*?):\\ (.*?)$","{} shift on {}: {}"],["^(.*?)\\ החתמות\\ חסרות$","{} missing punches"],["^(.*?)\\ משמרות\\ השבוע$","{} shifts this week"],["^(.*?)\\ משמרות\\ חסרות$","{} short-staffed shifts"],["^בקשות\\ ממתינות(.*?)$","Pending requests{}"],["^דוח\\-שעות\\-(.*?)(.*?)\\.csv$","hours-report-{}{}.csv"],["^חסרים\\ (.*?)\\ במשמרת$","{} more needed"],["^משמרות\\ למסירה(.*?)$","Shifts to take{}"],["^סימון\\ הכל\\ כ\"(.*?)\"$","Mark all as \"{}\""],["^רק\\ לפני\\ (.*?)\\ דקות$","only {} minutes ago"],["^(.*?)\\ מתוך\\ (.*?)\\ הגישו$","{} of {} submitted"],["^בעוד\\ (.*?)\\ שבועות$","In {} weeks"],["^הערת\\ העובד:\\ (.*?)$","Employee's note: {}"],["^לפני\\ (.*?)\\ שבועות$","{} weeks ago"],["^משך\\ המשמרת:\\ (.*?)$","Shift length: {}"],["^יום\\ (.*?)\\ (.*?)\\ בשעה\\ (.*?)$","{} {} at {}"],["^נוכחות\\-(.*?)(.*?)\\.csv$","attendance-{}{}.csv"],["^(.*?):\\ החלפת\\ עסק$","{}: switch business"],["^\\.\\ מתאימה\\ ל(.*?)$",". Fits {}"],["^בעבודה\\ מ\\-(.*?)$","At work since {}"],["^הגשה\\ עד\\ (.*?)\\ (.*?)$","Submit by {} {}"],["^יום\\ (.*?)\\ (.*?)\\ ·\\ (.*?)\\ (.*?)$","{} {} · {} {}"],["^וואטסאפ\\ ל(.*?)$","WhatsApp {}"],["^להתקשר\\ ל(.*?)$","Call {}"],["^אימייל\\ ל(.*?)$","Email {}"],["^(.*?)\\ משמרות(.*?)$","{} shifts{}"],["^(.*?)\\ משמרות(.*?)(.*?)$","{} shifts{}{}"],["^(.*?)\\ עובדים$","{} employees"],["^(.*?),\\ יום\\ (.*?)\\ (.*?)$","{}, {} {}"],["^(.*?)\\ הושבת$","{} disabled"],["^(.*?):(.*?)\\ שעות$","{}:{} hours"],["^אימייל(.*?)$","Email{}"],["^במקור\\ (.*?)(.*?)$","Originally {}{}"],["^השבתת\\ (.*?)$","Disable {}"],["^חסרים\\ (.*?)$","{} needed"],["^עברת\\ ל(.*?)$","Switched to {}"],["^(.*?)\\ נפתח$","{} created"],["^יום\\ (.*?)\\ (.*?)$","{} {}"],["^שנת\\ (.*?)$","Year {}"],["^(.*?) \\((.*?)\\): (.*?)$","{} ({}): {}"],["^(.*?)\\ ב\\-(.*?)$","{} on {}"],["^(.*?)\\ ש׳$","{} h"],["^(.*?)\\ ש׳(.*?)$","{} h{}"],["^\\*(.*?) (.*?)\\*$","*{} {}*"]]};
+const LANG = (() => {
+  try {
+    const q = new URLSearchParams(location.search).get('lang');
+    if (q === 'en' || q === 'he') { localStorage.setItem('lang', q); return q; }
+    return localStorage.getItem('lang') === 'en' ? 'en' : 'he';
+  } catch { return 'he'; }
+})();
+const HEB = /[֐-׿]/;
+const TR_EXACT = new Map(Object.entries(I18N_EN.e)), TR_PATS = I18N_EN.p.map(([src, en]) => [new RegExp(src), en]);
+function trKey(k, depth = 0){
+  const ex = TR_EXACT.get(k); if (ex != null) return ex;
+  if (depth > 2) return null;
+  for (const [re, en] of TR_PATS) {
+    const m = k.match(re); if (!m) continue;
+    let i = 0;
+    return en.replace(/\{(\d*)\}/g, (_, n) => {
+      const g = m[n ? +n : ++i] ?? '', key = g.replace(/\s+/g, ' ').trim();
+      const t = key && HEB.test(key) ? trKey(key, depth + 1) : null;
+      return t == null ? g : g.match(/^\s*/)[0] + t + g.match(/\s*$/)[0];
+    });
+  }
+  // רשימות: "מלצר, טבח" או "מלצר וטבח", ומילה עם פסיק או נקודה בסוף
+  const tail = k.match(/^(.*?)([,.:])$/);
+  if (tail && HEB.test(tail[1])) { const t = trKey(tail[1], depth + 1); if (t != null) return t + tail[2]; }
+  if (k.includes(', ')) {
+    const parts = k.split(', '), out = parts.map(x => (HEB.test(x) && trKey(x, depth + 1)) || x);
+    if (out.some((x, i) => x !== parts[i])) return out.join(', ');
+  }
+  if (/ ו\S/.test(k)) {
+    const parts = k.split(/ ו(?=\S)/), out = parts.map(x => trKey(x, depth + 1));
+    if (out.every(x => x != null)) return out.join(' and ');
+  }
+  return null;
+}
+function tr(raw){
+  if (LANG !== 'en' || raw == null || !HEB.test(raw)) return raw;
+  raw = String(raw);
+  const r = trKey(raw.replace(/\s+/g, ' ').trim());
+  return r == null ? raw : raw.match(/^\s*/)[0] + r + raw.match(/\s*$/)[0];
+}
+const trLines = t => LANG === 'en' ? String(t).split('\n').map(tr).join('\n') : t;
+const NO_TR = new Set(['TEXTAREA', 'SCRIPT', 'STYLE']);
+function trTree(root){
+  if (!root) return;
+  if (root.nodeType === 3) {
+    if (root.parentNode && !NO_TR.has(root.parentNode.nodeName)) { const v = tr(root.nodeValue); if (v !== root.nodeValue) root.nodeValue = v; }
+    return;
+  }
+  if (root.nodeType !== 1 || NO_TR.has(root.nodeName)) return;
+  const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), list = [];
+  while (w.nextNode()) list.push(w.currentNode);
+  list.forEach(n => { if (NO_TR.has(n.parentNode.nodeName)) return; const v = tr(n.nodeValue); if (v !== n.nodeValue) n.nodeValue = v; });
+  [root, ...root.querySelectorAll('[placeholder],[title],[aria-label]')].forEach(el => ['placeholder', 'title', 'aria-label'].forEach(a => {
+    const v = el.getAttribute(a); if (v && HEB.test(v)) { const t = tr(v); if (t !== v) el.setAttribute(a, t); }
+  }));
+}
+if (LANG === 'en') {
+  document.documentElement.lang = 'en'; document.documentElement.dir = 'ltr';
+  new MutationObserver(ms => ms.forEach(m => m.type === 'characterData' ? trTree(m.target) : m.addedNodes.forEach(trTree)))
+    .observe(document.body, { childList:true, subtree:true, characterData:true });
+  trTree(document.body);
+  const _confirm = window.confirm.bind(window), _prompt = window.prompt.bind(window);
+  window.confirm = m => _confirm(trLines(m));
+  window.prompt = (m, d) => _prompt(trLines(m), d);
+}
+
 /* המפתח הציבורי להתראות דחיפה (Cloud Messaging → Web Push certificates) */
 const VAPID_KEY = 'BBQQo88ScjLfBVZX5iJYCFM7TF3zboIqn1kAbHbWC4qrMOHIxBlD-sH-_qR6iS-fsPOo6xgNQv8EUHIWQSZBti4';
 
@@ -380,6 +462,7 @@ function errMsg(e){
   return e?.message || 'משהו השתבש, נסה שוב';
 }
 async function copyText(t){
+  t = trLines(t);
   try { await navigator.clipboard.writeText(t); toast('הועתק'); }
   catch { prompt('העתק את הטקסט:', t); }
 }
@@ -480,6 +563,8 @@ function demoBackend(){
     async getNames(){ const M = C().members; return clone(C().names || { names:Object.fromEntries(Object.entries(M).filter(([,m]) => m.role !== 'kiosk').map(([u,m]) => [u, m.name])), clocks:{} }); },
     async setNames(d){ C().names = clone(d); },
     async enablePush(){ throw { code:'push-demo' }; },
+    async getLang(){ return null; },
+    async setLang(){},
     async getPrefs(){ return clone(((demoPrefs[current.uid] ||= {})[cid]) || null); },
     async setPrefs(_, d){ (demoPrefs[current.uid] ||= {})[cid] = clone(d); },
     async dropPush(){},
@@ -544,7 +629,7 @@ async function firebaseBackend(cfg){
   const A = await import(base+'firebase-auth.js');
   const F = await import(base+'firebase-firestore.js');
   const app = AppM.initializeApp(cfg), auth = A.getAuth(app), db = F.getFirestore(app);
-  auth.languageCode = 'he';
+  auth.languageCode = LANG;
   const snap = s => s.exists() ? s.data() : null;
   const now = () => F.serverTimestamp();
   let cid = null;
@@ -710,6 +795,9 @@ async function firebaseBackend(cfg){
       return token;
     },
     async dropPush(token){ await F.deleteDoc(F.doc(db, 'users', auth.currentUser.uid, 'tokens', token)); },
+    // השפה של המשתמש, בשביל ההתראות שהשרת שולח
+    async getLang(){ return snap(await F.getDoc(F.doc(db, 'users', auth.currentUser.uid, 'profile', 'main')))?.lang || null; },
+    async setLang(l){ await F.setDoc(F.doc(db, 'users', auth.currentUser.uid, 'profile', 'main'), { lang:l }); },
     // אילו התראות המשתמש רוצה, בנפרד לכל עסק. השרת בודק את זה לפני כל שליחה
     async getPrefs(c){ return snap(await F.getDoc(F.doc(db, 'users', auth.currentUser.uid, 'prefs', c))); },
     async setPrefs(c, d){ await F.setDoc(F.doc(db, 'users', auth.currentUser.uid, 'prefs', c), d); },
@@ -959,6 +1047,7 @@ function loadDraftFor(uid){ const s = S.subs[uid]; S.draft = { ...(s?.avail || {
 async function afterLogin(){
   const fresh = S.freshLogin; S.freshLogin = false;
   B.ensureEmailIndex().catch(() => {});
+  if (!B.demo) B.getLang().then(l => { if (l !== LANG) return B.setLang(LANG); }).catch(() => {});
   let all = await B.myCompanies();
   if (!all.length) {
     const m = await B.migrateLegacy().catch(() => ({ list:[] }));
@@ -1050,6 +1139,14 @@ async function syncClockList(force = false){
   await B.setClockList(data); S.clockSig = sig;
 }
 const isClock = () => S.profile?.role === 'kiosk';
+/* בחירת שפה: כדור הארץ, ובלחיצה תפריט קטן עם עברית ואנגלית */
+function langMenu(){
+  const ck = '<svg class="ck" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const item = (l, label, d) => `<button data-action="setLang" data-l="${l}" lang="${l}" dir="${d}" class="${LANG === l ? 'on' : ''}"><span>${label}</span>${LANG === l ? ck : ''}</button>`;
+  return `<details class="langdd"><summary class="iconbtn" aria-label="Language / שפה" title="Language / שפה"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9M12 3C9.5 5.6 8.2 8.6 8.2 12s1.3 6.4 3.8 9" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></summary>
+    <div class="langmenu">${item('en', 'English', 'ltr')}${item('he', 'עברית', 'rtl')}</div></details>`;
+}
+document.addEventListener('click', e => document.querySelectorAll('details.langdd[open]').forEach(d => { if (!d.contains(e.target)) d.open = false; }));
 /* המנהל מעדכן את רשימת השמות שכל העובדים רואים */
 async function syncNames(){
   if (!isMgr()) return;
@@ -1077,7 +1174,7 @@ function render(){
     <header class="top">
       <h1 class="brand"><button class="brandbtn" data-action="openSwitch" aria-label="${esc(ST().business)}: החלפת עסק">
         <span class="bars" aria-hidden="true"><i></i><i></i><i></i></span><span class="bn">${esc(ST().business)}</span><span class="caret" aria-hidden="true">▾</span></button></h1>
-      <div class="who"><span class="me"><b>${esc(S.profile.name)}</b>${myTitle() ? `<small>${esc(myTitle())}</small>` : ''}</span><button class="iconbtn" data-action="notifOpen" aria-label="התראות" title="התראות"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="iconbtn refresh" data-action="refresh" aria-label="רענון" title="רענון"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.34 5.66M20 4v7h-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="link" data-action="logout">יציאה</button></div>
+      <div class="who"><span class="me"><b>${esc(S.profile.name)}</b>${myTitle() ? `<small>${esc(myTitle())}</small>` : ''}</span>${langMenu()}<button class="iconbtn" data-action="notifOpen" aria-label="התראות" title="התראות"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="iconbtn refresh" data-action="refresh" aria-label="רענון" title="רענון"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.34 5.66M20 4v7h-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="link" data-action="logout">יציאה</button></div>
     </header>
     <nav class="tabs">${tabs.map(([v,l]) => { const n = v === 'mine' && S.week.published ? offersFor().filter(o => !o.why && !o.no && !(o.kind === 'give' ? o.mine : o.r)).length : 0;
       return `<button data-action="tab" data-v="${v}" ${tabOf===v?'aria-current="page"':''}>${l}${n ? `<i class="badge">${n}</i>` : ''}</button>`; }).join('')}</nav>
@@ -1099,7 +1196,7 @@ function dayGrid(cell, sh = ST().shifts){
   </div>`).join('')}</div></div>`;
 }
 
-const BRAND = `<h1><span dir="ltr">DoTheShift</span><span class="bars" dir="ltr" aria-hidden="true"><i></i><i></i><i></i></span></h1>`;
+const BRAND = `<div class="brandrow"><h1><span dir="ltr">DoTheShift</span><span class="bars" dir="ltr" aria-hidden="true"><i></i><i></i><i></i></span></h1>${langMenu()}</div>`;
 function viewLogin(){
   if (S.authMode === 'signup') return viewSignup();
   const toSignup = `<p class="divider">מנהלים עסק ועוד אין לכם חשבון?</p>
@@ -1557,7 +1654,7 @@ function viewSettings(){
 
 /* ---------- hours reports ---------- */
 const PERIODS = [['month','החודש'],['prev','החודש הקודם'],['year','השנה'],['all','כל הזמן']];
-const monthName = d => new Intl.DateTimeFormat('he', { month:'long', year:'numeric' }).format(d);
+const monthName = d => new Intl.DateTimeFormat(LANG, { month:'long', year:'numeric' }).format(d);
 const fmtH = h => String(Math.round(h*100)/100);
 function periodRange(p){
   const n = new Date(), y = n.getFullYear(), m = n.getMonth();
@@ -1658,15 +1755,15 @@ function downloadCsv(){
   const now = Date.now();
   list.forEach(e => rows.push([nameOf(e.uid), `${e.start.getDate()}/${e.start.getMonth()+1}/${e.start.getFullYear()}`, DAYS[e.start.getDay()],
     e.name, hhmm(e.start), hhmm(e.end), fmtH(e.hours), e.end > now ? 'מתוכנן' : 'בוצע']));
-  const csv = '\uFEFF' + rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  const csv = '\uFEFF' + rows.map(r => r.map(c => `"${String(tr(c)).replace(/"/g,'""')}"`).join(',')).join('\r\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], { type:'text/csv;charset=utf-8' }));
-  a.download = `דוח-שעות-${uid ? nameOf(uid) + '-' : ''}${periodTitle(S.rep)}.csv`.replace(/\s+/g,'-');
+  a.download = tr(`דוח-שעות-${uid ? nameOf(uid) + '-' : ''}${periodTitle(S.rep)}.csv`).replace(/\s+/g,'-');
   document.body.appendChild(a); a.click(); a.remove();
 }
 
 /* ---------- שעון נוכחות ---------- */
-const clockText = () => new Intl.DateTimeFormat('he', { weekday:'long', day:'numeric', month:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit' }).format(new Date());
+const clockText = () => new Intl.DateTimeFormat(LANG, { weekday:'long', day:'numeric', month:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit' }).format(new Date());
 async function loadPunches(){
   if (await clockDisabled()) return;
   try {
@@ -1831,10 +1928,10 @@ function downloadActualCsv(){
     const d = x.in || x.out;
     rows.push([nameOf(uid), `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`, DAYS[d.getDay()], x.in ? hhmm(x.in) : '', x.out ? hhmm(x.out) : '', x.hours ? fmtH(x.hours) : '', x.issue, deviceOf(x), x.mark]);
   }));
-  const csv = '﻿' + rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  const csv = '﻿' + rows.map(r => r.map(c => `"${String(tr(c)).replace(/"/g,'""')}"`).join(',')).join('\r\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], { type:'text/csv;charset=utf-8' }));
-  a.download = `נוכחות-${S.repUid ? nameOf(S.repUid) + '-' : ''}${periodTitle(S.rep)}.csv`.replace(/\s+/g,'-');
+  a.download = tr(`נוכחות-${S.repUid ? nameOf(S.repUid) + '-' : ''}${periodTitle(S.rep)}.csv`).replace(/\s+/g,'-');
   document.body.appendChild(a); a.click(); a.remove();
 }
 
@@ -1958,6 +2055,15 @@ const actions = {
   repMode(el){ S.repMode = el.dataset.m; S.repUid = null; if (S.repMode === 'actual') loadActual(); else render(); },
   csvActual(){ downloadActualCsv(); },
   mineMode(el){ S.mineMode = el.dataset.m; render(); },
+  // החלפת שפה: נשמרת במכשיר ובחשבון (כדי שההתראות יגיעו באותה שפה), ואז טוענים מחדש
+  async setLang(el){
+    const l = el?.dataset.l === 'en' ? 'en' : 'he';
+    el?.closest('details')?.removeAttribute('open');
+    if (l === LANG || !confirmLeave()) return;
+    try { localStorage.setItem('lang', l); } catch {}
+    if (S.user && B && !B.demo) await B.setLang(l).catch(e => console.warn(e));
+    const u = new URL(location.href); u.searchParams.delete('lang'); location.replace(u.toString());
+  },
   mgrMode(el){ S.mgrMode = el.dataset.m; render(); window.scrollTo(0,0); },
   async reqGive(el){ await reqDo(() => B.addRequest({ type:'give', week:wid(), k:el.dataset.k, vols:[] }), 'המשמרת הוצעה לעובדים. עד שהמנהל מאשר, אתה עדיין משובץ'); },
   async reqTake(el){ await reqDo(() => B.addRequest({ type:'take', week:wid(), k:el.dataset.k }), 'הבקשה נשלחה למנהל'); },
@@ -2229,7 +2335,7 @@ const actions = {
   openSlot(el){ S.sheetMode = 'slot'; S.openKey = el.dataset.k; renderSheet(); $sheet.showModal(); },
   closeSheet(){ $sheet.close(); },
   async saveMsg(){ await saveWeek({ message:S.msgDraft.trim() }, 'ההודעה נשמרה'); },
-  shareWa(){ window.open('https://wa.me/?text=' + encodeURIComponent(scheduleText()), '_blank'); },
+  shareWa(){ window.open('https://wa.me/?text=' + encodeURIComponent(trLines(scheduleText())), '_blank'); },
   copySched(){ copyText(scheduleText()); },
   print(){ window.print(); },
   async copyPrev(){
@@ -2311,7 +2417,7 @@ const actions = {
     S.sDraft.positions.forEach(o => o.sees = (o.sees || []).filter(id => id !== p.id));
     S.sDirty = true; render();
   },
-  waCreated(){ const c = S.created; window.open(`https://wa.me/${waPhone(c.phone)}?text=` + encodeURIComponent(loginText(c)), '_blank'); },
+  waCreated(){ const c = S.created; window.open(`https://wa.me/${waPhone(c.phone)}?text=` + encodeURIComponent(trLines(loginText(c))), '_blank'); },
   openUser(el){
     S.editUid = el.dataset.uid;
     S.uDraft = clone(S.users.find(u => u.uid === S.editUid));
@@ -2501,7 +2607,7 @@ window.addEventListener('push', async e => {
   try {
     const reg = await navigator.serviceWorker.getRegistration();
     if (reg && Notification.permission === 'granted') {
-      await reg.showNotification(n.title, { body:n.body, icon:'icon-192.png', dir:'rtl', lang:'he', data:{ local:true } });
+      await reg.showNotification(n.title, { body:n.body, icon:'icon-192.png', dir:LANG === 'en' ? 'ltr' : 'rtl', lang:LANG, data:{ local:true } });
       return;
     }
   } catch (err) { console.warn(err); }
