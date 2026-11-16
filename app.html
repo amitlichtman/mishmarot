@@ -1154,7 +1154,9 @@ const isClock = () => S.profile?.role === 'kiosk';
 /* תפריט החשבון בראש המסך: מי מחובר, התראות, שפה ויציאה. ככה נשאר מקום לשם העסק */
 function accountMenu(){
   const ck = '<svg class="ck" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-  const ini = (S.profile.name || '?').trim().split(/\s+/).slice(0,2).map(w => w[0]).join('');
+  // האות בעיגול תמיד באנגלית: אות ראשונה של השם, ואם היא בעברית, האות המקבילה באנגלית
+  const HE2EN = { 'א':'A','ב':'B','ג':'G','ד':'D','ה':'H','ו':'V','ז':'Z','ח':'H','ט':'T','י':'Y','כ':'K','ך':'K','ל':'L','מ':'M','ם':'M','נ':'N','ן':'N','ס':'S','ע':'A','פ':'P','ף':'P','צ':'T','ץ':'T','ק':'K','ר':'R','ש':'S','ת':'T' };
+  const c0 = [...(S.profile.name || '').trim()].find(ch => /\p{L}/u.test(ch)) || '?', ini = (HE2EN[c0] || c0).toUpperCase();
   const lang = (l, label, d) => `<button data-action="setLang" data-l="${l}" lang="${l}" dir="${d}" class="${LANG === l ? 'on' : ''}"><span>${label}</span>${LANG === l ? ck : ''}</button>`;
   return `<details class="langdd acct"><summary class="avatar" aria-label="${esc(S.profile.name)}" title="${esc(S.profile.name)}">${esc(ini)}</summary>
     <div class="langmenu">
