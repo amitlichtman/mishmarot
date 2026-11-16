@@ -1,14 +1,16 @@
 <!doctype html>
-<html lang="he" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>DoTheShift · סידור משמרות ושעון נוכחות בחינם</title>
-<meta name="description" content="העובדים מגישים זמינות מהטלפון, המערכת משבצת אוטומטית, ושעון הנוכחות סופר את השעות. חינם, בלי כרטיס אשראי.">
+<title>DoTheShift · Free shift scheduling and attendance clock</title>
+<meta name="description" content="Employees submit availability from their phone, the system schedules automatically, and the attendance clock counts the hours. Free, no credit card.">
 <meta name="theme-color" content="#1E2433">
-<meta property="og:title" content="DoTheShift · סידור משמרות בחינם">
-<meta property="og:description" content="הגשת משמרות מהטלפון, שיבוץ אוטומטי ושעון נוכחות. חינם.">
+<meta property="og:title" content="DoTheShift · Free shift scheduling">
+<meta property="og:description" content="Shift submission from your phone, auto-assign and an attendance clock. Free.">
 <meta property="og:image" content="icon-512.png">
+<link rel="alternate" hreflang="en" href="https://dotheshift.com/">
+<link rel="alternate" hreflang="he" href="https://dotheshift.com/he.html">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -49,7 +51,20 @@ header.scrolled{border-color:var(--line)}
 .links{display:flex;gap:22px;margin-inline-start:auto}
 .links a{text-decoration:none;color:var(--muted);font-weight:500}
 .links a:hover{color:var(--ink)}
-.nav .cta{display:flex;gap:8px}
+.nav .cta{display:flex;gap:8px;align-items:center}
+.langdd{position:relative}
+.langdd summary{list-style:none;cursor:pointer;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;color:var(--muted);border:1px solid transparent;transition:background .15s,color .15s}
+.langdd summary::-webkit-details-marker{display:none}
+.langdd summary:hover,.langdd[open] summary{background:#fff;border-color:var(--line);color:var(--ink)}
+.langmenu{position:absolute;top:calc(100% + 8px);inset-inline-end:0;min-width:168px;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 18px 36px -14px rgba(30,36,51,.3);padding:6px;z-index:40}
+.langmenu a{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:10px;text-decoration:none;font-weight:500;color:var(--ink)}
+.langmenu a:hover{background:var(--paper)}
+.langmenu a.on{color:var(--ink)}
+.langmenu .ck{color:var(--ok)}
+/* לא לרשת את העיצוב של רשימת השאלות */
+details.langdd{background:none;border:0;border-radius:0;margin:0;padding:0}
+.langdd summary{padding:0;font-size:inherit;justify-content:center}
+.langdd summary::after{content:none}
 @media (max-width:820px){ .links{display:none} .nav .cta{margin-inline-start:auto} }
 @media (max-width:400px){ .nav .cta .btn.primary{display:none} }
 
@@ -203,16 +218,17 @@ footer .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;
 <header id="top">
   <div class="wrap nav">
     <a class="logo" href="#top" aria-label="DoTheShift"><span class="bars" aria-hidden="true"><i></i><i></i><i></i></span>DoTheShift</a>
-    <nav class="links" aria-label="ניווט">
-      <a href="#how">איך זה עובד</a>
-      <a href="#features">יכולות</a>
-      <a href="#swaps">החלפות</a>
-      <a href="#clock">שעון נוכחות</a>
-      <a href="#faq">שאלות</a>
+    <nav class="links" aria-label="Navigation">
+      <a href="#how">How it works</a>
+      <a href="#features">Features</a>
+      <a href="#swaps">Swaps</a>
+      <a href="#clock">Attendance clock</a>
+      <a href="#faq">FAQ</a>
     </nav>
     <div class="cta">
-      <a class="btn sm" href="app.html">כניסה</a>
-      <a class="btn sm primary" href="app.html#signup">פתיחת עסק בחינם</a>
+      <details class="langdd"><summary aria-label="Language / שפה" title="Language / שפה"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9M12 3C9.5 5.6 8.2 8.6 8.2 12s1.3 6.4 3.8 9" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></summary><div class="langmenu"><a href="index.html" lang="en" dir="ltr" class="on" aria-current="true"><span>English</span><svg class="ck" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></a><a href="he.html" lang="he" dir="rtl" class=""><span>עברית</span></a></div></details>
+      <a class="btn sm" href="app.html?lang=en">Sign in</a>
+      <a class="btn sm primary" href="app.html?lang=en#signup">Open a business for free</a>
     </div>
   </div>
 </header>
@@ -221,57 +237,57 @@ footer .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;
   <section class="hero" style="padding-bottom:56px">
     <div class="wrap">
       <div>
-        <span class="badge"><b>חינם</b> · בלי כרטיס אשראי</span>
-        <h1>סידור העבודה של השבוע, <em>בלי כאב ראש.</em></h1>
-        <p class="lead">העובדים מגישים זמינות מהטלפון, המערכת משבצת אוטומטית, ושעון הנוכחות סופר את השעות. הכול במקום אחד.</p>
+        <span class="badge"><b>Free</b> · no credit card</span>
+        <h1>This week's schedule, <em>without the headache.</em></h1>
+        <p class="lead">Employees submit availability from their phone, the system schedules automatically, and the attendance clock counts the hours. All in one place.</p>
         <div class="actions">
-          <a class="btn primary" href="app.html#signup">פותחים עסק בחינם ←</a>
-          <a class="btn" href="#how">איך זה עובד</a>
+          <a class="btn primary" href="app.html?lang=en#signup">Open a business for free →</a>
+          <a class="btn" href="#how">How it works</a>
         </div>
-        <p class="note">פתיחת חשבון לוקחת דקה. עובד מכל טלפון ומחשב.</p>
+        <p class="note">Opening an account takes a minute. Works on any phone or computer.</p>
       </div>
 
       <div class="stage" aria-hidden="true">
         <div class="phone">
           <div class="screen">
-            <div class="s-top"><b>שבוע הבא</b><span>6 מתוך 7 הגישו</span></div>
+            <div class="s-top"><b>Next week</b><span>6 of 7 submitted</span></div>
             <div class="week">
-              <div class="d"><span>ראשון</span><div class="c m"><b>בוקר</b>נועה, רון</div><div class="c e"><b>ערב</b>שירה, אבי</div><div class="c n"><b>לילה</b>יוסי</div></div>
-              <div class="d"><span>שני</span><div class="c m"><b>בוקר</b>מיכל, רון</div><div class="c e short"><b>ערב 1/2</b>אורי</div><div class="c n"><b>לילה</b>אבי</div></div>
-              <div class="d"><span>שלישי</span><div class="c m"><b>בוקר</b>נועה, דנה</div><div class="c e"><b>ערב</b>שירה, יוסי</div><div class="c n"><b>לילה</b>רון</div></div>
-              <div class="d"><span>רביעי</span><div class="c m"><b>בוקר</b>מיכל, אבי</div><div class="c e"><b>ערב</b>אורי, נועה</div><div class="c n"><b>לילה</b>יוסי</div></div>
-              <div class="d"><span>חמישי</span><div class="c m"><b>בוקר</b>דנה, רון</div><div class="c e"><b>ערב</b>שירה, מיכל</div><div class="c n"><b>לילה</b>אבי</div></div>
+              <div class="d"><span>Sun</span><div class="c m"><b>Morning</b>Noa, Ron</div><div class="c e"><b>Evening</b>Shira, Avi</div><div class="c n"><b>Night</b>Yossi</div></div>
+              <div class="d"><span>Mon</span><div class="c m"><b>Morning</b>Michal, Ron</div><div class="c e short"><b>Evening 1/2</b>Ori</div><div class="c n"><b>Night</b>Avi</div></div>
+              <div class="d"><span>Tue</span><div class="c m"><b>Morning</b>Noa, Dana</div><div class="c e"><b>Evening</b>Shira, Yossi</div><div class="c n"><b>Night</b>Ron</div></div>
+              <div class="d"><span>Wed</span><div class="c m"><b>Morning</b>Michal, Avi</div><div class="c e"><b>Evening</b>Ori, Noa</div><div class="c n"><b>Night</b>Yossi</div></div>
+              <div class="d"><span>Thu</span><div class="c m"><b>Morning</b>Dana, Ron</div><div class="c e"><b>Evening</b>Shira, Michal</div><div class="c n"><b>Night</b>Avi</div></div>
             </div>
-            <div class="s-btn">פרסום הסידור</div>
+            <div class="s-btn">Publish schedule</div>
           </div>
         </div>
-        <div class="float f1"><i>✓</i><div><b>השיבוץ מוכן</b><br><span style="color:var(--muted)">בלחיצה אחת</span></div></div>
-        <div class="float f2"><i>⏱</i><div><b>רון נכנס</b><br><span style="color:var(--muted)">ב-08:02</span></div></div>
+        <div class="float f1"><i>✓</i><div><b>Schedule ready</b><br><span style="color:var(--muted)">in one tap</span></div></div>
+        <div class="float f2"><i>⏱</i><div><b>Ron clocked in</b><br><span style="color:var(--muted)">at 08:02</span></div></div>
       </div>
     </div>
   </section>
 
   <div class="strip">
     <div class="wrap">
-      <span><s>הודעות בוואטסאפ</s></span>
-      <span><s>"שכחתי לשלוח משמרות"</s></span>
-      <span><s>סידור על דף במטבח</s></span>
-      <span><s>"מישהו יכול להחליף אותי?"</s></span>
-      <span><s>לנחש כמה שעות כל אחד עבד</s></span>
+      <span><s>WhatsApp threads</s></span>
+      <span><s>"I forgot to send my shifts"</s></span>
+      <span><s>A paper schedule in the kitchen</s></span>
+      <span><s>"Can anyone cover for me?"</s></span>
+      <span><s>Guessing how many hours everyone worked</s></span>
     </div>
   </div>
 
   <section id="how">
     <div class="wrap">
       <div class="sec-h rv">
-        <span class="kicker">איך זה עובד</span>
-        <h2>שלושה צעדים, וכל השבוע מסודר</h2>
-        <p>מגדירים פעם אחת, ומשם כל שבוע חוזר על עצמו כמעט לבד.</p>
+        <span class="kicker">How it works</span>
+        <h2>Three steps, and the whole week is sorted</h2>
+        <p>Set it up once, and every week after almost runs itself.</p>
       </div>
       <div class="steps">
-        <div class="step rv"><h3>מגדירים את העסק</h3><p>משמרות, שעות, תפקידים, וכמה עובדים צריך בכל משמרת. מוסיפים את העובדים, והם מקבלים פרטי כניסה.</p></div>
-        <div class="step rv"><h3>העובדים מגישים</h3><p>כל עובד מסמן מהטלפון מתי הוא יכול, מתי הוא מעדיף שלא ומתי לא, עד המועד האחרון שקבעתם.</p></div>
-        <div class="step rv"><h3>משבצים ומפרסמים</h3><p>שיבוץ אוטומטי לפי זמינות ותפקידים, תיקונים ידניים אם צריך, ולחיצה אחת כדי שכולם יראו את הסידור, וגם יקבלו על זה התראה.</p></div>
+        <div class="step rv"><h3>Set up the business</h3><p>Shifts, hours, roles, and how many people each shift needs. Add your employees and they get sign-in details.</p></div>
+        <div class="step rv"><h3>Employees submit</h3><p>Each employee marks from their phone when they can, when they'd prefer not to, and when they can't, by the deadline you set.</p></div>
+        <div class="step rv"><h3>Schedule and publish</h3><p>Auto-assign by availability and roles, manual tweaks if needed, and one tap so everyone sees the schedule and gets notified.</p></div>
       </div>
     </div>
   </section>
@@ -279,23 +295,23 @@ footer .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;
   <section id="features" style="padding-top:20px">
     <div class="wrap">
       <div class="sec-h rv">
-        <span class="kicker">יכולות</span>
-        <h2>כל מה שצריך כדי לנהל משמרות</h2>
-        <p>בנוי לעסקים אמיתיים: כמה תפקידים, כמה מנהלים, ועובדים שמגיעים ועוזבים.</p>
+        <span class="kicker">Features</span>
+        <h2>Everything you need to manage shifts</h2>
+        <p>Built for real businesses: several roles, several managers, and people who come and go.</p>
       </div>
       <div class="feats">
-        <div class="feat rv" style="--fc:var(--amber)"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/></svg></div><h3>הגשה מהטלפון</h3><p>העובדים מגישים זמינות בכמה לחיצות, ואתם רואים מי כבר הגיש ומי עוד לא.</p></div>
-        <div class="feat rv" style="--fc:var(--rose)"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg></div><h3>שיבוץ אוטומטי</h3><p>המערכת ממלאת את הסידור לפי זמינות, תפקידים ועדיפויות, ומפזרת את המשמרות בהוגנות.</p></div>
-        <div class="feat rv" style="--fc:var(--indigo)"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/></svg></div><h3>תפקידים והרשאות</h3><p>מלצרים, טבחים, אחמ"שים: כל תפקיד רואה רק את המשמרות שרלוונטיות לו. בעלים, מנהלים ועובדים.</p></div>
-        <div class="feat rv" style="--fc:var(--ok)"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><path d="M8.7 10.7l6.6-3.4M8.7 13.3l6.6 3.4"/></svg></div><h3>זמינות בהתאמה אישית</h3><p>"יכול", "מעדיף שלא", "לא יכול", או מצבים משלכם, כל אחד עם צבע ועדיפות בשיבוץ.</p></div>
-        <div class="feat rv" style="--fc:var(--amber)"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div><h3>מועד אחרון להגשה</h3><p>קובעים עד מתי מגישים, ואפשר גם לנעול את ההגשה ידנית כשמתחילים לשבץ.</p></div>
-        <div class="feat rv" style="--fc:var(--rose)"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v12H8l-4 4z"/></svg></div><h3>פרסום והודעה לצוות</h3><p>מפרסמים את הסידור בלחיצה, עם הודעה לעובדים. כל אחד רואה את המשמרות שלו.</p></div>
-        <div class="feat rv" style="--fc:var(--indigo)"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></div><h3>דוחות שעות</h3><p>שעות לכל עובד לפי שבוע, חודש או תקופה, לפי הסידור או לפי הנוכחות בפועל, עם הורדה לאקסל.</p></div>
-        <div class="feat rv" style="--fc:var(--ok)"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M17.5 14v7M14 17.5h7"/></svg></div><h3>אפליקציה בטלפון</h3><p>מתקינים במסך הבית ונפתח כמו אפליקציה. אותו חשבון יכול לעבוד בכמה עסקים.</p></div>
-        <div class="feat rv" style="--fc:var(--amber)"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3l4 4-4 4"/><path d="M3 11V9a2 2 0 0 1 2-2h16"/><path d="M7 21l-4-4 4-4"/><path d="M21 13v2a2 2 0 0 1-2 2H3"/></svg></div><h3>מסירת משמרות</h3><p>לא יכול להגיע? מציעים את המשמרת, עובדים מתאימים מתנדבים, והמנהל מאשר בלחיצה.</p></div>
-        <div class="feat rv" style="--fc:var(--rose)"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg></div><h3>משמרות חסרות</h3><p>משמרת שחסרים בה אנשים מסומנת בתוך הסידור, ועובדים מתאימים מבקשים להיכנס אליה.</p></div>
-        <div class="feat rv" style="--fc:var(--indigo)"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></div><h3>התראות לטלפון</h3><p>הודעה כשהסידור מתפרסם, כשיש בקשה חדשה, ותזכורת לפני המועד האחרון. כל אחד בוחר על מה לקבל.</p></div>
-        <div class="feat rv" style="--fc:var(--ok)"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></svg></div><h3>רשימת צוות</h3><p>אם המנהל מאפשר: אנשי הקשר של הצוות, עם חיוג ווואטסאפ בלחיצה. אפשר להסתיר עובדים מסוימים.</p></div>
+        <div class="feat rv" style="--fc:var(--amber)"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/></svg></div><h3>Submit from your phone</h3><p>Employees submit availability in a few taps, and you see who has submitted and who hasn't.</p></div>
+        <div class="feat rv" style="--fc:var(--rose)"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg></div><h3>Auto-assign</h3><p>The system fills the schedule by availability, roles and priorities, and spreads shifts fairly.</p></div>
+        <div class="feat rv" style="--fc:var(--indigo)"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/></svg></div><h3>Roles and permissions</h3><p>Waiters, cooks, shift leads: each role sees only the shifts relevant to it. Owners, managers and employees.</p></div>
+        <div class="feat rv" style="--fc:var(--ok)"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><path d="M8.7 10.7l6.6-3.4M8.7 13.3l6.6 3.4"/></svg></div><h3>Custom availability</h3><p>"Available", "Prefer not", "Unavailable", or your own options, each with a color and a scheduling priority.</p></div>
+        <div class="feat rv" style="--fc:var(--amber)"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div><h3>Submission deadline</h3><p>Set a deadline, or lock submissions manually when you start scheduling.</p></div>
+        <div class="feat rv" style="--fc:var(--rose)"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v12H8l-4 4z"/></svg></div><h3>Publish with a message</h3><p>Publish the schedule in one tap, with a message to the team. Everyone sees their own shifts.</p></div>
+        <div class="feat rv" style="--fc:var(--indigo)"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></div><h3>Hours reports</h3><p>Hours per employee by week, month or any period, by schedule or by actual attendance, with Excel export.</p></div>
+        <div class="feat rv" style="--fc:var(--ok)"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M17.5 14v7M14 17.5h7"/></svg></div><h3>An app on your phone</h3><p>Install it on your home screen and it opens like an app. One account can work in several businesses.</p></div>
+        <div class="feat rv" style="--fc:var(--amber)"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3l4 4-4 4"/><path d="M3 11V9a2 2 0 0 1 2-2h16"/><path d="M7 21l-4-4 4-4"/><path d="M21 13v2a2 2 0 0 1-2 2H3"/></svg></div><h3>Give away shifts</h3><p>Can't make it? Offer the shift, suitable coworkers volunteer, and the manager approves in one tap.</p></div>
+        <div class="feat rv" style="--fc:var(--rose)"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg></div><h3>Short-staffed shifts</h3><p>A shift that needs people is marked right in the schedule, and suitable employees ask to join it.</p></div>
+        <div class="feat rv" style="--fc:var(--indigo)"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></div><h3>Phone notifications</h3><p>Get notified when the schedule is published, when there's a new request, and before the deadline. Everyone picks what they get.</p></div>
+        <div class="feat rv" style="--fc:var(--ok)"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></svg></div><h3>Team directory</h3><p>If the manager allows it: the team's contacts, with one-tap call and WhatsApp. Specific people can be hidden.</p></div>
       </div>
     </div>
   </section>
@@ -304,21 +320,21 @@ footer .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;
     <div class="wrap">
       <div class="swap rv">
         <div class="swap-txt">
-          <span class="kicker">החלפות ובקשות</span>
-          <h2>מישהו לא יכול להגיע? זה מסתדר בלי שיחות טלפון</h2>
-          <p>העובד מציע את המשמרת שלו, ורק עובדים שמתאימים לה רואים את ההצעה. המנהל מקבל התראה, רואה מי התנדב, ומאשר בלחיצה. הסידור מתעדכן אצל כולם.</p>
+          <span class="kicker">Swaps and requests</span>
+          <h2>Someone can't make it? Sorted without phone calls</h2>
+          <p>The employee offers their shift, and only employees who fit it see the offer. The manager gets notified, sees who volunteered, and approves in one tap. The schedule updates for everyone.</p>
           <ul>
-            <li>רק עובדים עם התפקיד המתאים יכולים לבקש</li>
-            <li>אזהרה למנהל על חוסר מנוחה או חריגה ממקסימום משמרות</li>
-            <li>המנהל קובע אם מותר למסור ואם מותר לבקש משמרות חסרות</li>
+            <li>Only employees with the right role can ask</li>
+            <li>The manager is warned about missing rest or too many shifts</li>
+            <li>The manager decides whether giving away and requesting shifts is allowed</li>
           </ul>
         </div>
         <div class="swap-vis" aria-hidden="true">
-          <div class="pnote"><i class="nb">D</i><div><b>DoTheShift · בקשה חדשה</b><span>שירה רוצה למסור את שלישי ערב</span></div></div>
+          <div class="pnote"><i class="nb">D</i><div><b>DoTheShift · New request</b><span>Shira wants to give away Tuesday evening</span></div></div>
           <div class="rq">
-            <b>שלישי 17.11 · ערב 15:00–23:00</b><span class="rs">שירה רוצה למסור את המשמרת</span>
-            <div class="rv2"><span>רון <em>3 משמרות השבוע</em></span><span class="ok">אישור</span></div>
-            <div class="rv2"><span>אבי <em class="w">פחות מ-8 שעות מנוחה</em></span><span class="ok">אישור</span></div>
+            <b>Tue 17.11 · Evening 15:00–23:00</b><span class="rs">Shira wants to give away the shift</span>
+            <div class="rv2"><span>Ron <em>3 shifts this week</em></span><span class="ok">Approve</span></div>
+            <div class="rv2"><span>Avi <em class="w">Less than 8 hours of rest</em></span><span class="ok">Approve</span></div>
           </div>
         </div>
       </div>
@@ -329,28 +345,28 @@ footer .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;
     <div class="wrap">
       <div class="clock rv">
         <div>
-          <span class="kicker">שעון נוכחות</span>
-          <h2>טאבלט בכניסה, ושעות אמיתיות בסוף החודש</h2>
-          <p>כל טלפון או טאבלט יכול להפוך לשעון נוכחות בלחיצה. העובד בוחר את השם שלו, מקליד סיסמה, ומחתים כניסה או יציאה.</p>
+          <span class="kicker">Attendance clock</span>
+          <h2>A tablet at the door, and real hours at the end of the month</h2>
+          <p>Any phone or tablet becomes an attendance clock in one tap. Employees pick their name, type their password, and clock in or out.</p>
           <ul>
-            <li>השעה נרשמת לפי השרת, לא לפי השעון של המכשיר</li>
-            <li>המכשיר נעול על מסך השעון, ורק מנהל מוציא אותו</li>
-            <li>יציאה חסרה? המנהל מתקן, והשעה המקורית נשמרת</li>
-            <li>דוח נוכחות בפועל, כולל מאיזה מכשיר החתימו</li>
-            <li>כל עובד רואה את ההחתמות והשעות של עצמו</li>
+            <li>The time comes from the server, not the device clock</li>
+            <li>The device is locked to the clock screen, and only a manager can take it out</li>
+            <li>Missing punch-out? The manager fixes it, and the original time is kept</li>
+            <li>Actual attendance report, including which device was used</li>
+            <li>Every employee sees their own punches and hours</li>
           </ul>
         </div>
         <div class="tablet" aria-hidden="true">
           <div class="t-screen">
-            <div class="t-top"><b>מסעדת הים</b><span>08:14</span></div>
-            <div class="t-dev">טאבלט בכניסה</div>
+            <div class="t-top"><b>Sea Restaurant</b><span>08:14</span></div>
+            <div class="t-dev">Front door tablet</div>
             <div class="t-grid">
-              <div class="p on"><b>רון</b>בעבודה מ-08:02</div>
-              <div class="p"><b>שירה</b>לא בעבודה</div>
-              <div class="p on"><b>נועה</b>בעבודה מ-07:55</div>
-              <div class="p"><b>אבי</b>לא בעבודה</div>
-              <div class="p"><b>מיכל</b>לא בעבודה</div>
-              <div class="p on"><b>דנה</b>בעבודה מ-08:10</div>
+              <div class="p on"><b>Ron</b>At work since 08:02</div>
+              <div class="p"><b>Shira</b>Not at work</div>
+              <div class="p on"><b>Noa</b>At work since 07:55</div>
+              <div class="p"><b>Avi</b>Not at work</div>
+              <div class="p"><b>Michal</b>Not at work</div>
+              <div class="p on"><b>Dana</b>At work since 08:10</div>
             </div>
           </div>
         </div>
@@ -361,11 +377,11 @@ footer .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;
   <section style="padding-top:20px">
     <div class="wrap">
       <div class="sec-h rv" style="margin-bottom:22px">
-        <span class="kicker">למי זה מתאים</span>
-        <h2>לכל עסק שעובד במשמרות</h2>
+        <span class="kicker">Who it's for</span>
+        <h2>Any business that runs on shifts</h2>
       </div>
       <div class="who rv">
-        <span>מסעדות ובתי קפה</span><span>ברים</span><span>חנויות ורשתות</span><span>סופרמרקטים</span><span>מוקדי שירות</span><span>אבטחה</span><span>בתי מלון</span><span>מחסנים ולוגיסטיקה</span><span>קייטרינג ואירועים</span>
+        <span>Restaurants and cafés</span><span>Bars</span><span>Shops and chains</span><span>Supermarkets</span><span>Call centers</span><span>Security</span><span>Hotels</span><span>Warehouses and logistics</span><span>Catering and events</span>
       </div>
     </div>
   </section>
@@ -374,10 +390,10 @@ footer .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;
     <div class="wrap">
       <div class="free rv">
         <p class="big">0<small>₪</small></p>
-        <h2>חינם. באמת.</h2>
-        <p>כל היכולות פתוחות מהיום הראשון, בלי תקופת ניסיון ובלי להשאיר פרטי אשראי.</p>
-        <div class="chk"><span>בלי כרטיס אשראי</span><span>בלי הגבלת עובדים</span><span>שעון נוכחות כלול</span></div>
-        <a class="btn primary" href="app.html#signup">פותחים עסק בחינם ←</a>
+        <h2>Free. Really.</h2>
+        <p>Every feature is open from day one, with no trial period and no credit card details.</p>
+        <div class="chk"><span>No credit card</span><span>No employee limit</span><span>Attendance clock included</span></div>
+        <a class="btn primary" href="app.html?lang=en#signup">Open a business for free →</a>
       </div>
     </div>
   </section>
@@ -385,25 +401,25 @@ footer .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;
   <section id="faq" style="padding-top:20px">
     <div class="wrap faq">
       <div class="sec-h rv" style="margin-bottom:26px">
-        <span class="kicker">שאלות</span>
-        <h2>שאלות נפוצות</h2>
+        <span class="kicker">FAQ</span>
+        <h2>Frequently asked questions</h2>
       </div>
-      <details class="rv"><summary>זה באמת בחינם?</summary><p>כן. אין תשלום ואין צורך בכרטיס אשראי כדי לפתוח עסק ולהשתמש בכל היכולות.</p></details>
-      <details class="rv"><summary>העובדים צריכים להוריד אפליקציה?</summary><p>לא. הכול עובד בדפדפן, מכל טלפון או מחשב. מי שרוצה יכול להתקין את האתר במסך הבית, והוא ייפתח כמו אפליקציה.</p></details>
-      <details class="rv"><summary>איך העובדים מקבלים גישה?</summary><p>המנהל מוסיף כל עובד עם אימייל וסיסמה, ושולח לו את פרטי הכניסה. עובד שכבר יש לו חשבון בעסק אחר מצורף עם אותו חשבון.</p></details>
-      <details class="rv"><summary>אפשר לנהל כמה עסקים או כמה סניפים?</summary><p>כן. אותו חשבון יכול להיות בכמה עסקים, ועוברים ביניהם בלחיצה. כל עסק מנוהל בנפרד, עם העובדים וההגדרות שלו.</p></details>
-      <details class="rv"><summary>מה צריך בשביל שעון הנוכחות?</summary><p>כל טלפון, טאבלט או מחשב עם אינטרנט. מנהל מפעיל בו את מצב שעון הנוכחות, והעובדים מחתימים עם הסיסמה שלהם.</p></details>
-      <details class="rv"><summary>אפשר להחליף או למסור משמרות?</summary><p>כן. עובד מציע משמרת שלו, עובדים מתאימים מתנדבים, והמנהל בוחר ומאשר. עובדים יכולים גם לבקש להיכנס למשמרת שחסרים בה אנשים. המנהל יכול לכבות כל אחת מהאפשרויות.</p></details>
-      <details class="rv"><summary>יש התראות?</summary><p>כן. התראות לטלפון כשהסידור מתפרסם, כשיש תשובה לבקשה, תזכורת לפני המועד האחרון להגשה, ותזכורת למי ששכח להחתים יציאה. כל אחד בוחר על מה לקבל, בנפרד לכל עסק. באייפון ההתראות עובדות אחרי התקנת האפליקציה במסך הבית.</p></details>
-      <details class="rv"><summary>איפה נשמרים הנתונים?</summary><p>בשרתים של Google Firebase. כל עובד רואה רק את מה שמותר לו: ההגשות של עובדים אחרים והסידור המלא פתוחים רק למנהלים, ופרטי הקשר של העובדים גלויים רק אם המנהל מאפשר.</p></details>
+      <details class="rv"><summary>Is it really free?</summary><p>Yes. There's no payment and no credit card needed to open a business and use every feature.</p></details>
+      <details class="rv"><summary>Do employees need to download an app?</summary><p>No. Everything works in the browser, on any phone or computer. Anyone who wants can install the site on their home screen and it opens like an app.</p></details>
+      <details class="rv"><summary>How do employees get access?</summary><p>The manager adds each employee with an email and password and sends them their sign-in details. Someone who already has an account in another business is added with that same account.</p></details>
+      <details class="rv"><summary>Can I manage several businesses or branches?</summary><p>Yes. One account can be in several businesses, and you switch between them in one tap. Each business is managed separately, with its own team and settings.</p></details>
+      <details class="rv"><summary>What do I need for the attendance clock?</summary><p>Any phone, tablet or computer with internet. A manager turns on clock mode, and employees punch with their own password.</p></details>
+      <details class="rv"><summary>Can employees swap or give away shifts?</summary><p>Yes. An employee offers their shift, suitable coworkers volunteer, and the manager picks and approves. Employees can also ask to join short-staffed shifts. The manager can turn either option off.</p></details>
+      <details class="rv"><summary>Are there notifications?</summary><p>Yes. Phone notifications when the schedule is published, when a request is answered, before the submission deadline, and for anyone who forgot to clock out. Everyone picks what they get, separately for each business. On iPhone, notifications work after installing the app on the home screen.</p></details>
+      <details class="rv"><summary>Where is the data stored?</summary><p>On Google Firebase servers. Each employee sees only what they're allowed to: other employees' submissions and the full schedule are visible only to managers, and contact details only if the manager allows it.</p></details>
     </div>
   </section>
 
   <section class="final">
     <div class="wrap rv">
-      <h2>השבוע הבא כבר יכול להיות מסודר</h2>
-      <p>פותחים עסק, מוסיפים עובדים, ומתחילים לקבל הגשות.</p>
-      <a class="btn primary" href="app.html#signup">פותחים עסק בחינם ←</a>
+      <h2>Next week can already be sorted</h2>
+      <p>Open a business, add your team, and start getting submissions.</p>
+      <a class="btn primary" href="app.html?lang=en#signup">Open a business for free →</a>
     </div>
   </section>
 </main>
@@ -411,7 +427,7 @@ footer .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;
 <footer>
   <div class="wrap">
     <a class="logo" href="#top" style="font-size:1.05rem"><span class="bars" aria-hidden="true"><i></i><i></i><i></i></span>DoTheShift</a>
-    <span>© 2026 DoTheShift · <a href="app.html">כניסה למערכת</a></span>
+    <span>© 2026 DoTheShift · <a href="app.html?lang=en">Sign in</a></span>
   </div>
 </footer>
 
@@ -424,6 +440,9 @@ footer .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;
     const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { threshold:.12, rootMargin:'0px 0px -40px 0px' });
     items.forEach(el => io.observe(el));
   } else items.forEach(el => el.classList.add('in'));
+  // תפריט השפה נסגר בלחיצה מחוץ לו או ב-Escape
+  document.addEventListener('click', e => document.querySelectorAll('details.langdd[open]').forEach(d => { if (!d.contains(e.target)) d.open = false; }));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelectorAll('details.langdd[open]').forEach(d => d.open = false); });
 </script>
 </body>
 </html>
