@@ -247,6 +247,13 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center}
 .langmenu button{display:flex;width:100%;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:0;border-radius:10px;background:none;font:500 1rem 'Rubik',sans-serif;color:var(--ink);cursor:pointer;text-align:start}
 .langmenu button:hover{background:var(--paper)}
 .langmenu .ck{color:var(--ok)}
+.avatar{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:var(--ink);color:#fff;font-weight:700;font-size:.95rem;cursor:pointer;user-select:none}
+.acct[open] .avatar{box-shadow:0 0 0 3px color-mix(in srgb,var(--ink) 20%,transparent)}
+.mhead{display:flex;flex-direction:column;padding:8px 12px 10px;line-height:1.3}
+.mhead b{font-weight:600}.mhead small{color:var(--muted);font-size:.82rem}
+.msep{height:1px;background:var(--line);margin:4px 6px}
+.acct .langmenu{min-width:200px}
+.acct .langmenu button svg:not(.ck){color:var(--muted)}
 .brandrow{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .brandrow h1{margin:0}
 .badge{display:inline-block;min-width:18px;margin-inline-start:6px;padding:0 5px;border-radius:9px;background:var(--warn);color:#fff;font-size:.72rem;font-style:normal;line-height:18px;text-align:center}
@@ -355,16 +362,21 @@ function tr(raw){
 }
 const trLines = t => LANG === 'en' ? String(t).split('\n').map(tr).join('\n') : t;
 const NO_TR = new Set(['TEXTAREA', 'SCRIPT', 'STYLE']);
+/* בטבלת הסידור (עמודת הימים) מספיק קיצור, כדי לחסוך מקום */
+const DAY_SHORT = { 'ראשון':'Sun', 'שני':'Mon', 'שלישי':'Tue', 'רביעי':'Wed', 'חמישי':'Thu', 'שישי':'Fri', 'שבת':'Sat' };
+function trNode(n){
+  const p = n.parentNode; if (!p || NO_TR.has(p.nodeName)) return;
+  const k = n.nodeValue.trim();
+  const v = DAY_SHORT[k] && p.closest('.dlabel') ? n.nodeValue.replace(k, DAY_SHORT[k]) : tr(n.nodeValue);
+  if (v !== n.nodeValue) n.nodeValue = v;
+}
 function trTree(root){
   if (!root) return;
-  if (root.nodeType === 3) {
-    if (root.parentNode && !NO_TR.has(root.parentNode.nodeName)) { const v = tr(root.nodeValue); if (v !== root.nodeValue) root.nodeValue = v; }
-    return;
-  }
+  if (root.nodeType === 3) { trNode(root); return; }
   if (root.nodeType !== 1 || NO_TR.has(root.nodeName)) return;
   const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), list = [];
   while (w.nextNode()) list.push(w.currentNode);
-  list.forEach(n => { if (NO_TR.has(n.parentNode.nodeName)) return; const v = tr(n.nodeValue); if (v !== n.nodeValue) n.nodeValue = v; });
+  list.forEach(trNode);
   [root, ...root.querySelectorAll('[placeholder],[title],[aria-label]')].forEach(el => ['placeholder', 'title', 'aria-label'].forEach(a => {
     const v = el.getAttribute(a); if (v && HEB.test(v)) { const t = tr(v); if (t !== v) el.setAttribute(a, t); }
   }));
@@ -1139,6 +1151,21 @@ async function syncClockList(force = false){
   await B.setClockList(data); S.clockSig = sig;
 }
 const isClock = () => S.profile?.role === 'kiosk';
+/* תפריט החשבון בראש המסך: מי מחובר, התראות, שפה ויציאה. ככה נשאר מקום לשם העסק */
+function accountMenu(){
+  const ck = '<svg class="ck" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const ini = (S.profile.name || '?').trim().split(/\s+/).slice(0,2).map(w => w[0]).join('');
+  const lang = (l, label, d) => `<button data-action="setLang" data-l="${l}" lang="${l}" dir="${d}" class="${LANG === l ? 'on' : ''}"><span>${label}</span>${LANG === l ? ck : ''}</button>`;
+  return `<details class="langdd acct"><summary class="avatar" aria-label="${esc(S.profile.name)}" title="${esc(S.profile.name)}">${esc(ini)}</summary>
+    <div class="langmenu">
+      <div class="mhead"><b>${esc(S.profile.name)}</b>${myTitle() ? `<small>${esc(myTitle())}</small>` : ''}</div>
+      <button data-action="notifOpen"><span>התראות</span><svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <div class="msep"></div>
+      ${lang('en', 'English', 'ltr')}${lang('he', 'עברית', 'rtl')}
+      <div class="msep"></div>
+      <button data-action="logout"><span>יציאה</span><svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l-5-5 5-5M5 12h11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    </div></details>`;
+}
 /* בחירת שפה: כדור הארץ, ובלחיצה תפריט קטן עם עברית ואנגלית */
 function langMenu(){
   const ck = '<svg class="ck" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -1146,7 +1173,8 @@ function langMenu(){
   return `<details class="langdd"><summary class="iconbtn" aria-label="Language / שפה" title="Language / שפה"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9M12 3C9.5 5.6 8.2 8.6 8.2 12s1.3 6.4 3.8 9" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></summary>
     <div class="langmenu">${item('en', 'English', 'ltr')}${item('he', 'עברית', 'rtl')}</div></details>`;
 }
-document.addEventListener('click', e => document.querySelectorAll('details.langdd[open]').forEach(d => { if (!d.contains(e.target)) d.open = false; }));
+// תפריטים נפתחים: נסגרים בלחיצה מחוץ להם, או אחרי בחירה בתוכם
+document.addEventListener('click', e => document.querySelectorAll('details.langdd[open]').forEach(d => { if (!d.contains(e.target) || e.target.closest('.langmenu button')) d.open = false; }));
 /* המנהל מעדכן את רשימת השמות שכל העובדים רואים */
 async function syncNames(){
   if (!isMgr()) return;
@@ -1174,7 +1202,7 @@ function render(){
     <header class="top">
       <h1 class="brand"><button class="brandbtn" data-action="openSwitch" aria-label="${esc(ST().business)}: החלפת עסק">
         <span class="bars" aria-hidden="true"><i></i><i></i><i></i></span><span class="bn">${esc(ST().business)}</span><span class="caret" aria-hidden="true">▾</span></button></h1>
-      <div class="who"><span class="me"><b>${esc(S.profile.name)}</b>${myTitle() ? `<small>${esc(myTitle())}</small>` : ''}</span>${langMenu()}<button class="iconbtn" data-action="notifOpen" aria-label="התראות" title="התראות"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="iconbtn refresh" data-action="refresh" aria-label="רענון" title="רענון"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.34 5.66M20 4v7h-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="link" data-action="logout">יציאה</button></div>
+      <div class="who"><button class="iconbtn refresh" data-action="refresh" aria-label="רענון" title="רענון"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.34 5.66M20 4v7h-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>${accountMenu()}</div>
     </header>
     <nav class="tabs">${tabs.map(([v,l]) => { const n = v === 'mine' && S.week.published ? offersFor().filter(o => !o.why && !o.no && !(o.kind === 'give' ? o.mine : o.r)).length : 0;
       return `<button data-action="tab" data-v="${v}" ${tabOf===v?'aria-current="page"':''}>${l}${n ? `<i class="badge">${n}</i>` : ''}</button>`; }).join('')}</nav>
